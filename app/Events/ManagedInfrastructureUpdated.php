@@ -1,0 +1,4 @@
+<?php
+namespace App\Events;
+use App\Models\InfrastructureOperation;use Illuminate\Broadcasting\PrivateChannel;use Illuminate\Contracts\Broadcasting\ShouldBroadcast;use Illuminate\Foundation\Events\Dispatchable;use Illuminate\Queue\SerializesModels;
+class ManagedInfrastructureUpdated implements ShouldBroadcast{use Dispatchable,SerializesModels;public function __construct(public InfrastructureOperation $operation){}public function broadcastOn():array{return[new PrivateChannel('tenants.'.$this->operation->tenant_id.'.infrastructure')];}public function broadcastAs():string{return'infrastructure.updated';}public function broadcastWith():array{return['operation_id'=>$this->operation->uuid,'server_id'=>$this->operation->server->uuid,'action'=>$this->operation->action,'status'=>$this->operation->status,'message'=>$this->operation->log,'error'=>$this->operation->last_error];}}

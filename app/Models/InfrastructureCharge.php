@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;use Illuminate\Database\Eloquent\Relations\BelongsTo;use Illuminate\Support\Str;
+class InfrastructureCharge extends Model{protected $fillable=['uuid','tenant_id','server_id','infrastructure_operation_id','charge_type','description','quantity','unit_amount','total','currency','status','period_starts_at','period_ends_at','billed_at','metadata'];protected static function booted():void{static::creating(fn($m)=>$m->uuid??=(string)Str::uuid());}protected function casts():array{return['quantity'=>'decimal:4','period_starts_at'=>'datetime','period_ends_at'=>'datetime','billed_at'=>'datetime','metadata'=>'array'];}public function server():BelongsTo{return$this->belongsTo(Server::class)->withTrashed();}public function operation():BelongsTo{return$this->belongsTo(InfrastructureOperation::class);}public function totalLabel():string{return strtoupper($this->currency).' '.number_format($this->total/100,2);}}

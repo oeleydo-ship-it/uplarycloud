@@ -1,0 +1,8 @@
+<?php
+namespace App\Services\Infrastructure;
+use App\Models\InfrastructureCharge;use App\Models\InfrastructureOperation;use App\Models\Server;
+class InfrastructureBillingService
+{
+    public function accrue(Server $server,?InfrastructureOperation $operation=null):InfrastructureCharge{$plan=$server->managedPlan;$start=now()->startOfMonth();return InfrastructureCharge::firstOrCreate(['tenant_id'=>$server->tenant_id,'server_id'=>$server->id,'charge_type'=>'managed_server','period_starts_at'=>$start],['infrastructure_operation_id'=>$operation?->id,'description'=>$server->name.' · '.$plan->name,'quantity'=>1,'unit_amount'=>$plan->monthly_price,'total'=>$plan->monthly_price,'currency'=>$plan->currency,'status'=>'pending','period_ends_at'=>$start->copy()->endOfMonth(),'metadata'=>['provider'=>$server->provider->value,'plan'=>$plan->provider_plan_id,'provider_cost'=>$plan->monthly_cost]]);}
+    public function resizeAdjustment(Server $server,int $oldPrice,InfrastructureOperation $operation):?InfrastructureCharge{$difference=max(0,$server->managedPlan->monthly_price-$oldPrice);if($difference===0)return null;$days=max(1,now()->daysInMonth);$remaining=max(1,$days-now()->day+1);$total=(int)round($difference*($remaining/$days));return InfrastructureCharge::create(['tenant_id'=>$server->tenant_id,'server_id'=>$server->id,'infrastructure_operation_id'=>$operation->id,'charge_type'=>'resize_adjustment','description'=>'Prorated resize to '.$server->managedPlan->name,'quantity'=>$remaining/$days,'unit_amount'=>$difference,'total'=>$total,'currency'=>$server->managedPlan->currency,'status'=>'pending','period_starts_at'=>now(),'period_ends_at'=>now()->endOfMonth()]);}
+}

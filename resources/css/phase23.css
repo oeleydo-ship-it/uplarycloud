@@ -1,0 +1,107 @@
+/* Phase 23: reference-aligned backups page */
+.backups-page { max-width: 1240px; margin: 0 auto; }
+.backups-page .backups-reference-heading h1 { font-size: 24px; font-weight: 700; letter-spacing: -.03em; margin: 4px 0; }
+.backups-page .backups-reference-heading p { font-size: 14px; color: var(--muted); margin: 0; }
+.backups-page .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.backups-page .breadcrumb a { color: var(--muted); }
+.backups-page .breadcrumb a:hover { color: var(--primary); }
+.backups-page .breadcrumb svg { width: 12px; height: 12px; color: #b0b4c2; }
+.backups-page .heading-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.backups-page .backups-reference-stats { margin-bottom: 24px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.backups-page .backups-reference-layout { display: flex; flex-direction: column; gap: 20px; }
+.backups-page .backups-reference-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.backups-page .backups-reference-table-card { overflow: visible; }
+.backups-page .backups-reference-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 24px 24px 8px; }
+.backups-page .backups-reference-toolbar h2 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+.backups-page .backups-reference-toolbar p { font-size: 13px; color: var(--muted); margin: 0; }
+.backups-page .backups-reference-filter .filter-select select { height: 38px; min-width: 150px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 13px; padding: 0 34px 0 12px; appearance: none; outline: none; cursor: pointer; }
+.backups-page .backups-reference-filter .filter-select { position: relative; }
+.backups-page .backups-reference-filter .filter-select>svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #8b90a3; pointer-events: none; }
+.backups-page .backups-reference-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
+.backups-page .backups-reference-table-scroll::-webkit-scrollbar { height: 8px; }
+.backups-page .backups-reference-table-scroll::-webkit-scrollbar-thumb { background: #d4d7e4; border-radius: 999px; }
+.backups-page .backups-reference-table { width: 100%; min-width: 820px; padding-bottom: 4px; }
+.backups-page .backups-reference-head,.backups-page .backups-reference-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) 68px 68px 88px 100px 130px; gap: 16px; align-items: center; padding: 0 20px; }
+.backups-page .backups-reference-head>span:last-child,.backups-page .backups-reference-head>.backups-actions-head,.backups-page .backups-reference-row>.backups-actions { position: sticky; right: 0; z-index: 2; padding-left: 12px; padding-right: 4px; background: #fafafd; box-shadow: -12px 0 18px rgba(250, 250, 253, .98); }
+.backups-page .backups-reference-row>.backups-actions { background: #fff; box-shadow: -12px 0 18px rgba(255, 255, 255, .98); }
+.backups-page .backups-reference-row:hover>.backups-actions { background: #fbfaff; box-shadow: -12px 0 18px rgba(251, 250, 255, .98); }
+.backups-page .backups-reference-head { height: 48px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: #8b90a3; text-transform: uppercase; letter-spacing: .04em; background: #fafafd; margin-top: 8px; }
+.backups-page .backups-reference-row { min-height: 96px; padding-top: 16px; padding-bottom: 16px; border-bottom: 1px solid #edf0f4; transition: .15s; }
+.backups-page .backups-reference-row:hover { background: #fbfaff; }
+.backups-page .backups-reference-row:last-child { border-bottom: 0; }
+.backups-page .backups-reference-row>span strong,.backups-page .backups-reference-row>span small { display: block; }
+.backups-page .backups-reference-row>span strong { font-size: 14px; font-weight: 600; color: var(--text); }
+.backups-page .backups-reference-row>span small { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.backups-page .backups-reference-row>span small a { color: var(--primary); font-weight: 500; }
+.backups-page .backups-reference-primary { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 14px; padding-right: 8px; }
+.backups-page .backups-icon { width: 44px; height: 44px; border-radius: 10px; background: #f0edff; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.backups-page .backups-icon svg { width: 18px; height: 18px; }
+.backups-page .backups-application { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: center; padding-right: 8px; }
+.backups-page .backups-status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-style: normal; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.backups-page .backups-status-badge i { width: 6px; height: 6px; border-radius: 50%; }
+.backups-page .backups-status-badge--success { color: #178359; background: #e9f8f2; }
+.backups-page .backups-status-badge--success i { background: var(--green); }
+.backups-page .backups-status-badge--warning { color: #ad6b15; background: #fff4df; }
+.backups-page .backups-status-badge--warning i { background: var(--orange); }
+.backups-page .backups-status-badge--running { color: #3974b9; background: #edf4ff; }
+.backups-page .backups-status-badge--running i { background: var(--blue); }
+.backups-page .backups-status-badge--failed { color: #c43d51; background: #ffe7eb; }
+.backups-page .backups-status-badge--failed i { background: var(--red); }
+.backups-page .backups-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; min-width: 130px; flex-shrink: 0; }
+.backups-page .backups-actions form { margin: 0; }
+.backups-page .backups-actions .icon-button { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: #565c70; flex-shrink: 0; }
+.backups-page .backups-actions .icon-button:hover { background: #fbfaff; border-color: #ddd8fa; color: var(--primary); }
+.backups-page .backups-actions .icon-button.is-danger:hover { color: var(--red); border-color: #f5c2c7; background: #fff5f5; }
+.backups-page .backups-reference-pagination { min-height: 64px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); }
+.backups-page .backups-reference-pagination nav>div:first-child { display: none; }
+.backups-page .backups-reference-pagination nav>div:last-child { display: flex; gap: 6px; align-items: center; }
+.backups-page .backups-reference-pagination nav a,.backups-page .backups-reference-pagination nav span { min-width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; border: 1px solid var(--border); color: #565c70; padding: 0 8px; }
+.backups-page .backups-reference-pagination nav span[aria-current="page"] span,.backups-page .backups-reference-pagination nav .bg-white { background: var(--primary)!important; color: #fff!important; border-color: var(--primary)!important; }
+.backups-page .backups-reference-filters { display: grid; grid-template-columns: minmax(240px, 1.4fr) repeat(4, minmax(140px, .8fr)); gap: 16px; margin-bottom: 0; }
+.backups-page .backups-reference-filters .table-search { position: relative; }
+.backups-page .backups-reference-filters .table-search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #9ca0af; }
+.backups-page .backups-reference-filters .table-search input { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 0 14px 0 42px; font-size: 14px; outline: none; background: #fff; }
+.backups-page .backups-reference-filters .table-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 88%); }
+.backups-page .filter-select { position: relative; display: block; }
+.backups-page .filter-select select { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: #353a4e; font-size: 14px; padding: 0 38px 0 14px; appearance: none; outline: none; cursor: pointer; }
+.backups-page .filter-select select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 88%); }
+.backups-page .filter-select>svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #8b90a3; pointer-events: none; }
+.backups-page .backups-schedules-card .card-head,.backups-page .backups-destinations-card .card-head { min-height: auto; padding: 16px 18px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.backups-page .backups-schedules-card .card-head h2,.backups-page .backups-destinations-card .card-head h2 { font-size: 15px; margin: 0 0 4px; }
+.backups-page .backups-schedules-card .card-head p,.backups-page .backups-destinations-card .card-head p { font-size: 13px; margin: 0; }
+.backups-page .button--small { height: 32px; min-width: 32px; padding: 0 10px; font-size: 13px; }
+.backups-page .backups-schedule-row,.backups-page .backups-destination-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--border); }
+.backups-page .backups-schedule-row>span:first-child,.backups-page .backups-destination-row>span:nth-child(2) { flex: 1; min-width: 0; }
+.backups-page .backups-schedule-row strong,.backups-page .backups-destination-row strong { display: block; font-size: 14px; font-weight: 600; }
+.backups-page .backups-schedule-row small,.backups-page .backups-destination-row small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.backups-page .backups-schedule-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.backups-page .backups-schedule-meta em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--primary); background: #f0edff; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.backups-page .backups-schedule-meta form { margin: 0; }
+.backups-page .backups-schedule-toggle { width: 34px; height: 20px; border: 0; border-radius: 999px; background: #dfe1e8; position: relative; cursor: pointer; padding: 0; }
+.backups-page .backups-schedule-toggle i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12); transition: .15s; }
+.backups-page .backups-schedule-toggle.is-enabled { background: var(--primary); }
+.backups-page .backups-schedule-toggle.is-enabled i { left: 16px; }
+.backups-page .backups-destination-icon { width: 36px; height: 36px; border-radius: 10px; background: #f0edff; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.backups-page .backups-destination-icon svg { width: 16px; height: 16px; }
+.backups-page .backups-destination-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-style: normal; font-weight: 600; color: #ad6b15; white-space: nowrap; }
+.backups-page .backups-destination-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+.backups-page .backups-destination-status.is-ready { color: #178359; }
+.backups-page .backups-destination-status.is-ready i { background: var(--green); }
+.backups-page .backups-empty-copy { font-size: 13px; color: var(--muted); padding: 16px 18px 18px; margin: 0; font-style: italic; }
+.backups-page .empty-state h2 { font-size: 18px; }
+.backups-page .empty-state p { font-size: 14px; }
+.backups-page .domain-modal-head h2 { font-size: 18px; }
+.backups-page .domain-modal-head p { font-size: 14px; }
+.backups-page .domain-modal-body .field>span { font-size: 13px; font-weight: 600; }
+.backups-page .domain-modal-body input,.backups-page .domain-modal-body select,.backups-page .domain-modal-body textarea { font-size: 14px; height: 44px; }
+.backups-page .domain-modal-body .dns-preview { font-size: 13px; }
+@media (max-width: 1100px) {
+    .backups-page .backups-reference-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .backups-page .backups-reference-filters { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+    .backups-page .backups-reference-bottom { grid-template-columns: 1fr; }
+    .backups-page .backups-reference-stats { grid-template-columns: 1fr; }
+    .backups-page .backups-reference-filters { grid-template-columns: 1fr; }
+    .backups-page .heading-actions { display: none; }
+}

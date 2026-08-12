@@ -1,0 +1,4 @@
+<?php
+namespace App\Jobs;
+use App\Events\OperationsUpdated;use App\Models\ActivityLog;use App\Models\Backup;use App\Services\Operations\BackupService;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Foundation\Queue\Queueable;
+class RestoreBackupJob implements ShouldQueue{use Queueable;public function __construct(public int $backupId,public int $tenantId,public ?int $userId=null){$this->onQueue(config('infrastructure.queues.backups'));}public function handle(BackupService $service):void{$backup=Backup::where('tenant_id',$this->tenantId)->findOrFail($this->backupId);$service->restore($backup);ActivityLog::create(['tenant_id'=>$this->tenantId,'user_id'=>$this->userId,'action'=>'backup.restored','description'=>$backup->name.' restored','subject_type'=>Backup::class,'subject_id'=>$backup->id]);event(new OperationsUpdated($this->tenantId,'backups','restored',$backup->uuid));}}

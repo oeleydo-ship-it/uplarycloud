@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;use Illuminate\Database\Eloquent\Relations\BelongsTo;use Illuminate\Support\Str;
+class InfrastructureOperation extends Model{protected $fillable=['uuid','tenant_id','server_id','requested_by','action','status','idempotency_key','parameters','provider_response','log','last_error','started_at','completed_at'];protected static function booted():void{static::creating(function($m){$m->uuid??=(string)Str::uuid();$m->idempotency_key??=hash('sha256',$m->tenant_id.'|'.$m->server_id.'|'.$m->action.'|'.Str::uuid());});}protected function casts():array{return['parameters'=>'array','provider_response'=>'array','started_at'=>'datetime','completed_at'=>'datetime'];}public function getRouteKeyName():string{return'uuid';}public function server():BelongsTo{return$this->belongsTo(Server::class)->withTrashed();}public function user():BelongsTo{return$this->belongsTo(User::class,'requested_by');}}

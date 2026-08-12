@@ -1,0 +1,4 @@
+<?php
+namespace App\Services\Infrastructure;
+use App\Contracts\Infrastructure\CloudProviderAdapterInterface;use App\Models\ProviderConnection;use App\Services\Infrastructure\Providers\DigitalOceanAdapter;use App\Services\Infrastructure\Providers\FakeCloudProviderAdapter;use App\Services\Infrastructure\Providers\HetznerCloudAdapter;use RuntimeException;
+class CloudProviderFactory{public function make(ProviderConnection $connection):CloudProviderAdapterInterface{if(config('infrastructure.managed_driver')==='fake')return app(FakeCloudProviderAdapter::class);return match($connection->provider){'digitalocean'=>app(DigitalOceanAdapter::class),'hetzner'=>app(HetznerCloudAdapter::class),default=>throw new RuntimeException('The '.$connection->provider.' managed adapter is prepared but not enabled for production provisioning.')};}}

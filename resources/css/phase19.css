@@ -1,0 +1,69 @@
+/* Phase 19: reference-aligned installed applications */
+.installed-apps-page .installed-reference-heading h1 { font-size:24px; font-weight:700; letter-spacing:-.03em; }
+.installed-apps-page .installed-reference-heading p { font-size:14px; }
+.installed-apps-page .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin-bottom:6px; flex-wrap:wrap; }
+.installed-apps-page .breadcrumb a { color:var(--muted); }
+.installed-apps-page .breadcrumb a:hover { color:var(--primary); }
+.installed-apps-page .breadcrumb svg { width:12px; height:12px; color:#b0b4c2; }
+.installed-apps-page .installed-reference-stats { margin-bottom:24px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.installed-apps-page .installed-reference-filters { display:grid; grid-template-columns:minmax(280px,1.5fr) repeat(3,minmax(160px,.75fr)); gap:12px; margin-bottom:20px; }
+.installed-apps-page .installed-reference-filters .table-search { position:relative; }
+.installed-apps-page .installed-reference-filters .table-search svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#9ca0af; }
+.installed-apps-page .installed-reference-filters .table-search input { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; padding:0 14px 0 42px; font-size:14px; outline:none; background:#fff; }
+.installed-apps-page .installed-reference-filters .table-search input:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.installed-apps-page .filter-select { position:relative; display:block; }
+.installed-apps-page .filter-select select { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#353a4e; font-size:14px; padding:0 38px 0 14px; appearance:none; outline:none; cursor:pointer; }
+.installed-apps-page .filter-select select:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.installed-apps-page .filter-select>svg { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:#8b90a3; pointer-events:none; }
+.installed-apps-page .installed-reference-table-card { overflow:visible; }
+.installed-apps-page .installed-reference-table { min-width:980px; }
+.installed-apps-page .installed-reference-head,.installed-apps-page .installed-reference-row { display:grid; grid-template-columns:minmax(220px,1.35fr) minmax(160px,.95fr) minmax(180px,1.1fr) minmax(140px,.85fr) 110px 100px 44px; gap:14px; align-items:center; padding:0 20px; }
+.installed-apps-page .installed-reference-head { height:44px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; color:#8b90a3; text-transform:uppercase; letter-spacing:.04em; background:#fafafd; }
+.installed-apps-page .installed-reference-row { min-height:76px; border-bottom:1px solid #edf0f4; transition:.15s; color:inherit; }
+.installed-apps-page .installed-reference-row:hover { background:#fbfaff; }
+.installed-apps-page .installed-reference-row:last-child { border-bottom:0; }
+.installed-apps-page .installed-reference-row>span strong,.installed-apps-page .installed-reference-row>span small { display:block; }
+.installed-apps-page .installed-reference-row>span strong { font-size:14px; font-weight:600; color:var(--text); }
+.installed-apps-page .installed-reference-row>span small { font-size:12px; color:var(--muted); margin-top:4px; }
+.installed-apps-page .installed-reference-primary { display:grid; grid-template-columns:36px 1fr; align-items:center; gap:12px; color:inherit; text-decoration:none; min-width:0; }
+.installed-apps-page .installed-reference-primary:hover strong { color:var(--primary); }
+.installed-apps-page .installed-reference-primary strong { font-size:14px; font-weight:600; }
+.installed-apps-page .installed-reference-primary small { font-size:12px; color:#596075; margin-top:4px; }
+.installed-apps-page .installed-reference-row .mono strong { font-size:13px; font-weight:500; color:#4a5064; word-break:break-all; }
+.installed-apps-page .installed-status-badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-style:normal; font-weight:600; padding:5px 10px; border-radius:999px; white-space:nowrap; }
+.installed-apps-page .installed-status-badge i { width:6px; height:6px; border-radius:50%; }
+.installed-apps-page .installed-status-badge--success { color:#178359; background:#e9f8f2; }
+.installed-apps-page .installed-status-badge--success i { background:var(--green); }
+.installed-apps-page .installed-status-badge--warning { color:#ad6b15; background:#fff4df; }
+.installed-apps-page .installed-status-badge--warning i { background:var(--orange); }
+.installed-apps-page .installed-status-badge--running { color:#3974b9; background:#edf4ff; }
+.installed-apps-page .installed-status-badge--running i { background:var(--blue); }
+.installed-apps-page .installed-status-badge--failed,.installed-apps-page .installed-status-badge--danger { color:#c43d51; background:#ffe7eb; }
+.installed-apps-page .installed-status-badge--failed i,.installed-apps-page .installed-status-badge--danger i { background:var(--red); }
+.installed-apps-page .installed-row-actions { display:flex; justify-content:flex-end; position:relative; }
+.installed-apps-page .installed-more { position:relative; }
+.installed-apps-page .installed-more > summary { list-style:none; cursor:pointer; }
+.installed-apps-page .installed-more > summary::-webkit-details-marker { display:none; }
+.installed-apps-page .installed-more-menu { position:absolute; right:0; top:calc(100% + 6px); min-width:210px; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 30px rgba(20,20,43,.08); padding:6px; z-index:30; }
+.installed-apps-page .installed-more-menu a,.installed-apps-page .installed-more-menu button { width:100%; display:flex; align-items:center; gap:8px; border:0; background:transparent; color:#353a4e; font-size:13px; padding:8px 10px; border-radius:8px; cursor:pointer; text-align:left; }
+.installed-apps-page .installed-more-menu a:hover,.installed-apps-page .installed-more-menu button:hover { background:#f6f7fb; }
+.installed-apps-page .installed-more-menu .is-danger { color:var(--red); }
+.installed-apps-page .installed-more-menu form { margin:0; }
+.installed-apps-page .installed-row-chevron { display:flex; justify-content:flex-end; color:#9ca0af; }
+.installed-apps-page .installed-row-chevron svg { width:16px; height:16px; }
+.installed-apps-page .installed-reference-pagination { min-height:60px; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); border-top:1px solid var(--border); }
+.installed-apps-page .installed-reference-pagination nav>div:first-child { display:none; }
+.installed-apps-page .installed-reference-pagination nav>div:last-child { display:flex; gap:6px; align-items:center; }
+.installed-apps-page .installed-reference-pagination nav a,.installed-apps-page .installed-reference-pagination nav span { min-width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; border:1px solid var(--border); color:#565c70; padding:0 8px; }
+.installed-apps-page .installed-reference-pagination nav span[aria-current="page"] span,.installed-apps-page .installed-reference-pagination nav .bg-white { background:var(--primary)!important; color:#fff!important; border-color:var(--primary)!important; }
+.installed-apps-page .installed-help-banner { margin-top:20px; min-height:88px; border:1px solid var(--border); border-radius:10px; background:#fff; display:flex; align-items:center; gap:16px; padding:18px 22px; box-shadow:0 1px 2px rgba(20,20,43,.025); }
+.installed-apps-page .installed-help-banner>div { flex:1; }
+.installed-apps-page .installed-help-banner strong { font-size:15px; font-weight:600; }
+.installed-apps-page .installed-help-banner p { font-size:13px; color:var(--muted); margin:4px 0 0; }
+.installed-apps-page .installed-help-icon { width:44px; height:44px; border-radius:10px; background:#f0edff; color:var(--primary); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.installed-apps-page .installed-help-icon svg { width:20px; height:20px; }
+.installed-apps-page .installed-help-banner .button { min-width:180px; height:36px; font-size:13px; }
+.installed-apps-page .empty-state h2 { font-size:18px; }
+.installed-apps-page .empty-state p { font-size:14px; }
+@media(max-width:1100px){.installed-apps-page .installed-reference-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.installed-apps-page .installed-reference-filters{grid-template-columns:1fr 1fr}.installed-apps-page .installed-reference-table-card{overflow-x:auto}.installed-apps-page .installed-reference-pagination{position:sticky;left:0}}
+@media(max-width:650px){.installed-apps-page .installed-reference-stats{grid-template-columns:1fr}.installed-apps-page .installed-reference-filters{grid-template-columns:1fr}.installed-apps-page .installed-help-banner{align-items:flex-start;flex-wrap:wrap}.installed-apps-page .installed-help-banner .button{width:100%}.installed-apps-page .heading-actions{display:none}}

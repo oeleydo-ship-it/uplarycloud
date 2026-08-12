@@ -1,0 +1,271 @@
+/* Phase 20: reference-aligned deployment show page */
+.deployment-show-page { max-width: 1180px; margin: 0 auto; }
+.deployment-show-page .deployment-reference-heading h1 { font-size: 24px; font-weight: 700; letter-spacing: -.03em; margin: 4px 0; }
+.deployment-show-page .deployment-reference-heading p { font-size: 14px; color: var(--muted); margin: 0; }
+.deployment-show-page .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+.deployment-show-page .breadcrumb a { color: var(--muted); }
+.deployment-show-page .breadcrumb a:hover { color: var(--primary); }
+.deployment-show-page .breadcrumb svg { width: 12px; height: 12px; color: #b0b4c2; }
+
+.deployment-show-page .deployment-success-banner { display: flex; align-items: center; gap: 18px; padding: 22px 24px; margin-bottom: 20px; background: linear-gradient(105deg, #effaf5, #fff); border-color: #d8ede4; }
+.deployment-show-page .deployment-success-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 0 8px rgba(40, 183, 125, .1); }
+.deployment-show-page .deployment-success-icon svg { width: 24px; height: 24px; }
+.deployment-show-page .deployment-success-banner h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+.deployment-show-page .deployment-success-banner p { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
+.deployment-show-page .deployment-success-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.deployment-show-page .deployment-success-actions .button { height: 38px; font-size: 14px; }
+
+.deployment-show-page .deployment-reference-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.deployment-show-page .deployment-reference-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.deployment-show-page .deployment-reference-aside { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 80px; }
+
+.deployment-show-page .deployment-reference-progress { padding: 24px; border-radius: 10px; }
+.deployment-show-page .deployment-reference-summary { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.deployment-show-page .deployment-reference-summary > div { flex: 1; min-width: 0; }
+.deployment-show-page .deployment-reference-summary h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; color: var(--text); }
+.deployment-show-page .deployment-reference-summary p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+.deployment-show-page .deployment-reference-summary > strong { font-size: 22px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+.deployment-show-page .deployment-reference-icon { width: 40px; height: 40px; border-radius: 10px; background: #f0edff; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.deployment-show-page .deployment-reference-icon svg { width: 20px; height: 20px; }
+
+.deployment-show-page .deployment-reference-track { height: 6px; background: #ececf2; border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
+.deployment-show-page .deployment-reference-track span { display: block; height: 100%; background: linear-gradient(90deg, var(--primary), #9a83ff); transition: width .35s ease; border-radius: 999px; }
+
+.deployment-show-page .deployment-reference-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.deployment-show-page .deployment-reference-stage { text-align: center; min-width: 0; }
+.deployment-show-page .deployment-reference-stage > span { width: 32px; height: 32px; border: 1px dashed #d5d8e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; color: #9ca0af; background: #fff; }
+.deployment-show-page .deployment-reference-stage > span svg { width: 14px; height: 14px; }
+.deployment-show-page .deployment-reference-stage strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.35; }
+.deployment-show-page .deployment-reference-stage small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: capitalize; }
+.deployment-show-page .deployment-reference-stage.is-completed > span { background: var(--green); border: 1px solid var(--green); border-style: solid; color: #fff; }
+.deployment-show-page .deployment-reference-stage.is-running > span { background: #f0edff; border: 1px solid #d9d2ff; border-style: solid; color: var(--primary); }
+.deployment-show-page .deployment-reference-stage.is-running > span svg { animation: spin 1s linear infinite; }
+.deployment-show-page .deployment-reference-stage.is-running strong { color: var(--primary); }
+.deployment-show-page .deployment-reference-stage.is-failed > span { background: var(--red); border: 1px solid var(--red); border-style: solid; color: #fff; }
+
+.deployment-show-page .deployment-reference-error { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; padding: 12px 14px; border-radius: 8px; background: #fff1f2; color: #c43d51; font-size: 14px; }
+.deployment-show-page .deployment-reference-error svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+
+.deployment-show-page .deployment-reference-logs { overflow: hidden; background: #111827; border-color: #111827; border-radius: 10px; }
+.deployment-show-page .deployment-reference-logs .live-log-head { height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, .08); color: #e5e7eb; font-size: 14px; font-weight: 600; }
+.deployment-show-page .deployment-reference-logs .live-log-head span { display: flex; align-items: center; gap: 8px; }
+.deployment-show-page .deployment-reference-logs .live-log-head span i { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 0 4px rgba(40, 183, 125, .15); }
+.deployment-show-page .deployment-reference-logs .live-log-head small { font-size: 13px; font-weight: 500; color: #93c5fd; }
+.deployment-show-page .deployment-reference-terminal { height: 320px; overflow: auto; padding: 14px 16px; font-family: Consolas, 'SFMono-Regular', monospace; }
+.deployment-show-page .deployment-reference-terminal p { font-size: 12px; line-height: 1.65; margin: 0 0 6px; color: #d1d5db; }
+.deployment-show-page .deployment-reference-terminal span { color: #6b7280; margin-right: 10px; }
+.deployment-show-page .deployment-reference-terminal b { font-weight: 500; margin-right: 6px; }
+.deployment-show-page .deployment-reference-terminal em { font-style: normal; color: #e5e7eb; }
+.deployment-show-page .deployment-reference-terminal .log-success { color: #45d69a; }
+.deployment-show-page .deployment-reference-terminal .log-warning { color: #f7c252; }
+.deployment-show-page .deployment-reference-terminal .log-error { color: #ff7380; }
+.deployment-show-page .deployment-reference-terminal .log-info { color: #9f8cff; }
+
+.deployment-show-page .deployment-reference-overview .card-head h2 { font-size: 16px; }
+.deployment-show-page .deployment-reference-overview .card-head p { font-size: 13px; }
+.deployment-show-page .deployment-reference-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 4px 20px 0; }
+.deployment-show-page .deployment-reference-facts > div { padding: 14px 0; border-bottom: 1px solid #f0f1f5; }
+.deployment-show-page .deployment-reference-facts dt { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.deployment-show-page .deployment-reference-facts dd { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; word-break: break-word; }
+.deployment-show-page .deployment-reference-facts .mono { font-family: Consolas, 'SFMono-Regular', monospace; font-size: 13px; font-weight: 500; }
+
+.deployment-show-page .deployment-reference-env { padding: 18px 20px 20px; border-top: 1px solid var(--border); }
+.deployment-show-page .deployment-reference-env h3 { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+.deployment-show-page .deployment-reference-env-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f1f5; font-size: 14px; }
+.deployment-show-page .deployment-reference-env-row:first-of-type { border-top: 0; }
+.deployment-show-page .deployment-reference-env-row strong { font-weight: 600; color: var(--text); }
+.deployment-show-page .deployment-reference-env-row code { font-size: 13px; color: #7c8091; font-family: Consolas, 'SFMono-Regular', monospace; }
+
+.deployment-show-page .deployment-reference-app { padding: 20px; border-radius: 10px; }
+.deployment-show-page .deployment-reference-app-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 4px; }
+.deployment-show-page .deployment-reference-app-head .app-icon { flex-shrink: 0; }
+.deployment-show-page .deployment-reference-app-head > div { flex: 1; min-width: 0; }
+.deployment-show-page .deployment-reference-app-head h2 { font-size: 17px; font-weight: 700; margin: 0 0 6px; line-height: 1.3; color: var(--text); word-break: break-word; }
+.deployment-show-page .deployment-reference-app-head p { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0; }
+
+.deployment-show-page .deployment-reference-meta { margin: 16px 0 0; padding-top: 4px; border-top: 1px solid var(--border); }
+.deployment-show-page .deployment-reference-meta > div {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid #f0f1f5;
+}
+.deployment-show-page .deployment-reference-meta > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.deployment-show-page .deployment-reference-meta > div:first-child { padding-top: 12px; }
+.deployment-show-page .deployment-reference-meta dt { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.deployment-show-page .deployment-reference-meta dd {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+    min-width: 0;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.deployment-show-page .deployment-reference-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; text-transform: capitalize; white-space: nowrap; }
+.deployment-show-page .deployment-reference-status i { width: 6px; height: 6px; border-radius: 50%; }
+.deployment-show-page .deployment-reference-status.is-success { color: #178359; background: #e9f8f2; }
+.deployment-show-page .deployment-reference-status.is-success i { background: var(--green); }
+.deployment-show-page .deployment-reference-status.is-running { color: #3974b9; background: #edf4ff; }
+.deployment-show-page .deployment-reference-status.is-running i { background: var(--blue); }
+.deployment-show-page .deployment-reference-status.is-danger { color: #c43d51; background: #ffe7eb; }
+.deployment-show-page .deployment-reference-status.is-danger i { background: var(--red); }
+
+.deployment-show-page .deployment-reference-webhook,
+.deployment-show-page .deployment-reference-releases { border-radius: 10px; overflow: hidden; }
+.deployment-show-page .deployment-reference-webhook .card-head,
+.deployment-show-page .deployment-reference-releases .card-head { min-height: auto; padding: 16px 20px; }
+.deployment-show-page .deployment-reference-webhook .card-head h2,
+.deployment-show-page .deployment-reference-releases .card-head h2 { font-size: 16px; }
+.deployment-show-page .deployment-reference-webhook .card-head p,
+.deployment-show-page .deployment-reference-releases .card-head p { font-size: 13px; }
+.deployment-show-page .deployment-reference-webhook-body { padding: 0 20px 18px; }
+.deployment-show-page .deployment-reference-webhook-body label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 12px 0 6px; }
+.deployment-show-page .deployment-reference-webhook-body label:first-child { margin-top: 0; }
+.deployment-show-page .deployment-reference-webhook-body code { display: block; font-size: 12px; padding: 10px 12px; border-radius: 8px; background: #f6f7fb; border: 1px solid var(--border); word-break: break-all; font-family: Consolas, 'SFMono-Regular', monospace; color: #4a5064; }
+.deployment-show-page .deployment-reference-webhook-body p { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
+
+.deployment-show-page .deployment-reference-release { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.deployment-show-page .deployment-reference-release > span { flex: 1; min-width: 0; }
+.deployment-show-page .deployment-reference-release strong { display: block; font-size: 14px; font-weight: 600; }
+.deployment-show-page .deployment-reference-release small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.deployment-show-page .deployment-reference-release em { font-size: 12px; font-style: normal; font-weight: 600; color: var(--green); }
+.deployment-show-page .deployment-reference-release button { border: 1px solid var(--border); background: #fff; color: var(--primary); border-radius: 8px; font-size: 13px; font-weight: 500; padding: 6px 12px; cursor: pointer; }
+.deployment-show-page .deployment-reference-release button:hover { background: #fbfaff; border-color: #ddd8fa; }
+
+.deployment-show-page .deployment-reference-empty { font-size: 14px; color: var(--muted); padding: 4px 20px 18px; margin: 0; line-height: 1.5; font-style: italic; }
+
+@media (max-width: 1100px) {
+    .deployment-show-page .deployment-reference-layout { grid-template-columns: 1fr; }
+    .deployment-show-page .deployment-reference-aside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .deployment-show-page .deployment-reference-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 800px) {
+    .deployment-show-page .deployment-reference-aside { grid-template-columns: 1fr; }
+    .deployment-show-page .deployment-reference-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .deployment-show-page .deployment-reference-facts { grid-template-columns: 1fr; }
+    .deployment-show-page .heading-actions { display: none; }
+}
+
+@media (max-width: 520px) {
+    .deployment-show-page .deployment-reference-stages { grid-template-columns: 1fr 1fr; }
+    .deployment-show-page .deployment-success-banner { flex-direction: column; align-items: flex-start; }
+}
+
+/* Prefill / copyable environment editor */
+.environment-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.environment-value > input {
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 8px;
+}
+.environment-value-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.env-icon-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: #777c8e;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    padding: 0;
+}
+.env-icon-btn:hover:not(:disabled) {
+    color: var(--primary);
+    border-color: #d7d0ff;
+    background: #f7f5ff;
+}
+.env-icon-btn:disabled {
+    opacity: .45;
+    cursor: default;
+}
+.env-icon-btn svg {
+    width: 12px;
+    height: 12px;
+}
+.review-credentials {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.review-credentials li {
+    display: grid;
+    grid-template-columns: minmax(120px, .9fr) minmax(0, 1.4fr) 28px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid #f0f1f5;
+    font-size: 12px;
+}
+.review-credentials li:first-child { border-top: 0; }
+.review-credentials code {
+    font-family: Consolas, 'SFMono-Regular', monospace;
+    color: #7c8091;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deployment-show-page .deployment-reference-env-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.deployment-show-page .deployment-reference-env-head h3 { margin: 0; }
+.deployment-show-page .deployment-reference-env-head small { font-size: 12px; color: var(--muted); }
+.deployment-show-page .deployment-reference-env-row > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.deployment-show-page .deployment-reference-env-row small {
+    font-size: 12px;
+    color: var(--muted);
+}
+.deployment-show-page .deployment-env-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    justify-content: flex-end;
+}
+.deployment-show-page .deployment-env-value code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
+}
+
+@media (max-width: 800px) {
+    .environment-row { grid-template-columns: 1fr 1fr 30px; }
+    .environment-row > .environment-value { grid-column: 1 / 3; }
+    .environment-row > input[name="environment_descriptions[]"] { grid-column: 1 / 3; }
+    .environment-row > label { grid-row: 2; }
+}

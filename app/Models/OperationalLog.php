@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;use Illuminate\Database\Eloquent\Relations\BelongsTo;
+class OperationalLog extends Model{public $timestamps=false;protected $fillable=['tenant_id','server_id','application_deployment_id','docker_container_id','backup_id','category','severity','source','message','context','occurred_at'];protected function casts():array{return['context'=>'array','occurred_at'=>'datetime'];}public function server():BelongsTo{return $this->belongsTo(Server::class)->withTrashed();}public function deployment():BelongsTo{return $this->belongsTo(ApplicationDeployment::class,'application_deployment_id')->withTrashed();}public function container():BelongsTo{return $this->belongsTo(DockerContainer::class,'docker_container_id')->withTrashed();}public function backup():BelongsTo{return $this->belongsTo(Backup::class);}}

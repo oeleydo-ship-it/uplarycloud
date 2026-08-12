@@ -1,0 +1,77 @@
+/* Phase 16: reference-aligned servers inventory */
+.servers-page .servers-reference-heading h1 { display:flex; align-items:center; gap:10px; font-size:24px; font-weight:700; letter-spacing:-.03em; }
+.servers-page .servers-reference-heading h1 svg { width:18px; height:18px; color:#8b90a3; }
+.servers-page .servers-reference-heading p { font-size:14px; }
+.servers-page .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin-bottom:6px; }
+.servers-page .breadcrumb a { color:var(--muted); }
+.servers-page .breadcrumb a:hover { color:var(--primary); }
+.servers-page .breadcrumb svg { width:12px; height:12px; color:#b0b4c2; }
+.servers-page .server-reference-stats { margin-bottom:24px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.servers-page .server-reference-filters { display:grid; grid-template-columns:minmax(280px,1.5fr) repeat(3,minmax(160px,.75fr)); gap:12px; margin-bottom:20px; }
+.servers-page .server-reference-filters .table-search { position:relative; }
+.servers-page .server-reference-filters .table-search svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#9ca0af; }
+.servers-page .server-reference-filters .table-search input { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; padding:0 14px 0 42px; font-size:14px; outline:none; background:#fff; }
+.servers-page .server-reference-filters .table-search input:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.servers-page .filter-select { position:relative; display:block; }
+.servers-page .filter-select select { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#353a4e; font-size:14px; padding:0 38px 0 14px; appearance:none; outline:none; cursor:pointer; }
+.servers-page .filter-select select:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.servers-page .filter-select>svg { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:#8b90a3; pointer-events:none; }
+.servers-page .server-reference-table-card { overflow:visible; }
+.servers-page .server-reference-table { min-width:1040px; }
+.servers-page .server-actions { display:flex; gap:8px; align-items:center; position:relative; }
+.servers-page .server-actions .button { height:34px; font-size:13px; padding:0 14px; }
+.servers-page .server-actions .icon-button { width:34px; height:34px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#565c70; }
+.servers-page .server-actions .icon-button:hover { background:#fbfaff; border-color:#ddd8fa; color:var(--primary); }
+.servers-page .server-more { position:relative; }
+.servers-page .server-more summary { list-style:none; cursor:pointer; }
+.servers-page .server-more summary::-webkit-details-marker { display:none; }
+.servers-page .server-more-menu { position:absolute; right:0; top:calc(100% + 6px); min-width:210px; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 30px rgba(20,20,43,.08); padding:6px; z-index:30; }
+.servers-page .server-more-menu a,.servers-page .server-more-menu button,.servers-page .server-more-menu .server-destroy-blocked { width:100%; display:flex; align-items:center; gap:8px; border:0; background:transparent; color:#353a4e; font-size:13px; padding:8px 10px; border-radius:8px; cursor:pointer; text-align:left; }
+.servers-page .server-more-menu a:hover,.servers-page .server-more-menu button:hover { background:#f6f7fb; }
+.servers-page .server-more-menu .is-danger { color:var(--red); }
+.servers-page .server-more-menu .server-destroy-blocked { color:#8b90a3; cursor:not-allowed; }
+.servers-page .server-more-menu form { margin:0; }
+.servers-page .server-reference-head,.servers-page .server-reference-row { display:grid; grid-template-columns:minmax(260px,1.5fr) 130px 95px 95px 90px 110px 70px 130px; gap:14px; align-items:center; padding:0 20px; }
+.servers-page .server-reference-head { height:44px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; color:#8b90a3; text-transform:uppercase; letter-spacing:.04em; background:#fafafd; }
+.servers-page .server-reference-row { min-height:92px; border-bottom:1px solid #edf0f4; transition:.15s; }
+.servers-page .server-reference-row:hover { background:#fbfaff; }
+.servers-page .server-reference-row:last-child { border-bottom:0; }
+.servers-page .server-reference-row>span strong,.servers-page .server-reference-row>span small { display:block; }
+.servers-page .server-reference-row>span strong { font-size:14px; font-weight:600; color:var(--text); }
+.servers-page .server-reference-row>span small { font-size:12px; color:var(--muted); margin-top:4px; }
+.servers-page .server-reference-primary { display:grid; grid-template-columns:48px 1fr; align-items:center; gap:14px; color:inherit; }
+.servers-page .server-reference-primary strong { font-size:14px; font-weight:600; }
+.servers-page .server-reference-primary small { font-size:12px; color:#596075; margin-top:4px; }
+.servers-page .server-tag-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.servers-page .server-tag-list b { display:inline-flex; font-size:11px; font-weight:600; font-style:normal; color:var(--primary); background:#eeeaff; border-radius:5px; padding:3px 8px; }
+.servers-page .server-icon--reference { width:48px; height:48px; border-radius:50%; background:#f0edff; color:var(--primary); display:flex; align-items:center; justify-content:center; }
+.servers-page .server-icon--reference svg { width:22px; height:22px; }
+.servers-page .server-status-badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-style:normal; font-weight:600; padding:5px 10px; border-radius:999px; }
+.servers-page .server-status-badge i { width:6px; height:6px; border-radius:50%; }
+.servers-page .server-status-badge--success { color:#178359; background:#e9f8f2; }
+.servers-page .server-status-badge--success i { background:var(--green); }
+.servers-page .server-status-badge--warning { color:#ad6b15; background:#fff4df; }
+.servers-page .server-status-badge--warning i { background:var(--orange); }
+.servers-page .server-status-badge--running { color:#3974b9; background:#edf4ff; }
+.servers-page .server-status-badge--running i { background:var(--blue); }
+.servers-page .server-status-badge--failed,.servers-page .server-status-badge--danger { color:#c43d51; background:#ffe7eb; }
+.servers-page .server-status-badge--failed i,.servers-page .server-status-badge--danger i { background:var(--red); }
+.servers-page .server-capacity .metric-track { width:80px; height:4px; margin-top:6px; border-radius:5px; background:#eef0f4; overflow:hidden; }
+.servers-page .server-capacity .metric-track i { display:block; height:100%; background:var(--primary); border-radius:5px; }
+.servers-page .server-capacity small { font-size:12px; color:var(--muted); }
+.servers-page .server-reference-pagination { min-height:60px; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); border-top:1px solid var(--border); }
+.servers-page .server-reference-pagination nav>div:first-child { display:none; }
+.servers-page .server-reference-pagination nav>div:last-child { display:flex; gap:6px; align-items:center; }
+.servers-page .server-reference-pagination nav a,.servers-page .server-reference-pagination nav span { min-width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; border:1px solid var(--border); color:#565c70; padding:0 8px; }
+.servers-page .server-reference-pagination nav span[aria-current="page"] span,.servers-page .server-reference-pagination nav .bg-white { background:var(--primary)!important; color:#fff!important; border-color:var(--primary)!important; }
+.servers-page .server-help-banner { margin-top:20px; min-height:88px; border:1px solid var(--border); border-radius:10px; background:#fff; display:flex; align-items:center; gap:16px; padding:18px 22px; box-shadow:0 1px 2px rgba(20,20,43,.025); }
+.servers-page .server-help-banner>div { flex:1; }
+.servers-page .server-help-banner strong { font-size:15px; font-weight:600; }
+.servers-page .server-help-banner p { font-size:13px; color:var(--muted); margin:4px 0 0; }
+.servers-page .server-help-banner .server-icon { width:44px; height:44px; border-radius:10px; background:#f0edff; color:var(--primary); display:flex; align-items:center; justify-content:center; }
+.servers-page .server-help-banner .server-icon svg { width:20px; height:20px; }
+.servers-page .server-help-banner .button { min-width:180px; height:36px; font-size:13px; }
+.servers-page .empty-state h2 { font-size:18px; }
+.servers-page .empty-state p { font-size:14px; }
+@media(max-width:1100px){.servers-page .server-reference-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.servers-page .server-reference-filters{grid-template-columns:1fr 1fr}.servers-page .server-reference-table-card{overflow-x:auto}.servers-page .server-reference-pagination{position:sticky;left:0}}
+@media(max-width:650px){.servers-page .server-reference-stats{grid-template-columns:1fr}.servers-page .server-reference-filters{grid-template-columns:1fr}.servers-page .server-help-banner{align-items:flex-start;flex-wrap:wrap}.servers-page .server-help-banner .button{width:100%}.servers-page .heading-actions{display:none}}

@@ -1,0 +1,15 @@
+<?php
+namespace App\Services\Infrastructure\Providers;
+use App\Contracts\Infrastructure\CloudProviderAdapterInterface;use App\Models\ManagedServerPlan;use App\Models\ProviderConnection;use App\Models\Server;use Illuminate\Http\Client\PendingRequest;use Illuminate\Support\Facades\Http;use RuntimeException;
+class DigitalOceanAdapter implements CloudProviderAdapterInterface
+{
+    private function client(ProviderConnection $connection):PendingRequest{return Http::baseUrl('https://api.digitalocean.com/v2')->withToken($connection->api_token)->acceptJson()->timeout(30)->retry(2,500);}
+    private function connection(Server $server):ProviderConnection{return$server->providerConnection??throw new RuntimeException('Provider connection is missing.');}
+    public function verify(ProviderConnection $connection):array{$account=$this->client($connection)->get('/account')->throw()->json('account');return['success'=>true,'account'=>$account['email']??$account['uuid']??'connected'];}
+    public function create(Server $server,ManagedServerPlan $plan,array $options):array{$response=$this->client($this->connection($server))->withHeaders(['Idempotency-Key'=>'uplary-'.$server->uuid])->post('/droplets',['name'=>(string)str($server->name)->slug(),'region'=>$options['region'],'size'=>$plan->provider_plan_id,'image'=>$this->image($options['image']),'user_data'=>$options['user_data']??null,'monitoring'=>true,'ipv6'=>true,'tags'=>['uplary-managed']])->throw()->json('droplet');return['resource_id'=>(string)$response['id'],'ip_address'=>collect($response['networks']['v4']??[])->firstWhere('type','public')['ip_address']??'0.0.0.0','status'=>$response['status']??'new','region'=>$options['region'],'image'=>$options['image']];}
+    public function status(Server $server):array{$d=$this->client($this->connection($server))->get('/droplets/'.$server->provider_resource_id)->throw()->json('droplet');return['resource_id'=>(string)$d['id'],'status'=>$d['status'],'ip_address'=>collect($d['networks']['v4']??[])->firstWhere('type','public')['ip_address']??$server->ip_address];}
+    private function action(Server $server,string $type,array $extra=[]):array{$this->client($this->connection($server))->post('/droplets/'.$server->provider_resource_id.'/actions',['type'=>$type]+$extra)->throw();return['resource_id'=>$server->provider_resource_id,'status'=>$type];}
+    public function restart(Server $server):array{return$this->action($server,'reboot');}public function resize(Server $server,ManagedServerPlan $plan):array{return$this->action($server,'resize',['size'=>$plan->provider_plan_id,'disk'=>true]);}public function rebuild(Server $server,string $image):array{return$this->action($server,'rebuild',['image'=>$this->image($image)]);}
+    public function destroy(Server $server):array{$this->client($this->connection($server))->delete('/droplets/'.$server->provider_resource_id)->throw();return['resource_id'=>$server->provider_resource_id,'status'=>'deleted'];}
+    private function image(string $image):string{return match($image){'ubuntu-24.04'=>'ubuntu-24-04-x64','ubuntu-22.04'=>'ubuntu-22-04-x64','debian-12'=>'debian-12-x64',default=>$image};}
+}

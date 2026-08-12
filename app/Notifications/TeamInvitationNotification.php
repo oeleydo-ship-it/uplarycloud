@@ -1,0 +1,4 @@
+<?php
+namespace App\Notifications;
+use App\Models\TeamInvitation;use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Notifications\Messages\MailMessage;use Illuminate\Notifications\Notification;
+class TeamInvitationNotification extends Notification implements ShouldQueue{use Queueable;public function __construct(public TeamInvitation $invitation,public string $token){}public function via(object $notifiable):array{return['mail'];}public function toMail(object $notifiable):MailMessage{return(new MailMessage)->subject('Workspace invitation')->line('You have been invited to join '.$this->invitation->tenant->name.' as '.$this->invitation->role.'.')->action('Accept invitation',route('invitations.accept',[$this->invitation,$this->token]))->line('This invitation expires in seven days.');}}

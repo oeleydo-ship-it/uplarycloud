@@ -1,0 +1,295 @@
+/* Phase 22: reference-aligned domains inventory */
+.domains-page .domains-reference-heading h1 { display:flex; align-items:center; gap:10px; font-size:24px; font-weight:700; letter-spacing:-.03em; }
+.domains-page .domains-reference-heading h1 svg { width:18px; height:18px; color:#8b90a3; }
+.domains-page .domains-reference-heading p { font-size:14px; }
+.domains-page .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin-bottom:6px; }
+.domains-page .breadcrumb a { color:var(--muted); }
+.domains-page .breadcrumb a:hover { color:var(--primary); }
+.domains-page .breadcrumb svg { width:12px; height:12px; color:#b0b4c2; }
+.domains-page .heading-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.domains-page .domains-reference-stats { margin-bottom:24px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.domains-page .domains-reference-filters { display:grid; grid-template-columns:minmax(260px,1.4fr) repeat(4,minmax(150px,.8fr)); gap:12px; margin-bottom:20px; }
+.domains-page .domains-reference-filters .table-search { position:relative; }
+.domains-page .domains-reference-filters .table-search svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#9ca0af; }
+.domains-page .domains-reference-filters .table-search input { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; padding:0 14px 0 42px; font-size:14px; outline:none; background:#fff; }
+.domains-page .domains-reference-filters .table-search input:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.domains-page .filter-select { position:relative; display:block; }
+.domains-page .filter-select select { width:100%; height:44px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#353a4e; font-size:14px; padding:0 38px 0 14px; appearance:none; outline:none; cursor:pointer; }
+.domains-page .filter-select select:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.domains-page .filter-select>svg { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:#8b90a3; pointer-events:none; }
+.domains-page .domains-reference-table-card { overflow:visible; }
+.domains-page .domains-reference-table { min-width:1240px; }
+.domains-page .domains-reference-head,.domains-page .domains-reference-row { display:grid; grid-template-columns:minmax(230px,1.4fr) minmax(130px,.8fr) minmax(120px,.75fr) minmax(160px,1fr) 110px 120px 120px 130px; gap:12px; align-items:center; padding:0 20px; }
+.domains-page .domains-reference-head { height:44px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; color:#8b90a3; text-transform:uppercase; letter-spacing:.04em; background:#fafafd; }
+.domains-page .domains-reference-row { min-height:76px; border-bottom:1px solid #edf0f4; transition:.15s; }
+.domains-page .domains-reference-row:hover { background:#fbfaff; }
+.domains-page .domains-reference-row:last-child { border-bottom:0; }
+.domains-page .domains-reference-row>span strong,.domains-page .domains-reference-row>span small { display:block; }
+.domains-page .domains-reference-row>span strong { font-size:14px; font-weight:600; color:var(--text); }
+.domains-page .domains-reference-row>span small { font-size:12px; color:var(--muted); margin-top:4px; }
+.domains-page .domain-muted { color:var(--muted)!important; }
+.domains-page .domains-reference-primary { display:grid; grid-template-columns:30px 1fr; align-items:center; gap:12px; }
+.domains-page .domain-hostname { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.domains-page .domain-hostname a { font-size:14px; font-weight:600; color:var(--text); }
+.domains-page .domain-hostname a:hover { color:var(--primary); }
+.domains-page .domain-external { display:inline-flex; color:#9ca0af; }
+.domains-page .domain-external svg { width:13px; height:13px; }
+.domains-page .domain-badge { display:inline-flex; font-size:11px; font-weight:600; font-style:normal; border-radius:5px; padding:3px 8px; }
+.domains-page .domain-badge--primary { color:var(--primary); background:#eeeaff; }
+.domains-page .domain-badge--root { color:#3974b9; background:#edf4ff; }
+.domains-page .domain-server-status { font-size:12px; font-weight:500; }
+.domains-page .domain-server-status--success { color:#178359; }
+.domains-page .domain-server-status--warning { color:#ad6b15; }
+.domains-page .domain-server-status--running { color:#3974b9; }
+.domains-page .domain-server-status--failed { color:#c43d51; }
+.domains-page .domain-ssl-state { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-style:normal; font-weight:600; }
+.domains-page .domain-ssl-state svg { width:13px; height:13px; }
+.domains-page .domain-ssl-state--success { color:#178359; }
+.domains-page .domain-ssl-state--warning { color:#ad6b15; }
+.domains-page .domain-ssl-state--failed { color:#c43d51; }
+.domains-page .domain-ssl-state--muted { color:var(--muted); }
+.domains-page .domain-ssl small { font-size:12px; color:var(--muted); margin-top:4px; display:block; }
+.domains-page .domain-ssl form { margin:4px 0 0; }
+.domains-page .domain-inline-action { border:0; background:none; padding:0; font-size:12px; color:var(--primary); font-weight:500; cursor:pointer; }
+.domains-page .domain-inline-action:hover { text-decoration:underline; }
+.domains-page .domain-application { display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:center; }
+.domains-page .domain-application>strong:first-child { grid-column:1/-1; }
+.domains-page .domain-application>small { grid-column:1/-1; }
+.domains-page .domain-type { display:inline-flex; align-items:center; font-size:12px; font-style:normal; font-weight:600; padding:5px 10px; border-radius:999px; white-space:nowrap; }
+.domains-page .domain-type--application { color:var(--primary); background:#f0edff; }
+.domains-page .domain-type--redirect { color:#ad6b15; background:#fff4df; }
+.domains-page .domain-expiry-soon { color:#ad6b15!important; font-weight:600; }
+.domains-page .domain-expiry-ok { color:#178359!important; }
+.domains-page .domains-actions { display:flex; gap:8px; align-items:center; position:relative; overflow:visible; }
+.domains-page .domains-actions .button { height:34px; font-size:13px; padding:0 14px; }
+.domains-page .domains-actions .icon-button { width:34px; height:34px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#565c70; }
+.domains-page .domains-actions .icon-button:hover { background:#fbfaff; border-color:#ddd8fa; color:var(--primary); }
+.domains-page .domains-more { position:relative; }
+.domains-page .domains-more summary { list-style:none; cursor:pointer; }
+.domains-page .domains-more summary::-webkit-details-marker { display:none; }
+.domains-page .domains-more-menu { position:absolute; right:0; top:calc(100% + 6px); min-width:196px; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 30px rgba(20,20,43,.08); padding:6px; z-index:30; }
+.domains-page .domains-more-menu a,.domains-page .domains-more-menu button { width:100%; display:flex; align-items:center; gap:8px; border:0; background:transparent; color:#353a4e; font-size:13px; padding:8px 10px; border-radius:8px; cursor:pointer; text-align:left; }
+.domains-page .domains-more-menu a:hover,.domains-page .domains-more-menu button:hover { background:#f6f7fb; }
+.domains-page .domains-more-menu .is-danger { color:var(--red); }
+.domains-page .domains-more-menu form { margin:0; }
+.domains-page .domains-reference-pagination { min-height:60px; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); border-top:1px solid var(--border); }
+.domains-page .domains-reference-pagination nav>div:first-child { display:none; }
+.domains-page .domains-reference-pagination nav>div:last-child { display:flex; gap:6px; align-items:center; }
+.domains-page .domains-reference-pagination nav a,.domains-page .domains-reference-pagination nav span { min-width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; border:1px solid var(--border); color:#565c70; padding:0 8px; }
+.domains-page .domains-reference-pagination nav span[aria-current="page"] span,.domains-page .domains-reference-pagination nav .bg-white { background:var(--primary)!important; color:#fff!important; border-color:var(--primary)!important; }
+.domains-page .empty-state h2 { font-size:18px; }
+.domains-page .empty-state p { font-size:14px; }
+
+/* Add / import domain modal — scoped so shared .domain-modal elsewhere is unchanged */
+.domains-page .domain-modal--form { width:min(480px,100%); max-height:min(90vh,720px); overflow:auto; border-radius:14px; }
+.domains-page .domain-modal--form .domain-modal-head { padding:18px 20px 16px; align-items:flex-start; }
+.domains-page .domain-modal--form .domain-modal-head>div { align-items:flex-start; gap:12px; }
+.domains-page .domain-modal--form .section-icon { width:36px; height:36px; border-radius:10px; flex-shrink:0; }
+.domains-page .domain-modal--form .section-icon svg,
+.domains-page .domain-modal--form .section-icon i { width:18px; height:18px; display:block; }
+.domains-page .domain-modal--form .section-icon > i:has(+ svg) { display:none !important; }
+.domains-page .domain-modal--form .domain-modal-head h2 { font-size:17px; font-weight:700; letter-spacing:-.02em; margin:1px 0 0; color:var(--text); }
+.domains-page .domain-modal--form .domain-modal-head p { font-size:13px; line-height:1.45; color:var(--muted); margin:4px 0 0; }
+.domains-page .domain-modal-close { width:32px; height:32px; border:0; border-radius:8px; background:transparent; color:#8b90a3; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+.domains-page .domain-modal-close:hover { background:#f4f5f9; color:var(--text); }
+.domains-page .domain-modal-close svg { width:16px; height:16px; }
+.domains-page .domain-modal--form .domain-modal-body { padding:18px 20px; gap:16px; }
+.domains-page .domain-modal--form .field { gap:7px; }
+.domains-page .domain-modal--form .field>span { font-size:13px; font-weight:600; color:#454a5d; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.domains-page .domain-modal--form .field>span b { font-weight:600; color:var(--primary); margin-left:2px; }
+.domains-page .domain-modal--form .field>span em { float:none; font-style:normal; font-size:11px; font-weight:600; color:#8b90a3; background:#f4f5f9; border-radius:999px; padding:2px 8px; }
+.domains-page .domain-modal--form .field>small:not(.field-error) { font-size:12px; color:var(--muted); margin-top:2px; line-height:1.45; }
+.domains-page .domain-modal--form .field-error { font-size:12px; }
+.domains-page .domain-modal--form .field input,
+.domains-page .domain-modal--form .field select { height:42px; font-size:14px; border-radius:8px; padding:0 12px; border:1px solid #dfe1e8; }
+.domains-page .domain-modal--form .field select { appearance:none; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b90a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right:36px; }
+.domains-page .domain-modal-body textarea { width:100%; min-height:108px; border:1px solid #dfe1e8; border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; line-height:1.5; resize:vertical; outline:none; background:#fff; }
+.domains-page .domain-modal-body textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+
+/* Icon lives in its own column — never over the typed/placeholder text */
+.domains-page .domain-input-group { display:flex; align-items:stretch; width:100%; min-height:42px; border:1px solid #dfe1e8; border-radius:8px; background:#fff; overflow:hidden; }
+.domains-page .domain-input-group:focus-within { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%); }
+.domains-page .domain-input-affix { display:flex; align-items:center; justify-content:center; width:42px; flex:0 0 42px; color:#9ca0af; background:#fafafd; border-right:1px solid var(--border); pointer-events:none; }
+.domains-page .domain-input-affix i,
+.domains-page .domain-input-affix svg { width:16px; height:16px; display:block; color:#9ca0af; }
+.domains-page .domain-input-affix i svg { width:16px; height:16px; }
+.domains-page .domain-input-affix > i:has(+ svg) { display:none !important; }
+.domains-page .domain-modal--form .field .domain-input-group input { flex:1; min-width:0; height:42px; border:0; border-radius:0; box-shadow:none; padding:0 12px; background:transparent; }
+.domains-page .domain-modal--form .field .domain-input-group input:focus { border:0; box-shadow:none; outline:none; }
+
+/* Certificate toggles — grid rows; native checkbox clipped (never overlaps icons) */
+.domains-page .domain-modal--form .domain-toggle-list {
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin:0;
+    padding:0;
+    border:0;
+    min-width:0;
+}
+.domains-page .domain-modal--form .domain-toggle-heading {
+    float:none;
+    width:auto;
+    margin:2px 0 0;
+    padding:0;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:#8b90a3;
+}
+.domains-page .domain-modal--form .domain-toggle {
+    position:relative;
+    display:grid;
+    grid-template-columns:32px minmax(0,1fr) 40px;
+    align-items:center;
+    column-gap:12px;
+    min-height:54px;
+    margin:0;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fff;
+    cursor:pointer;
+    transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.domains-page .domain-modal--form .domain-toggle:hover {
+    border-color:#ddd8fa;
+    background:#fbfaff;
+}
+.domains-page .domain-modal--form .domain-toggle:has(.domain-toggle-input:focus-visible) {
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 88%);
+}
+.domains-page .domain-modal--form .domain-toggle:has(.domain-toggle-input:checked) {
+    border-color:#d4ccfb;
+    background:#faf9ff;
+}
+
+/* Beat any `.field input` / checkbox resets — keep control accessible but invisible */
+.domains-page .domain-modal--form .domain-toggle > .domain-toggle-input[type="checkbox"],
+.domains-page .domain-modal--form .domain-toggle-input[type="checkbox"] {
+    position:absolute !important;
+    width:1px !important;
+    height:1px !important;
+    margin:-1px !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    overflow:hidden !important;
+    clip:rect(0,0,0,0) !important;
+    clip-path:inset(50%) !important;
+    white-space:nowrap !important;
+    appearance:none !important;
+    -webkit-appearance:none !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+    box-shadow:none !important;
+    background:transparent !important;
+    accent-color:unset;
+}
+
+.domains-page .domain-modal--form .domain-toggle-icon {
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    background:#f4f5f9;
+    color:#6e7487;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    grid-column:1;
+    transition:background .15s, color .15s;
+}
+.domains-page .domain-modal--form .domain-toggle-input:checked ~ .domain-toggle-icon {
+    background:#f0edff;
+    color:var(--primary);
+}
+.domains-page .domain-modal--form .domain-toggle-icon i,
+.domains-page .domain-modal--form .domain-toggle-icon svg {
+    width:15px !important;
+    height:15px !important;
+    display:block;
+    flex:none;
+}
+.domains-page .domain-modal--form .domain-toggle-icon > i:has(+ svg) { display:none !important; }
+.domains-page .domain-modal--form .domain-toggle-icon > i:has(svg) { display:inline-flex; }
+
+.domains-page .domain-modal--form .domain-toggle-copy {
+    grid-column:2;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:2px;
+}
+.domains-page .domain-modal--form .domain-toggle-title {
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    line-height:1.3;
+    color:var(--text);
+}
+.domains-page .domain-modal--form .domain-toggle-hint {
+    display:block;
+    font-size:12px;
+    font-weight:400;
+    line-height:1.35;
+    color:var(--muted);
+}
+
+.domains-page .domain-modal--form .domain-toggle-switch {
+    grid-column:3;
+    justify-self:end;
+    width:40px;
+    height:22px;
+    border-radius:999px;
+    background:#d4d7e4;
+    position:relative;
+    flex-shrink:0;
+    transition:background .2s;
+}
+.domains-page .domain-modal--form .domain-toggle-knob {
+    position:absolute;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:#fff;
+    left:2px;
+    top:2px;
+    box-shadow:0 1px 3px rgba(20,20,40,.22);
+    transition:left .2s;
+}
+.domains-page .domain-modal--form .domain-toggle-input:checked ~ .domain-toggle-switch {
+    background:var(--primary);
+}
+.domains-page .domain-modal--form .domain-toggle-input:checked ~ .domain-toggle-switch .domain-toggle-knob {
+    left:20px;
+}
+
+.domains-page .domain-modal--form .dns-preview {
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    padding:10px 12px;
+    border:1px solid #ece8ff;
+    border-radius:8px;
+    background:#f8f6ff;
+    color:#5c5678;
+}
+.domains-page .domain-modal--form .dns-preview svg,
+.domains-page .domain-modal--form .dns-preview > i {
+    width:15px;
+    height:15px;
+    flex:none;
+    color:var(--primary);
+    margin-top:1px;
+}
+.domains-page .domain-modal--form .dns-preview > i:has(+ svg) { display:none !important; }
+.domains-page .domain-modal--form .dns-preview p { font-size:12px; line-height:1.5; margin:0; color:#6a6580; }
+.domains-page .domain-modal--form .dns-preview strong { color:#3d3a55; font-weight:650; }
+
+.domains-page .domain-modal--form .domain-modal-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 20px 16px; }
+.domains-page .domain-modal--form .domain-modal-actions .button { min-width:108px; height:38px; font-size:13px; }
+@media(max-width:1200px){.domains-page .domains-reference-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.domains-page .domains-reference-filters{grid-template-columns:1fr 1fr}.domains-page .domains-reference-table-card{overflow-x:auto}.domains-page .domains-reference-pagination{position:sticky;left:0}}
+@media(max-width:700px){.domains-page .domains-reference-stats{grid-template-columns:1fr}.domains-page .domains-reference-filters{grid-template-columns:1fr}.domains-page .heading-actions{display:none}}
