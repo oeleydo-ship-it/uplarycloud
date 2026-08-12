@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\BrandingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ServerConnectionController;
@@ -52,6 +53,8 @@ Route::post('/hooks/git/{deployment}', GitWebhookController::class)->middleware(
 Route::post('/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
 Route::middleware('guest')->group(function (): void {
+    Route::get('/install', [InstallController::class, 'create'])->name('install');
+    Route::post('/install', [InstallController::class, 'store'])->middleware('throttle:10,1')->name('install.store');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');

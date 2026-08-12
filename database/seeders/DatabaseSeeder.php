@@ -40,6 +40,11 @@ class DatabaseSeeder extends Seeder
         $tenant = Tenant::create(['name' => 'Demo Workspace', 'slug' => 'demo-workspace']);
         $tenant->users()->attach($user, ['role' => MembershipRole::Owner->value]);
 
+        Setting::updateOrCreate(
+            ['tenant_id' => null, 'group' => 'platform', 'key' => 'installed'],
+            ['value' => '1', 'is_encrypted' => false],
+        );
+
         foreach ([
             'name' => env('APP_NAME', 'Uplary Cloud'),
             'short_name' => 'UP',

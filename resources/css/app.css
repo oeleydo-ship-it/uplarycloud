@@ -23,6 +23,7 @@
 @import './phase9.css';
 @import './phase28.css';
 @import './phase29.css';
+@import './phase30.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

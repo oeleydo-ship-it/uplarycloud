@@ -37,6 +37,8 @@ class ProductionReadinessTest extends TestCase
 
     public function test_system_health_console_requires_a_workspace_member(): void
     {
+        User::factory()->create();
+
         $this->get(route('system-health'))->assertRedirect(route('login'));
 
         $user = User::factory()->create();

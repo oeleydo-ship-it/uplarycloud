@@ -7,6 +7,7 @@ use App\Http\Middleware\SetCurrentTenant;
 use App\Http\Middleware\EnsureApiTokenTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\EnsureApplicationInstalled;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(EnsureApplicationInstalled::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias(['tenant' => SetCurrentTenant::class, 'api.tenant' => EnsureApiTokenTenant::class, 'superadmin' => EnsureSuperAdmin::class]);
         $middleware->validateCsrfTokens(except: ['hooks/git/*', 'stripe/webhook']);

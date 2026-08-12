@@ -24,7 +24,7 @@ class ServerProvisioningController extends Controller
         ]);
     }
 
-    public function status(Server $server, TenantContext $context): JsonResponse
+    public function status(Server $server, TenantContext $context, ServerProvisionVerifier $verifier): JsonResponse
     {
         $this->guard($server, $context);
         $server->refresh()->load('provisioningSteps');
@@ -32,6 +32,8 @@ class ServerProvisioningController extends Controller
         return response()->json([
             'status' => $server->status->value,
             'steps' => $server->provisioningSteps,
+            'failure_reason' => $server->failure_reason,
+            'needs_attention' => $this->needsAttention($server, $verifier),
             'redirect' => $server->status === ServerStatus::Online && $server->isFullyProvisioned()
                 ? route('servers.success', $server)
                 : null,
@@ -77,11 +79,12 @@ class ServerProvisioningController extends Controller
 
     private function needsAttention(Server $server, ServerProvisionVerifier $verifier): bool
     {
+        // Action needed only when the user must start/retry — not while provisioning is actively running.
         if (in_array($server->status, [ServerStatus::Failed, ServerStatus::Pending], true)) {
             return true;
         }
 
-        if ($server->isProvisioningIncomplete()) {
+        if ($server->status === ServerStatus::Online && ! $server->isFullyProvisioned()) {
             return true;
         }
 

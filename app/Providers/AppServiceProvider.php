@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\Branding;
+use App\Support\InstallationState;
 use App\Support\TenantContext;
 use App\Support\WorkspaceSettings;
 use App\Contracts\Infrastructure\ServerExecutorInterface;
@@ -30,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(Branding::class);
         $this->app->scoped(WorkspaceSettings::class);
+        $this->app->scoped(InstallationState::class);
         $this->app->bind(ServerExecutorInterface::class, fn ($app) => match (config('infrastructure.driver')) {
             'ssh' => $app->make(SSHServerExecutor::class), default => $app->make(FakeServerExecutor::class),
         });

@@ -13,6 +13,8 @@ class AuthenticationTest extends TestCase
 
     public function test_user_can_register_with_an_owner_workspace(): void
     {
+        User::factory()->create(['is_super_admin' => true]);
+
         $response = $this->post('/register', [
             'name' => 'Ada Developer', 'workspace_name' => 'Ada Labs',
             'email' => 'ada@example.com', 'password' => 'password123',

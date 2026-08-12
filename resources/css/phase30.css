@@ -1,0 +1,546 @@
+/* Phase 30: provisioning page readability + state-aware status panel */
+.provision-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.provision-page .page-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.provision-page .page-heading h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    margin: 6px 0 8px;
+    color: var(--text);
+}
+
+.provision-page .page-heading > div > p:not(.breadcrumb) {
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.provision-page .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 4px;
+}
+
+.provision-page .breadcrumb a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.provision-page .breadcrumb a:hover {
+    color: var(--primary);
+}
+
+.provision-page .page-heading .status {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #edf4ff;
+    flex-shrink: 0;
+    margin-top: 10px;
+}
+
+.provision-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 22px;
+    align-items: start;
+}
+
+.provision-card {
+    padding: 28px;
+    border-radius: 12px;
+}
+
+.provision-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.provision-summary > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.provision-summary h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--text);
+    letter-spacing: -.02em;
+}
+
+.provision-summary p {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.provision-percent {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+    flex-shrink: 0;
+    letter-spacing: -.03em;
+}
+
+.provision-server-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f0edff;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.provision-server-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.provision-progress {
+    height: 8px;
+    background: #ececf2;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.provision-progress span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #9a83ff);
+    transition: width .35s ease;
+    border-radius: 999px;
+}
+
+.provision-progress-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.provision-progress-meta span:last-child {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.provision-steps {
+    border-top: 1px solid var(--border);
+    margin-top: 14px;
+}
+
+.provision-step {
+    min-height: 76px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid #f0f1f5;
+    padding: 10px 0;
+}
+
+.provision-step:last-child {
+    border-bottom: 0;
+}
+
+.provision-step-icon {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #dfe1e8;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca0af;
+    flex-shrink: 0;
+    background: #fff;
+}
+
+.provision-step-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.provision-step-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.provision-step strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.35;
+}
+
+.provision-step small {
+    display: block;
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.45;
+}
+
+.provision-step time {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.provision-step.is-completed .provision-step-icon {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+}
+
+.provision-step.is-running .provision-step-icon {
+    background: #f0edff;
+    border-color: #d9d2ff;
+    color: var(--primary);
+}
+
+.provision-step.is-running .provision-step-icon svg {
+    animation: spin 1s linear infinite;
+}
+
+.provision-step.is-running strong {
+    color: var(--primary);
+}
+
+.provision-step.is-running time {
+    color: var(--primary);
+}
+
+.provision-step.is-failed .provision-step-icon {
+    background: #fff0f1;
+    border-color: #ffd0d5;
+    color: var(--red);
+}
+
+.provision-step.is-failed strong,
+.provision-step.is-failed time {
+    color: var(--red);
+}
+
+.provision-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: sticky;
+    top: 80px;
+}
+
+.provision-page .live-log {
+    overflow: hidden;
+    background: #111827;
+    border-color: #111827;
+    border-radius: 12px;
+}
+
+.provision-page .live-log-head {
+    height: 52px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    color: #e5e7eb;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.provision-page .live-log-head span {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.provision-page .live-log-head span i {
+    width: 9px;
+    height: 9px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(40, 183, 125, .15);
+}
+
+.provision-page .live-log-head button {
+    border: 0;
+    background: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.provision-page .live-log-head button:hover {
+    color: #e5e7eb;
+}
+
+.provision-page .live-log-head button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.provision-page .terminal-lines {
+    height: 360px;
+    overflow: auto;
+    padding: 16px 18px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.provision-page .terminal-lines p {
+    font-size: 13.5px;
+    line-height: 1.7;
+    margin: 0 0 8px;
+    color: #d1d5db;
+}
+
+.provision-page .terminal-lines span {
+    color: #6b7280;
+    margin-right: 12px;
+}
+
+.provision-page .terminal-lines b {
+    font-weight: 400;
+    color: #e5e7eb;
+}
+
+.provision-page .terminal-empty b {
+    color: #9ca3af;
+}
+
+.provision-page .info-banner.compact {
+    margin: 0;
+    padding: 18px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.provision-page .info-banner.compact strong {
+    font-size: 15px;
+    font-weight: 600;
+    color: #3d3a55;
+}
+
+.provision-page .info-banner.compact p {
+    font-size: 14px;
+    color: #7c7893;
+    margin: 6px 0 0;
+    line-height: 1.5;
+}
+
+.provision-page .info-banner.compact > svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* State-aware status / action panel */
+.provision-status-panel {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 12px 14px;
+    padding: 20px;
+    border-radius: 12px;
+    align-items: start;
+}
+
+.provision-status-panel form {
+    grid-column: 1 / -1;
+}
+
+.provision-status-panel .button {
+    width: 100%;
+    height: 44px;
+    font-size: 15px;
+}
+
+.provision-status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.provision-status-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.provision-status-copy strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 2px 0 6px;
+}
+
+.provision-status-copy p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.provision-status-panel.is-failed {
+    border-color: #ffd5da;
+    background: #fffafb;
+}
+
+.provision-status-panel.is-failed .provision-status-icon {
+    background: #ffe8eb;
+    color: var(--red);
+}
+
+.provision-status-panel.is-failed .provision-status-copy strong {
+    color: #c03948;
+}
+
+.provision-status-panel.is-pending {
+    border-color: #ffe2b8;
+    background: #fffbf3;
+}
+
+.provision-status-panel.is-pending .provision-status-icon {
+    background: #fff1d9;
+    color: var(--orange);
+}
+
+.provision-status-panel.is-pending .provision-status-copy strong {
+    color: #9a6412;
+}
+
+.provision-status-panel.is-running {
+    border-color: #d9d2ff;
+    background: #faf8ff;
+}
+
+.provision-status-panel.is-running .provision-status-icon {
+    background: #f0edff;
+    color: var(--primary);
+}
+
+.provision-status-panel.is-running .provision-status-icon svg {
+    animation: spin 1s linear infinite;
+}
+
+.provision-status-panel.is-running .provision-status-copy strong {
+    color: var(--primary);
+}
+
+.provision-status-panel.is-complete {
+    border-color: #cdeadc;
+    background: #f4fbf7;
+}
+
+.provision-status-panel.is-complete .provision-status-icon {
+    background: #e5f6ee;
+    color: var(--green);
+}
+
+.provision-status-panel.is-complete .provision-status-copy strong {
+    color: #1b805b;
+}
+
+.provision-status-panel.is-idle {
+    border-color: var(--border);
+    background: #fff;
+}
+
+.provision-status-panel.is-idle .provision-status-icon {
+    background: #f3f4f8;
+    color: var(--muted);
+}
+
+/* Override legacy tiny provision-failed styles if still referenced */
+.provision-page .provision-failed {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 12px 14px;
+    border-color: #ffd5da;
+    background: #fffafb;
+    border-radius: 12px;
+}
+
+.provision-page .provision-failed strong {
+    font-size: 16px;
+}
+
+.provision-page .provision-failed p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+    .provision-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .provision-aside {
+        position: static;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .provision-page .page-heading {
+        flex-direction: column;
+    }
+
+    .provision-page .page-heading h1 {
+        font-size: 24px;
+    }
+
+    .provision-card {
+        padding: 20px;
+    }
+
+    .provision-percent {
+        font-size: 24px;
+    }
+
+    .provision-step {
+        min-height: 68px;
+        gap: 12px;
+    }
+
+    .provision-step strong {
+        font-size: 15px;
+    }
+
+    .provision-page .terminal-lines {
+        height: 280px;
+    }
+}
