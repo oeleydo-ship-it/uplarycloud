@@ -21,7 +21,15 @@ return new class extends Migration
             $table->id(); $table->uuid('uuid')->unique(); $table->foreignId('tenant_id')->constrained()->cascadeOnDelete(); $table->foreignId('application_id')->nullable()->constrained()->nullOnDelete(); $table->foreignId('server_id')->constrained()->cascadeOnDelete(); $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete(); $table->foreignId('rolled_back_from_id')->nullable()->constrained('application_deployments')->nullOnDelete(); $table->string('name'); $table->string('slug'); $table->string('deployment_type')->default('marketplace'); $table->text('description')->nullable(); $table->string('docker_image'); $table->string('docker_tag')->default('latest'); $table->unsignedInteger('container_port')->nullable(); $table->string('domain')->nullable(); $table->decimal('cpu_limit', 5, 2)->nullable(); $table->unsignedInteger('memory_limit_mb')->nullable(); $table->unsignedInteger('disk_limit_gb')->nullable(); $table->boolean('auto_start')->default(true); $table->boolean('backup_enabled')->default(false); $table->string('restart_policy')->default('unless-stopped'); $table->string('status')->default('queued'); $table->unsignedTinyInteger('progress')->default(0); $table->string('current_stage')->default('queued'); $table->text('last_error')->nullable(); $table->timestamp('started_at')->nullable(); $table->timestamp('completed_at')->nullable(); $table->timestamp('deployed_at')->nullable(); $table->softDeletes(); $table->timestamps(); $table->unique(['tenant_id','slug']); $table->index(['tenant_id','status']);
         });
         Schema::create('deployment_environment_variables', function (Blueprint $table): void {
-            $table->id(); $table->foreignId('application_deployment_id')->constrained()->cascadeOnDelete(); $table->string('key'); $table->text('value')->nullable(); $table->boolean('secret')->default(false); $table->string('description')->nullable(); $table->timestamps(); $table->unique(['application_deployment_id','key']);
+            $table->id();
+            // Explicit short names: MySQL/MariaDB identifiers max 64 chars (defaults exceed that).
+            $table->foreignId('application_deployment_id')->constrained(indexName: 'dev_env_vars_deployment_id_fk')->cascadeOnDelete();
+            $table->string('key');
+            $table->text('value')->nullable();
+            $table->boolean('secret')->default(false);
+            $table->string('description')->nullable();
+            $table->timestamps();
+            $table->unique(['application_deployment_id', 'key'], 'dev_env_vars_deployment_key_uq');
         });
         Schema::create('deployment_steps', function (Blueprint $table): void {
             $table->id(); $table->foreignId('application_deployment_id')->constrained()->cascadeOnDelete(); $table->string('key'); $table->string('name'); $table->unsignedSmallInteger('position'); $table->string('status')->default('pending'); $table->timestamp('started_at')->nullable(); $table->timestamp('completed_at')->nullable(); $table->text('error')->nullable(); $table->timestamps(); $table->unique(['application_deployment_id','key']);

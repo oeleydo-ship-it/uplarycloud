@@ -214,15 +214,17 @@ class DeploymentService
         $port = $this->publishFlag($deployment);
         $limits = ($deployment->memory_limit_mb ? ' --memory '.RemoteShell::quote($deployment->memory_limit_mb.'m') : '').($deployment->cpu_limit ? ' --cpus '.RemoteShell::quote((string) $deployment->cpu_limit) : '');
         $dataMount = $this->applicationDataMount($deployment);
-        $command = 'docker create --name '.RemoteShell::quote($deployment->slug).' --network '.RemoteShell::quote($this->networkName($deployment)).' --restart '.RemoteShell::quote($deployment->restart_policy).' -v '.RemoteShell::quote($deployment->slug.'-data:'.$dataMount).$port.$limits.$env.' '.RemoteShell::quote($deployment->docker_image.':'.$deployment->docker_tag);
+        $commandArgs = $this->applicationCommandArgs($deployment);
+        $command = 'docker create --name '.RemoteShell::quote($deployment->slug).' --network '.RemoteShell::quote($this->networkName($deployment)).' --restart '.RemoteShell::quote($deployment->restart_policy).' -v '.RemoteShell::quote($deployment->slug.'-data:'.$dataMount).$port.$limits.$env.' '.RemoteShell::quote($deployment->docker_image.':'.$deployment->docker_tag).$commandArgs;
         $this->log($deployment, 'info', 'Creating container: '.RemoteCommandException::redact($command));
         $this->command($deployment, $command);
         $this->assertContainerExists($deployment);
     }
 
     /**
-     * Catalog apps (WordPress, Bookstack, …) default DB_HOST/WORDPRESS_DB_HOST to "db"
-     * but historically never started a sidecar — provision MariaDB on the app network.
+     * Catalog apps default DB hosts to "db" — provision MariaDB on the app network.
+     * Supports WordPress/Joomla/Backdrop (*_DB_HOST), PrestaShop (DB_SERVER),
+     * Concrete/Matomo (MYSQL_HOST / MATOMO_DATABASE_HOST), and BookStack-style DB_HOST.
      *
      * @return array{image:string,container:string,database:string,user:string,password:string,root_password:string,host_keys:list<string>}|null
      */
@@ -232,16 +234,43 @@ class DeploymentService
         $env = $deployment->environmentVariables->keyBy('key');
         $slug = strtolower((string) ($deployment->application?->slug ?: ''));
         $image = strtolower((string) $deployment->docker_image);
-        $hostKeys = [];
 
-        if ($env->has('WORDPRESS_DB_HOST') || $slug === 'wordpress' || str_contains($image, 'wordpress')) {
-            $hostKeys[] = 'WORDPRESS_DB_HOST';
-            $host = strtolower(trim((string) ($env->get('WORDPRESS_DB_HOST')?->value ?? 'db')));
+        foreach (['WORDPRESS', 'JOOMLA', 'BACKDROP'] as $prefix) {
+            $hostKey = $prefix.'_DB_HOST';
+            $matchesSlug = $prefix === 'WORDPRESS' && ($slug === 'wordpress' || str_contains($image, 'wordpress'));
+            if (! $env->has($hostKey) && ! $matchesSlug) {
+                continue;
+            }
+
+            $host = strtolower(trim((string) ($env->get($hostKey)?->value ?? 'db')));
             if (! $this->isManagedDbHostname($host, $deployment->slug)) {
                 return null;
             }
 
-            $password = (string) ($env->get('WORDPRESS_DB_PASSWORD')?->value ?? '');
+            $password = (string) ($env->get($prefix.'_DB_PASSWORD')?->value ?? '');
+            if ($password === '') {
+                return null;
+            }
+
+            $defaultName = strtolower($prefix) === 'wordpress' ? 'wordpress' : strtolower($prefix);
+
+            return [
+                'image' => 'mariadb:11',
+                'container' => $deployment->slug.'-db',
+                'database' => (string) ($env->get($prefix.'_DB_NAME')?->value ?: $defaultName),
+                'user' => (string) ($env->get($prefix.'_DB_USER')?->value ?: $defaultName),
+                'password' => $password,
+                'root_password' => $password,
+                'host_keys' => [$hostKey],
+            ];
+        }
+
+        if ($env->has('DB_SERVER')) {
+            $host = strtolower(trim((string) ($env->get('DB_SERVER')?->value ?? '')));
+            if (! $this->isManagedDbHostname($host, $deployment->slug)) {
+                return null;
+            }
+            $password = (string) ($env->get('DB_PASSWD')?->value ?? $env->get('DB_PASSWORD')?->value ?? '');
             if ($password === '') {
                 return null;
             }
@@ -249,20 +278,83 @@ class DeploymentService
             return [
                 'image' => 'mariadb:11',
                 'container' => $deployment->slug.'-db',
-                'database' => (string) ($env->get('WORDPRESS_DB_NAME')?->value ?: 'wordpress'),
-                'user' => (string) ($env->get('WORDPRESS_DB_USER')?->value ?: 'wordpress'),
+                'database' => (string) ($env->get('DB_NAME')?->value ?: 'prestashop'),
+                'user' => (string) ($env->get('DB_USER')?->value ?: 'prestashop'),
                 'password' => $password,
                 'root_password' => $password,
-                'host_keys' => $hostKeys,
+                'host_keys' => ['DB_SERVER'],
             ];
         }
 
-        if ($env->has('DB_HOST') && ($slug === 'bookstack' || $env->has('DB_DATABASE'))) {
+        if ($env->has('MYSQL_HOST')) {
+            $host = strtolower(trim((string) ($env->get('MYSQL_HOST')?->value ?? '')));
+            if (! $this->isManagedDbHostname($host, $deployment->slug)) {
+                return null;
+            }
+            $password = (string) ($env->get('MYSQL_PASSWORD')?->value ?? '');
+            if ($password === '') {
+                return null;
+            }
+
+            return [
+                'image' => 'mariadb:11',
+                'container' => $deployment->slug.'-db',
+                'database' => (string) ($env->get('MYSQL_DATABASE')?->value ?: 'app'),
+                'user' => (string) ($env->get('MYSQL_USER')?->value ?: 'app'),
+                'password' => $password,
+                'root_password' => $password,
+                'host_keys' => ['MYSQL_HOST'],
+            ];
+        }
+
+        if ($env->has('MATOMO_DATABASE_HOST')) {
+            $host = strtolower(trim((string) ($env->get('MATOMO_DATABASE_HOST')?->value ?? '')));
+            if (! $this->isManagedDbHostname($host, $deployment->slug)) {
+                return null;
+            }
+            $password = (string) ($env->get('MATOMO_DATABASE_PASSWORD')?->value ?? '');
+            if ($password === '') {
+                return null;
+            }
+
+            return [
+                'image' => 'mariadb:11',
+                'container' => $deployment->slug.'-db',
+                'database' => (string) ($env->get('MATOMO_DATABASE_DBNAME')?->value ?: 'matomo'),
+                'user' => (string) ($env->get('MATOMO_DATABASE_USERNAME')?->value ?: 'matomo'),
+                'password' => $password,
+                'root_password' => $password,
+                'host_keys' => ['MATOMO_DATABASE_HOST'],
+            ];
+        }
+
+        if ($env->has('CRAFT_DB_SERVER')) {
+            $host = strtolower(trim((string) ($env->get('CRAFT_DB_SERVER')?->value ?? '')));
+            if (! $this->isManagedDbHostname($host, $deployment->slug)) {
+                return null;
+            }
+            $password = (string) ($env->get('CRAFT_DB_PASSWORD')?->value ?? '');
+            if ($password === '') {
+                return null;
+            }
+
+            return [
+                'image' => 'mariadb:11',
+                'container' => $deployment->slug.'-db',
+                'database' => (string) ($env->get('CRAFT_DB_DATABASE')?->value ?: 'craft'),
+                'user' => (string) ($env->get('CRAFT_DB_USER')?->value ?: 'craft'),
+                'password' => $password,
+                'root_password' => $password,
+                'host_keys' => ['CRAFT_DB_SERVER'],
+            ];
+        }
+
+        if ($env->has('DB_HOST') && ($slug === 'bookstack' || $env->has('DB_DATABASE') || $env->has('DB_NAME'))) {
             $host = strtolower(trim((string) ($env->get('DB_HOST')?->value ?? '')));
             if (! $this->isManagedDbHostname($host, $deployment->slug)) {
                 return null;
             }
-            $password = (string) ($env->get('DB_PASSWORD')?->value ?? '');
+            $password = (string) ($env->get('DB_PASSWORD')?->value ?? $env->get('DB_PASS')?->value ?? '');
             if ($password === '') {
                 return null;
             }
@@ -270,8 +362,8 @@ class DeploymentService
             return [
                 'image' => 'mariadb:11',
                 'container' => $deployment->slug.'-db',
-                'database' => (string) ($env->get('DB_DATABASE')?->value ?: 'app'),
-                'user' => (string) ($env->get('DB_USERNAME')?->value ?: 'app'),
+                'database' => (string) ($env->get('DB_DATABASE')?->value ?? $env->get('DB_NAME')?->value ?: 'app'),
+                'user' => (string) ($env->get('DB_USERNAME')?->value ?? $env->get('DB_USER')?->value ?: 'app'),
                 'password' => $password,
                 'root_password' => $password,
                 'host_keys' => ['DB_HOST'],
@@ -279,6 +371,17 @@ class DeploymentService
         }
 
         return null;
+    }
+
+    private function applicationCommandArgs(ApplicationDeployment $deployment): string
+    {
+        $slug = strtolower((string) ($deployment->application?->slug ?: ''));
+
+        return match ($slug) {
+            'minio' => ' server /data --console-address ":9001"',
+            'keycloak' => ' start-dev',
+            default => '',
+        };
     }
 
     private function isManagedDbHostname(string $host, string $slug): bool
@@ -622,6 +725,17 @@ class DeploymentService
 
         if ($slug === 'wordpress' || str_contains($image, 'wordpress')) {
             return '/var/www/html';
+        }
+
+        $deployment->loadMissing(['application.template']);
+        $volumes = $deployment->application?->template?->volume_schema;
+        if (is_array($volumes)) {
+            foreach ($volumes as $volume) {
+                $path = is_array($volume) ? (string) ($volume['path'] ?? '') : '';
+                if ($path !== '') {
+                    return $path;
+                }
+            }
         }
 
         return '/data';

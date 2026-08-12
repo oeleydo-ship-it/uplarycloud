@@ -607,7 +607,7 @@ class ApplicationDeploymentTest extends TestCase
             $app->template()->create([
                 'compose_template' => "services:\n  app:\n    image: wordpress:latest\n",
                 'environment_schema' => [['key' => 'TZ', 'value' => 'Asia/Dubai', 'description' => 'Application timezone', 'secret' => false]],
-                'volume_schema' => [['name' => 'data', 'path' => '/data']],
+                'volume_schema' => [['name' => 'data', 'path' => '/var/www/html']],
                 'port_schema' => [['container' => 80]],
                 'healthcheck' => 'container',
                 'restart_policy' => 'unless-stopped',

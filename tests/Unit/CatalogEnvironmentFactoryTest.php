@@ -43,4 +43,25 @@ class CatalogEnvironmentFactoryTest extends TestCase
         $this->assertStringEndsWith('@db:5432/umami', $rows[3]['value']);
         $this->assertStringNotContainsString('change-me', $rows[3]['value']);
     }
+
+    public function test_joomla_schema_includes_database_credentials(): void
+    {
+        $factory = new CatalogEnvironmentFactory;
+        $schema = $factory->schemaFor('joomla');
+
+        $this->assertNotNull($schema);
+        $keys = array_column($schema, 'key');
+        $this->assertContains('JOOMLA_DB_HOST', $keys);
+        $this->assertContains('JOOMLA_DB_PASSWORD', $keys);
+    }
+
+    public function test_directus_schema_defaults_to_sqlite(): void
+    {
+        $factory = new CatalogEnvironmentFactory;
+        $schema = $factory->schemaFor('directus');
+
+        $this->assertNotNull($schema);
+        $client = collect($schema)->firstWhere('key', 'DB_CLIENT');
+        $this->assertSame('sqlite3', $client['value']);
+    }
 }
