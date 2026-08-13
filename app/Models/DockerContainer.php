@@ -13,16 +13,53 @@ use Illuminate\Support\Str;
 class DockerContainer extends Model
 {
     use SoftDeletes;
-    protected $fillable = ['tenant_id','server_id','application_deployment_id','uuid','docker_id','name','image','status','health','ports','cpu_percent','memory_usage_mb','memory_limit_mb','restart_count','started_at','finished_at','labels'];
-    protected static function booted(): void { static::creating(fn ($model) => $model->uuid ??= (string) Str::uuid()); }
-    protected function casts(): array { return ['status'=>ContainerStatus::class,'ports'=>'array','labels'=>'array','cpu_percent'=>'decimal:2','started_at'=>'datetime','finished_at'=>'datetime']; }
-    public function getRouteKeyName(): string { return 'uuid'; }
-    public function server(): BelongsTo { return $this->belongsTo(Server::class)->withTrashed(); }
-    public function deployment(): BelongsTo { return $this->belongsTo(ApplicationDeployment::class, 'application_deployment_id')->withTrashed(); }
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function volumes(): BelongsToMany { return $this->belongsToMany(DockerVolume::class, 'container_volume')->withPivot(['mount_path','read_only'])->withTimestamps(); }
-    public function networks(): BelongsToMany { return $this->belongsToMany(DockerNetwork::class, 'container_network')->withPivot('ip_address')->withTimestamps(); }
-    public function metrics(): HasMany { return $this->hasMany(ContainerMetric::class); }
+
+    protected $fillable = ['tenant_id', 'server_id', 'application_deployment_id', 'uuid', 'docker_id', 'name', 'image', 'status', 'health', 'ports', 'cpu_percent', 'memory_usage_mb', 'memory_limit_mb', 'restart_count', 'started_at', 'finished_at', 'labels'];
+
+    protected static function booted(): void
+    {
+        static::creating(fn ($model) => $model->uuid ??= (string) Str::uuid());
+    }
+
+    protected function casts(): array
+    {
+        return ['status' => ContainerStatus::class, 'ports' => 'array', 'labels' => 'array', 'cpu_percent' => 'decimal:2', 'started_at' => 'datetime', 'finished_at' => 'datetime'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
+    public function server(): BelongsTo
+    {
+        return $this->belongsTo(Server::class)->withTrashed();
+    }
+
+    public function deployment(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationDeployment::class, 'application_deployment_id')->withTrashed();
+    }
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function volumes(): BelongsToMany
+    {
+        return $this->belongsToMany(DockerVolume::class, 'container_volume')->withPivot(['mount_path', 'read_only'])->withTimestamps();
+    }
+
+    public function networks(): BelongsToMany
+    {
+        return $this->belongsToMany(DockerNetwork::class, 'container_network')->withPivot('ip_address')->withTimestamps();
+    }
+
+    public function metrics(): HasMany
+    {
+        return $this->hasMany(ContainerMetric::class);
+    }
 
     public function resolvedApplication(): ?Application
     {
@@ -82,6 +119,8 @@ class DockerContainer extends Model
 
     public function formattedPorts(): string
     {
+        // Only show host-published mappings. Private-only (Dockerfile EXPOSE) is internal
+        // and must not look like a shared/conflicting host port in the Containers UI.
         $ports = collect($this->ports ?? [])
             ->map(function (array $port): ?string {
                 $public = $port['public'] ?? null;
@@ -91,7 +130,7 @@ class DockerContainer extends Model
                     return $public.':'.$private;
                 }
 
-                return $public ?: ($private ? (string) $private : null);
+                return $public ? (string) $public : null;
             })
             ->filter()
             ->values();
@@ -155,6 +194,14 @@ class DockerContainer extends Model
 
     public function canRestart(): bool
     {
-        return $this->isOperable();
+        return $this->isOperable() && in_array($this->status, [
+            ContainerStatus::Running,
+            ContainerStatus::Unhealthy,
+            ContainerStatus::Paused,
+            ContainerStatus::Stopped,
+            ContainerStatus::Exited,
+            ContainerStatus::Created,
+            ContainerStatus::Restarting,
+        ], true);
     }
 }

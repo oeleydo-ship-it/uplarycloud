@@ -31,9 +31,26 @@
                 <i data-lucide="chevron-down"></i>
             </button>
             <div class="profile-dropdown" x-cloak x-show="profileOpen" @click.outside="profileOpen=false" x-transition>
-                <div><strong>{{ auth()->user()->name }}</strong><small>{{ auth()->user()->email }}</small></div>
-                @if(auth()->user()->is_super_admin)<a class="profile-admin-link" href="{{ route('admin.dashboard') }}"><i data-lucide="shield-check"></i> Platform Console</a>@endif
-                <form method="POST" action="{{ route('logout') }}">@csrf<button><i data-lucide="log-out"></i> Sign out</button></form>
+                <div class="profile-dropdown__header">
+                    <strong>{{ auth()->user()->name }}</strong>
+                    <small>{{ auth()->user()->email }}</small>
+                </div>
+                <div class="profile-dropdown__list">
+                    <a href="{{ route('settings') }}" class="profile-dropdown__item {{ request()->routeIs('settings*') ? 'is-active' : '' }}">
+                        <i data-lucide="settings-2"></i><span>Settings</span>
+                    </a>
+                    @if(auth()->user()->is_super_admin)
+                        <a class="profile-dropdown__item profile-admin-link" href="{{ route('admin.dashboard') }}">
+                            <i data-lucide="shield-check"></i><span>Platform Console</span>
+                        </a>
+                    @endif
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="profile-dropdown__item profile-dropdown__item--danger">
+                            <i data-lucide="log-out"></i><span>Sign out</span>
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

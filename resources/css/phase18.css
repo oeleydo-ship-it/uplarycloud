@@ -29,7 +29,7 @@
 .provision-step > div { flex: 1; min-width: 0; }
 .provision-step strong { display: block; font-size: 14px; font-weight: 600; color: var(--text); }
 .provision-step small { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
-.provision-step time { font-size: 12px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
+.provision-step time { font-size:13px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
 .provision-step.is-completed > span { background: var(--green); border-color: var(--green); color: #fff; }
 .provision-step.is-completed strong { color: var(--text); }
 .provision-step.is-running > span { background: #f0edff; border-color: #d9d2ff; color: var(--primary); }
@@ -46,7 +46,7 @@
 .live-log-head button:hover { color: #e5e7eb; }
 .live-log-head button svg { width: 16px; height: 16px; }
 .terminal-lines { height: 340px; overflow: auto; padding: 14px 16px; font-family: Consolas, 'SFMono-Regular', monospace; }
-.terminal-lines p { font-size: 12px; line-height: 1.65; margin: 0 0 6px; color: #d1d5db; }
+.terminal-lines p { font-size:13px; line-height: 1.65; margin: 0 0 6px; color: #d1d5db; }
 .terminal-lines span { color: #6b7280; margin-right: 10px; }
 .terminal-lines b { font-weight: 400; color: #e5e7eb; }
 
@@ -60,7 +60,7 @@
 .success-page .success-hero { text-align: center; padding: 32px 24px 36px; background: linear-gradient(120deg, #f2fbf7, #f8f6ff); border: 1px solid #deeee8; border-radius: 12px; margin-bottom: 20px; }
 .success-page .success-hero > span { width: 56px; height: 56px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; box-shadow: 0 0 0 8px rgba(40,183,125,.1); }
 .success-page .success-hero > span svg { width: 26px; height: 26px; }
-.success-page .success-hero .eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--primary); font-weight: 700; }
+.success-page .success-hero .eyebrow { font-size:13px; letter-spacing: .08em; color: var(--primary); font-weight: 700; }
 .success-page .success-hero h1 { font-size: 24px; font-weight: 700; margin: 8px 0; letter-spacing: -.03em; }
 .success-page .success-hero > p:not(.eyebrow) { font-size: 14px; color: var(--muted); margin: 0 0 20px; }
 .success-page .success-hero .button { height: 40px; font-size: 14px; }
@@ -69,10 +69,10 @@
 .success-page .next-actions .card-head h2 { font-size: 16px; }
 .success-page .server-facts .card-head p,
 .success-page .next-actions .card-head p { font-size: 13px; }
-.success-page .server-facts dt { font-size: 12px; color: var(--muted); }
+.success-page .server-facts dt { font-size:13px; color: var(--muted); }
 .success-page .server-facts dd { font-size: 14px; font-weight: 600; }
 .success-page .next-actions strong { font-size: 14px; }
-.success-page .next-actions small { font-size: 12px; }
+.success-page .next-actions small { font-size:13px; }
 
 @media (max-width: 1100px) {
     .provision-layout { grid-template-columns: 1fr; }

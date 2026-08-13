@@ -13,6 +13,8 @@ class AuthenticationTest extends TestCase
 
     public function test_user_can_register_with_an_owner_workspace(): void
     {
+        config(['app.disable_email_verification' => false]);
+        app(\App\Support\PlatformSettings::class)->put('general', ['email_verification' => true]);
         User::factory()->create(['is_super_admin' => true]);
 
         $response = $this->post('/register', [

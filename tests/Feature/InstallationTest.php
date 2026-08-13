@@ -63,6 +63,10 @@ class InstallationTest extends TestCase
             'value' => 'Uplary Ops',
         ]);
         $this->assertTrue(app(InstallationState::class)->isInstalled());
+        $this->assertGreaterThanOrEqual(50, \App\Models\Application::where('active', true)->count());
+        $this->assertDatabaseHas('applications', ['slug' => 'wordpress', 'active' => true]);
+        $this->assertDatabaseHas('applications', ['slug' => 'nextcloud', 'active' => true]);
+        $this->assertGreaterThanOrEqual(4, \App\Models\BuildPack::where('active', true)->count());
     }
 
     public function test_install_cannot_be_rerun_when_users_exist(): void

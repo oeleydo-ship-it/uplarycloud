@@ -1,0 +1,248 @@
+/* Uniform readable type scale — imported last so it wins over phase CSS. */
+:root {
+    --fs-body: 14px;
+    --fs-label: 13px;
+    --fs-helper: 13px;
+    --fs-title: 16px;
+    --fs-page: 26px;
+    --fs-subtitle: 15px;
+    --fs-nav: 14px;
+    --fs-table-head: 13px;
+    --fs-button: 14px;
+    --muted: #5a6073;
+}
+
+button, input, select, textarea { font-family: inherit; font-size: var(--fs-body); }
+
+/* Shell */
+.nav-item { font-size: var(--fs-nav); }
+.nav-badge { font-size: var(--fs-helper); }
+.plan-trigger-copy small { font-size: var(--fs-helper); color: var(--muted); }
+.profile-dropdown__header strong { font-size: var(--fs-body); }
+.profile-dropdown__header small { font-size: var(--fs-helper); color: var(--muted); }
+.profile-dropdown__item,
+.profile-dropdown a,
+.profile-admin-link,
+.profile-dropdown button { font-size: var(--fs-body); }
+.plan-trigger-copy strong { font-size: var(--fs-body); }
+.plan-title { font-size: var(--fs-label); }
+.plan-pill { font-size: var(--fs-helper); }
+.plan-heading,
+.plan-row,
+.plan-row strong { font-size: var(--fs-helper); }
+.system-status { font-size: var(--fs-helper); color: #4f5568; }
+
+.page-heading { align-items: flex-end; }
+.page-heading h1,
+.dashboard-heading h1,
+.server-title h1 { font-size: var(--fs-page); line-height: 1.15; letter-spacing: -.03em; font-weight: 750; }
+.page-heading h1 span { font-size: 22px; }
+.page-heading p,
+.dashboard-heading p { font-size: var(--fs-subtitle); line-height: 1.5; color: #4f5568; }
+.breadcrumb { color: #5f6578 !important; font-size: var(--fs-helper) !important; font-weight: 600; }
+
+.button { font-size: var(--fs-button); height: 40px; }
+.button--small { font-size: 13px; height: 34px; }
+
+.stat-label { font-size: var(--fs-label); color: var(--muted); }
+.stat-value { font-size: 26px; }
+.stat-detail { font-size: var(--fs-helper); color: #5a6073; }
+
+.card-head h2 { font-size: var(--fs-title); }
+.card-head p,
+.card-head a { font-size: var(--fs-helper); color: var(--muted); }
+.card-head a { color: var(--primary); }
+
+/* Forms */
+.field > span,
+.field label,
+.admin-form-grid label > span { font-size: var(--fs-label); font-weight: 650; color: #3d4254; }
+.field input,
+.field select,
+.field textarea,
+.table-search input,
+.search-filter-form select,
+.api-filterbar select,
+.server-reference-filters select { font-size: var(--fs-body); color: var(--text); }
+.field > small:not(.field-error),
+.field-error { font-size: var(--fs-helper); }
+.table-search input,
+.api-filterbar .table-search input,
+.api-filterbar select,
+.server-reference-filters .table-search input,
+.server-reference-filters select { height: 42px; }
+
+/* Tables */
+.resource-table-head,
+.api-token-head,
+.support-ticket-head,
+.server-reference-head,
+.dashboard-deployments-head,
+.commercial-table-head,
+.domain-table-head,
+.admin-table-card th {
+    font-size: var(--fs-table-head);
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #5a6073;
+}
+
+.resource-table-row,
+.resource-table-row > span,
+.resource-table-row strong,
+.api-token-row > span:first-child strong,
+.support-ticket-row > span:first-child strong,
+.server-reference-row > span strong,
+.dashboard-deployment-row > span strong,
+.commercial-table-row,
+.domain-table-row,
+.table-row strong,
+.admin-table-card td,
+.admin-table-card td strong { font-size: var(--fs-body); color: var(--text); }
+
+.resource-table-row small,
+.api-token-row > span:first-child small,
+.api-token-row time,
+.support-ticket-row > span:first-child small,
+.support-ticket-row time,
+.server-reference-row > span small,
+.dashboard-deployment-row > span small,
+.commercial-table-row small,
+.domain-table-row small,
+.table-row small,
+.table-row time,
+.admin-table-card td small,
+.table-count,
+.pagination-wrap nav span,
+.pagination-wrap nav a { font-size: var(--fs-helper); color: var(--muted); }
+
+/* Badges stay compact but readable */
+.scope-list em,
+.environment-badge,
+.api-status,
+.priority-badge,
+.provider-badge,
+.ticket-status,
+.health-summary { font-size: var(--fs-helper); }
+
+/* Empty states + helpers */
+.healthy-empty,
+.empty-state,
+.dashboard-empty { text-align: center; padding: 36px 20px; }
+.healthy-empty strong,
+.empty-state h2,
+.dashboard-empty strong { display: block; font-size: 16px; color: var(--text); margin-top: 10px; }
+.healthy-empty small,
+.empty-state p,
+.dashboard-empty p { display: block; font-size: var(--fs-helper); color: var(--muted); margin-top: 6px; }
+
+/* Settings / support / commercial leftovers */
+.settings-tabs a { font-size: var(--fs-body); }
+.section-heading h2,
+.upload-card h3,
+.help-card h3,
+.reference-card-title h2,
+.maintenance-copy h2 { font-size: var(--fs-title); }
+.section-heading p,
+.upload-card p,
+.help-card p,
+.reference-card-title p,
+.maintenance-copy p,
+.support-help-card p,
+.support-message-body,
+.support-links-card small,
+.ticket-details-card dt,
+.support-context-card p { font-size: var(--fs-helper); color: var(--muted); }
+.support-help-card h2,
+.support-context-card h3 { font-size: var(--fs-title); }
+.support-links-card strong,
+.support-message-head strong,
+.ticket-details-card dd { font-size: var(--fs-body); }
+.support-reply-actions small { font-size: var(--fs-helper); }
+
+/* Modals */
+.domain-modal-head h2 { font-size: 18px; font-weight: 700; }
+.domain-modal-head p { font-size: var(--fs-helper); color: #4f5568; margin-top: 4px; }
+.scope-picker legend { font-size: var(--fs-label); font-weight: 650; }
+.scope-picker label span { font-size: var(--fs-body); }
+
+/* Auth */
+.auth-heading h1 { font-size: 28px; }
+.auth-heading p { font-size: var(--fs-subtitle); color: #4f5568; }
+.form-between,
+.check,
+.auth-switch { font-size: var(--fs-helper); }
+.auth-footer { font-size: var(--fs-helper); }
+.visual-copy p { font-size: 15px; }
+.visual-steps span { font-size: var(--fs-helper); }
+
+/* Marketplace / dashboard leftovers */
+.marketplace-app strong { font-size: var(--fs-body); }
+.marketplace-app small { font-size: var(--fs-helper); }
+.quick-grid strong,
+.compact-table .table-row strong { font-size: var(--fs-body); }
+.quick-grid small { font-size: var(--fs-helper); }
+
+/* Server / wizard / provision */
+.wizard-card-head h2,
+.provision-summary h2 { font-size: 17px; }
+.wizard-card-head p,
+.provision-summary p,
+.wizard-step strong { font-size: var(--fs-helper); }
+.wizard-step small { font-size: var(--fs-helper); }
+.info-banner strong { font-size: var(--fs-body); }
+.info-banner p,
+.info-banner > a { font-size: var(--fs-helper); }
+.server-title p { font-size: var(--fs-subtitle); }
+.detail-tabs a { font-size: var(--fs-body); }
+
+/* Token reveal (shared commercial) */
+.token-reveal small { font-size: var(--fs-helper); color: #c5bfd8; }
+.token-reveal strong { font-size: 15px; }
+.token-reveal code { font-size: var(--fs-body); }
+.token-reveal button { font-size: var(--fs-button); height: 38px; }
+
+/* Console-wide readability floor for compact metadata and legacy phase styles. */
+.app-body small,
+.admin-body small,
+.app-body time,
+.admin-body time,
+.app-body code,
+.admin-body code,
+.app-body .status,
+.admin-body .status,
+.app-body [class*="badge"],
+.admin-body [class*="badge"],
+.app-body [class*="pill"],
+.admin-body [class*="pill"] {
+    font-size: var(--fs-helper);
+    line-height: 1.45;
+}
+
+.app-body table,
+.admin-body table,
+.app-body .table-row,
+.admin-body .table-row,
+.app-body [class*="-row"],
+.admin-body [class*="-row"] { font-size: var(--fs-body); }
+
+.admin-heading > div > p,
+.admin-card-head p,
+.admin-switches small,
+.admin-form-grid small,
+.admin-table-card th,
+.admin-table-card td,
+.admin-sidebar a,
+.admin-topbar,
+.app-topbar,
+.sidebar-footer,
+.card-head small {
+    font-size: var(--fs-helper);
+    line-height: 1.5;
+}
+
+.admin-switches strong,
+.admin-form-grid input,
+.admin-form-grid select,
+.admin-form-grid textarea,
+.admin-table-card td strong { font-size: var(--fs-body); }

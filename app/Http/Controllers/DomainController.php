@@ -1,6 +1,22 @@
 <?php
+
 namespace App\Http\Controllers;
-use App\Http\Requests\StoreDomainRequest;use App\Jobs\ConfigureDomainJob;use App\Jobs\IssueCertificateJob;use App\Jobs\VerifyDomainJob;use App\Models\ActivityLog;use App\Models\ApplicationDeployment;use App\Models\Domain;use App\Models\Server;use App\Services\Networking\DomainNetworkService;use App\Support\TenantContext;use Illuminate\Http\RedirectResponse;use Illuminate\Http\Request;use Illuminate\View\View;
+
+use App\Http\Requests\StoreDomainRequest;
+use App\Jobs\ConfigureDomainJob;
+use App\Jobs\IssueCertificateJob;
+use App\Jobs\VerifyDomainJob;
+use App\Models\ActivityLog;
+use App\Models\ApplicationDeployment;
+use App\Models\Domain;
+use App\Models\Server;
+use App\Services\Billing\PlanLimitService;
+use App\Services\Networking\DomainNetworkService;
+use App\Support\TenantContext;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
 class DomainController extends Controller
 {
     public function index(Request $request, TenantContext $context): View
@@ -46,7 +62,7 @@ class DomainController extends Controller
         return view('domains.index', compact('domains', 'stats', 'deployments', 'servers'));
     }
 
-    public function import(Request $request, TenantContext $context): RedirectResponse
+    public function import(Request $request, TenantContext $context, PlanLimitService $limits): RedirectResponse
     {
         $data = $request->validate([
             'application_deployment_id' => ['required', 'integer', 'exists:application_deployments,id'],
@@ -61,11 +77,22 @@ class DomainController extends Controller
         $pattern = '/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/';
         $imported = 0;
         $skipped = [];
+        $candidates = collect(preg_split('/[\s,;]+/', strtolower($data['hostnames'])) ?: [])
+            ->map(fn (string $hostname) => rtrim(trim($hostname), '.'))
+            ->filter()
+            ->unique()
+            ->values();
+        $validCount = $candidates->filter(fn (string $hostname) => preg_match($pattern, $hostname) && ! Domain::where('hostname', $hostname)->exists())->count();
+        if ($validCount > 0) {
+            $limits->enforce($context->current(), 'domains', $validCount);
+        }
 
-        foreach (preg_split('/[\s,;]+/', strtolower($data['hostnames'])) ?: [] as $hostname) {
-            $hostname = rtrim(trim($hostname), '.');
-            if ($hostname === '') continue;
-            if (! preg_match($pattern, $hostname) || Domain::where('hostname', $hostname)->exists()) { $skipped[] = $hostname; continue; }
+        foreach ($candidates as $hostname) {
+            if (! preg_match($pattern, $hostname) || Domain::where('hostname', $hostname)->exists()) {
+                $skipped[] = $hostname;
+
+                continue;
+            }
 
             $domain = Domain::create([
                 'tenant_id' => $context->id(),
@@ -80,7 +107,9 @@ class DomainController extends Controller
                 'ssl_status' => $request->boolean('ssl_enabled', true) ? 'pending' : 'disabled',
             ]);
 
-            if (! $deployment->domain) $deployment->update(['domain' => $domain->hostname]);
+            if (! $deployment->domain) {
+                $deployment->update(['domain' => $domain->hostname]);
+            }
             VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
             $imported++;
         }
@@ -88,43 +117,56 @@ class DomainController extends Controller
         ActivityLog::create(['tenant_id' => $context->id(), 'user_id' => $request->user()->id, 'action' => 'domain.imported', 'description' => $imported.' domain(s) imported for '.$deployment->name, 'subject_type' => ApplicationDeployment::class, 'subject_id' => $deployment->id]);
 
         $message = $imported.' domain'.($imported === 1 ? '' : 's').' imported. DNS verification has started.';
-        if ($skipped) $message .= ' Skipped (invalid or already in use): '.implode(', ', array_slice($skipped, 0, 5)).(count($skipped) > 5 ? '…' : '');
+        if ($skipped) {
+            $message .= ' Skipped (invalid or already in use): '.implode(', ', array_slice($skipped, 0, 5)).(count($skipped) > 5 ? '…' : '');
+        }
 
         return redirect()->route('domains.index')->with('success', $message);
     }
 
-    public function show(Domain $domain,TenantContext $context):View{$this->guard($domain,$context);$this->authorize('view',$domain->server);return view('domains.show',['domain'=>$domain->load(['deployment'=>fn($q)=>$q->withTrashed(),'deployment.buildPack','deployment.application','server'=>fn($q)=>$q->withTrashed()])]);}
-    public function store(StoreDomainRequest $request,TenantContext $context):RedirectResponse
+    public function show(Domain $domain, TenantContext $context): View
     {
-        $data=$request->validated();
-        $deployment=ApplicationDeployment::where('tenant_id',$context->id())->with('server')->findOrFail($data['application_deployment_id']);
-        $this->authorize('operate',$deployment->server);
-        $domain=Domain::create([
-            'tenant_id'=>$context->id(),
-            'application_deployment_id'=>$deployment->id,
-            'server_id'=>$deployment->server_id,
-            'created_by'=>$request->user()->id,
-            'hostname'=>$data['hostname'],
-            'redirect_to'=>$data['redirect_to']??null,
-            'force_https'=>$request->boolean('force_https',true),
-            'ssl_enabled'=>$request->boolean('ssl_enabled',true),
-            'auto_renew'=>$request->boolean('auto_renew',true),
-            'expected_value'=>$deployment->server->ip_address,
-            'ssl_status'=>$request->boolean('ssl_enabled',true)?'pending':'disabled',
-        ]);
-        if(!$deployment->domain)$deployment->update(['domain'=>$domain->hostname]);
-        ActivityLog::create(['tenant_id'=>$context->id(),'user_id'=>$request->user()->id,'action'=>'domain.created','description'=>$domain->hostname.' added to '.$deployment->name,'subject_type'=>Domain::class,'subject_id'=>$domain->id]);
-        VerifyDomainJob::dispatchSync($domain->id,$domain->tenant_id);
+        $this->guard($domain, $context);
+        $this->authorize('view', $domain->server);
 
-        return redirect()->route('domains.show',$domain)->with('success','Domain added. DNS verification has started.');
+        return view('domains.show', ['domain' => $domain->load(['deployment' => fn ($q) => $q->withTrashed(), 'deployment.buildPack', 'deployment.application', 'server' => fn ($q) => $q->withTrashed()])]);
     }
-    public function verify(Request $request,Domain $domain,TenantContext $context):RedirectResponse
+
+    public function store(StoreDomainRequest $request, TenantContext $context, PlanLimitService $limits): RedirectResponse
     {
-        $this->operate($domain,$context);
-        $domain->update(['dns_status'=>'pending','status'=>'verifying','failure_reason'=>null]);
+        $limits->enforce($context->current(), 'domains');
+        $data = $request->validated();
+        $deployment = ApplicationDeployment::where('tenant_id', $context->id())->with('server')->findOrFail($data['application_deployment_id']);
+        $this->authorize('operate', $deployment->server);
+        $domain = Domain::create([
+            'tenant_id' => $context->id(),
+            'application_deployment_id' => $deployment->id,
+            'server_id' => $deployment->server_id,
+            'created_by' => $request->user()->id,
+            'hostname' => $data['hostname'],
+            'redirect_to' => $data['redirect_to'] ?? null,
+            'force_https' => $request->boolean('force_https', true),
+            'ssl_enabled' => $request->boolean('ssl_enabled', true),
+            'auto_renew' => $request->boolean('auto_renew', true),
+            'expected_value' => $deployment->server->ip_address,
+            'ssl_status' => $request->boolean('ssl_enabled', true) ? 'pending' : 'disabled',
+        ]);
+        if (! $deployment->domain) {
+            $deployment->update(['domain' => $domain->hostname]);
+        }
+        ActivityLog::create(['tenant_id' => $context->id(), 'user_id' => $request->user()->id, 'action' => 'domain.created', 'description' => $domain->hostname.' added to '.$deployment->name, 'subject_type' => Domain::class, 'subject_id' => $domain->id]);
+        VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
+
+        return redirect()->route('domains.show', $domain)->with('success', 'Domain added. DNS verification has started.');
+    }
+
+    public function verify(Request $request, Domain $domain, TenantContext $context): RedirectResponse
+    {
+        $this->operate($domain, $context);
+        $domain->update(['dns_status' => 'pending', 'status' => 'verifying', 'failure_reason' => null]);
         // DNS lookup is local — run sync so a down queue worker cannot leave "Verifying" forever.
         // ConfigureDomainJob / IssueCertificateJob stay async on the networking queue.
-        VerifyDomainJob::dispatchSync($domain->id,$domain->tenant_id);
+        VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
         $domain->refresh();
 
         return back()->with('success', $domain->isDnsVerified()
@@ -135,6 +177,7 @@ class DomainController extends Controller
                     : 'DNS verified. Proxy and certificate configuration ran.'))
             : ($domain->failure_reason ?: 'DNS is not pointing to this server yet.'));
     }
+
     public function configure(Request $request, Domain $domain, TenantContext $context): RedirectResponse
     {
         $this->operate($domain, $context);
@@ -158,7 +201,37 @@ class DomainController extends Controller
             ? 'Certificate is active.'
             : ($domain->failure_reason ?: 'Certificate issuance did not complete yet.'));
     }
-    public function update(Request $request,Domain $domain,TenantContext $context):RedirectResponse{$this->operate($domain,$context);$data=$request->validate(['redirect_to'=>['nullable','string','max:253','regex:/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/'],'force_https'=>['nullable','boolean'],'auto_renew'=>['nullable','boolean']]);$domain->update(['redirect_to'=>$data['redirect_to']??null,'force_https'=>$request->boolean('force_https'),'auto_renew'=>$request->boolean('auto_renew')]);ConfigureDomainJob::dispatch($domain->id,$domain->tenant_id);return back()->with('success','Domain routing updated.');}
-    public function destroy(Request $request,Domain $domain,TenantContext $context,DomainNetworkService $network):RedirectResponse{$this->operate($domain,$context);$network->remove($domain);if($domain->deployment->domain===$domain->hostname)$domain->deployment->update(['domain'=>null]);ActivityLog::create(['tenant_id'=>$context->id(),'user_id'=>$request->user()->id,'action'=>'domain.removed','description'=>$domain->hostname.' removed','subject_type'=>Domain::class,'subject_id'=>$domain->id]);$domain->delete();return redirect()->route('domains.index')->with('success','Domain and proxy route removed.');}
-    private function operate(Domain $domain,TenantContext $context):void{$this->guard($domain,$context);$this->authorize('operate',$domain->server);}private function guard(Domain $domain,TenantContext $context):void{abort_unless($domain->tenant_id===$context->id(),404);}
+
+    public function update(Request $request, Domain $domain, TenantContext $context): RedirectResponse
+    {
+        $this->operate($domain, $context);
+        $data = $request->validate(['redirect_to' => ['nullable', 'string', 'max:253', 'regex:/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/'], 'force_https' => ['nullable', 'boolean'], 'auto_renew' => ['nullable', 'boolean']]);
+        $domain->update(['redirect_to' => $data['redirect_to'] ?? null, 'force_https' => $request->boolean('force_https'), 'auto_renew' => $request->boolean('auto_renew')]);
+        ConfigureDomainJob::dispatch($domain->id, $domain->tenant_id);
+
+        return back()->with('success', 'Domain routing updated.');
+    }
+
+    public function destroy(Request $request, Domain $domain, TenantContext $context, DomainNetworkService $network): RedirectResponse
+    {
+        $this->operate($domain, $context);
+        $network->remove($domain);
+        if ($domain->deployment->domain === $domain->hostname) {
+            $domain->deployment->update(['domain' => null]);
+        }ActivityLog::create(['tenant_id' => $context->id(), 'user_id' => $request->user()->id, 'action' => 'domain.removed', 'description' => $domain->hostname.' removed', 'subject_type' => Domain::class, 'subject_id' => $domain->id]);
+        $domain->delete();
+
+        return redirect()->route('domains.index')->with('success', 'Domain and proxy route removed.');
+    }
+
+    private function operate(Domain $domain, TenantContext $context): void
+    {
+        $this->guard($domain, $context);
+        $this->authorize('operate', $domain->server);
+    }
+
+    private function guard(Domain $domain, TenantContext $context): void
+    {
+        abort_unless($domain->tenant_id === $context->id(),404);
+    }
 }

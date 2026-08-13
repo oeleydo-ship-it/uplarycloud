@@ -1,6 +1,39 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Requests\StoreComposeProjectRequest;use App\Jobs\DockerResourceActionJob;use App\Models\DockerComposeProject;use App\Models\Server;use App\Services\Docker\ComposeSecurityValidator;use App\Support\TenantContext;use Illuminate\Http\RedirectResponse;use Illuminate\View\View;
+
+use App\Http\Requests\StoreComposeProjectRequest;
+use App\Jobs\DockerResourceActionJob;
+use App\Models\DockerComposeProject;
+use App\Models\Server;
+use App\Services\Billing\PlanLimitService;
+use App\Services\Docker\ComposeSecurityValidator;
+use App\Support\TenantContext;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
+
 class DockerComposeController extends Controller
-{public function index(TenantContext $c):View{return view('docker.compose',['projects'=>DockerComposeProject::where('tenant_id',$c->id())->with(['server'=>fn($q)=>$q->withTrashed()])->latest()->get(),'servers'=>Server::where('tenant_id',$c->id())->where('status','online')->get()]);}public function store(StoreComposeProjectRequest $r,TenantContext $c,ComposeSecurityValidator $validator):RedirectResponse{$validator->validate($r->string('compose_content'));$env=collect(preg_split('/\r?\n/',$r->string('environment')))->filter()->mapWithKeys(function($line){[$k,$v]=array_pad(explode('=',$line,2),2,'');return[trim($k)=>$v];})->all();$p=DockerComposeProject::create(['tenant_id'=>$c->id(),'server_id'=>$r->integer('server_id'),'name'=>$r->string('name'),'compose_content'=>$r->string('compose_content'),'environment'=>$env,'status'=>'queued']);DockerResourceActionJob::dispatch('compose',$p->id,'deploy',$c->id(),$r->user()->id);return back()->with('success','Compose deployment queued.');}}
+{
+    public function index(TenantContext $c): View
+    {
+        return view('docker.compose', [
+            'projects' => DockerComposeProject::where('tenant_id', $c->id())->with(['server' => fn ($q) => $q->withTrashed()])->latest()->get(),
+            'servers' => Server::where('tenant_id', $c->id())->where('status', 'online')->get(),
+        ]);
+    }
+
+    public function store(StoreComposeProjectRequest $r, TenantContext $c, ComposeSecurityValidator $validator, PlanLimitService $limits): RedirectResponse
+    {
+        $limits->enforceDeployment($c->current(), 'custom');
+        $validator->validate($r->string('compose_content'));
+        $env = collect(preg_split('/\r?\n/', $r->string('environment')))->filter()->mapWithKeys(function ($line) {
+            [$k, $v] = array_pad(explode('=', $line, 2), 2, '');
+
+            return [trim($k) => $v];
+        })->all();
+        $p = DockerComposeProject::create(['tenant_id' => $c->id(), 'server_id' => $r->integer('server_id'), 'name' => $r->string('name'), 'compose_content' => $r->string('compose_content'), 'environment' => $env, 'status' => 'queued']);
+        DockerResourceActionJob::dispatch('compose', $p->id, 'deploy', $c->id(), $r->user()->id);
+
+        return back()->with('success', 'Compose deployment queued.');
+    }
+}

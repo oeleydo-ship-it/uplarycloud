@@ -1,0 +1,255 @@
+/* Marketplace / custom Docker install wizard — readable Inter scale, purple accent */
+.deployment-wizard {
+    --mw-label: 13px;
+    --mw-body: 14px;
+    --mw-muted: 13px;
+    --mw-title: 17px;
+    --mw-input-h: 42px;
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.deployment-wizard .page-heading h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.03em;
+}
+.deployment-wizard .page-heading p { font-size: 14px; }
+.deployment-wizard .breadcrumb { font-size: 13px !important; }
+
+/* Banner */
+.deployment-wizard .catalog-summary {
+    gap: 16px;
+    padding: 18px 20px;
+}
+.deployment-wizard .catalog-summary h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    margin: 0 0 6px;
+}
+.deployment-wizard .catalog-summary h2 small {
+    font-size:14px;
+    font-weight: 650;
+    padding: 3px 7px;
+}
+.deployment-wizard .catalog-summary p {
+    font-size: var(--mw-muted);
+    line-height: 1.55;
+    color: var(--muted);
+}
+.deployment-wizard .catalog-summary dt {
+    font-size:14px;
+    letter-spacing: .02em;
+}
+.deployment-wizard .catalog-summary dd {
+    font-size: 13px;
+    font-weight: 650;
+    margin: 4px 0 0;
+}
+
+/* 5-step stepper */
+.deployment-wizard .wizard-stepper,
+.deployment-wizard .deployment-stepper {
+    height: auto;
+    min-height: 84px;
+    padding: 16px 22px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+}
+.deployment-wizard .wizard-step {
+    gap: 10px;
+    min-width: 118px;
+}
+.deployment-wizard .wizard-step > span {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+}
+.deployment-wizard .wizard-step > span b {
+    display: block;
+    font-size:13px;
+    font-weight: 700;
+}
+.deployment-wizard .wizard-step > span svg { width: 14px; }
+.deployment-wizard .wizard-step strong {
+    font-size: 13px;
+    font-weight: 650;
+    margin-top: 0;
+    letter-spacing: -.01em;
+}
+.deployment-wizard .wizard-step small {
+    font-size:14px;
+    letter-spacing: .02em;
+    margin-top: 2px;
+    text-transform: none;
+}
+.deployment-wizard .wizard-step.is-active { color: var(--primary); }
+.deployment-wizard .wizard-step.is-active > span {
+    border-color: var(--primary);
+    background: #f1eeff;
+    color: var(--primary);
+}
+.deployment-wizard .step-line { margin: 0 10px; }
+
+/* Card heads + form */
+.deployment-wizard .wizard-card { padding: 20px; }
+.deployment-wizard .wizard-card-head {
+    gap: 12px;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+}
+.deployment-wizard .wizard-card-head h2 {
+    font-size: var(--mw-title);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    margin: 0 0 4px;
+    color: #2f3348;
+}
+.deployment-wizard .wizard-card-head p {
+    font-size: var(--mw-muted);
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+}
+.deployment-wizard .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+}
+.deployment-wizard .section-icon svg { width: 16px; }
+
+.deployment-wizard .field > span {
+    font-size: var(--mw-label);
+    font-weight: 650;
+    color: #454a5d;
+}
+.deployment-wizard .field input,
+.deployment-wizard .field select,
+.deployment-wizard .field textarea {
+    font-size: var(--mw-body);
+    color: #32374b;
+}
+.deployment-wizard .field input,
+.deployment-wizard .field select {
+    height: var(--mw-input-h);
+}
+.deployment-wizard .field textarea { font-family: inherit; }
+.deployment-wizard .field > small:not(.field-error) {
+    font-size:13px;
+    color: var(--muted);
+}
+.deployment-wizard .check {
+    font-size: var(--mw-label);
+    color: #5c6174;
+}
+
+/* Aside cards */
+.deployment-wizard .help-card h3,
+.deployment-wizard .requirements-card h3 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    margin: 0 0 8px;
+    color: #2f3348;
+}
+.deployment-wizard .help-card p {
+    font-size: var(--mw-muted);
+    line-height: 1.6;
+    color: var(--muted);
+}
+.deployment-wizard .requirements-card li {
+    font-size: var(--mw-body);
+    color: #454a5e;
+    line-height: 1.45;
+}
+.deployment-wizard .requirements-card li svg { width: 14px; }
+
+/* Step 2 — servers */
+.deployment-wizard .server-choice {
+    padding: 14px;
+    border-radius: 10px;
+}
+.deployment-wizard .server-choice strong {
+    font-size: 13px;
+    font-weight: 650;
+    color: #2f3348;
+}
+.deployment-wizard .server-choice small {
+    font-size:13px;
+    color: var(--muted);
+    margin-bottom: 3px;
+}
+.deployment-wizard .server-choice .status { font-size:13px; }
+
+/* Step 3 — environment */
+.deployment-wizard .environment-head {
+    font-size:14px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #7a7f91;
+    padding-bottom: 8px;
+}
+.deployment-wizard .environment-row > input,
+.deployment-wizard .environment-value > input {
+    height: 40px;
+    font-size: 13px;
+    padding: 0 10px;
+}
+.deployment-wizard .add-variable {
+    height: 40px;
+    font-size: 13px;
+    font-weight: 650;
+}
+.deployment-wizard .add-variable svg { width: 14px; }
+
+/* Step 4 — review */
+.deployment-wizard .review-heading h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #2f3348;
+}
+.deployment-wizard .review-heading button {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--primary);
+}
+.deployment-wizard .review-block dt {
+    font-size:13px;
+    color: var(--muted);
+}
+.deployment-wizard .review-block dd {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 3px 0 0;
+}
+.deployment-wizard .review-credentials li {
+    font-size: 13px;
+}
+.deployment-wizard .review-credentials strong { font-size: 13px; }
+.deployment-wizard .review-credentials code { font-size: 13px; }
+.deployment-wizard .precheck-list {
+    gap: 8px;
+    padding: 12px;
+}
+.deployment-wizard .precheck-list span {
+    font-size: 13px;
+    color: #337c62;
+    gap: 7px;
+}
+.deployment-wizard .precheck-list svg { width: 14px; }
+
+/* Actions — Next / Deploy */
+.deployment-wizard .wizard-actions {
+    margin-top: 16px;
+    gap: 10px;
+}
+.deployment-wizard .wizard-actions .button {
+    height: 40px;
+    font-size: 14px;
+    padding: 0 18px;
+}
+
+@media (max-width: 800px) {
+    .deployment-wizard .wizard-step { min-width: auto; }
+}

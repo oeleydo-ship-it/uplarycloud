@@ -13,9 +13,15 @@
                 <p>Recently deployed workloads across connected servers.</p>
             </div>
             <div class="heading-actions">
-                <a href="{{ route('applications.web.create') }}" class="button button--secondary"><i data-lucide="git-branch"></i> Deploy from Git</a>
-                <a href="{{ route('applications.custom') }}" class="button button--secondary"><i data-lucide="container"></i> Custom Docker</a>
-                <a href="{{ route('applications.index') }}" class="button button--primary"><i data-lucide="plus"></i> Deploy application</a>
+                <x-plan-locked-action feature="git_deploy" quota="applications" label="Git deploy">
+                    <a href="{{ route('applications.web.create') }}" class="button button--secondary"><i data-lucide="git-branch"></i> Deploy from Git</a>
+                </x-plan-locked-action>
+                <x-plan-locked-action feature="custom_docker" quota="applications" label="Custom Docker">
+                    <a href="{{ route('applications.custom') }}" class="button button--secondary"><i data-lucide="container"></i> Custom Docker</a>
+                </x-plan-locked-action>
+                <x-plan-locked-action feature="marketplace" quota="applications" label="Marketplace">
+                    <a href="{{ route('applications.index') }}" class="button button--primary"><i data-lucide="plus"></i> Deploy application</a>
+                </x-plan-locked-action>
             </div>
         </div>
 

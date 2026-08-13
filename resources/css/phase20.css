@@ -36,7 +36,7 @@
 .deployment-show-page .deployment-reference-stage > span { width: 32px; height: 32px; border: 1px dashed #d5d8e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; color: #9ca0af; background: #fff; }
 .deployment-show-page .deployment-reference-stage > span svg { width: 14px; height: 14px; }
 .deployment-show-page .deployment-reference-stage strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.35; }
-.deployment-show-page .deployment-reference-stage small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: capitalize; }
+.deployment-show-page .deployment-reference-stage small { display: block; font-size:13px; color: var(--muted); margin-top: 4px; text-transform: capitalize; }
 .deployment-show-page .deployment-reference-stage.is-completed > span { background: var(--green); border: 1px solid var(--green); border-style: solid; color: #fff; }
 .deployment-show-page .deployment-reference-stage.is-running > span { background: #f0edff; border: 1px solid #d9d2ff; border-style: solid; color: var(--primary); }
 .deployment-show-page .deployment-reference-stage.is-running > span svg { animation: spin 1s linear infinite; }
@@ -52,7 +52,7 @@
 .deployment-show-page .deployment-reference-logs .live-log-head span i { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 0 4px rgba(40, 183, 125, .15); }
 .deployment-show-page .deployment-reference-logs .live-log-head small { font-size: 13px; font-weight: 500; color: #93c5fd; }
 .deployment-show-page .deployment-reference-terminal { height: 320px; overflow: auto; padding: 14px 16px; font-family: Consolas, 'SFMono-Regular', monospace; }
-.deployment-show-page .deployment-reference-terminal p { font-size: 12px; line-height: 1.65; margin: 0 0 6px; color: #d1d5db; }
+.deployment-show-page .deployment-reference-terminal p { font-size:13px; line-height: 1.65; margin: 0 0 6px; color: #d1d5db; }
 .deployment-show-page .deployment-reference-terminal span { color: #6b7280; margin-right: 10px; }
 .deployment-show-page .deployment-reference-terminal b { font-weight: 500; margin-right: 6px; }
 .deployment-show-page .deployment-reference-terminal em { font-style: normal; color: #e5e7eb; }
@@ -65,7 +65,7 @@
 .deployment-show-page .deployment-reference-overview .card-head p { font-size: 13px; }
 .deployment-show-page .deployment-reference-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 4px 20px 0; }
 .deployment-show-page .deployment-reference-facts > div { padding: 14px 0; border-bottom: 1px solid #f0f1f5; }
-.deployment-show-page .deployment-reference-facts dt { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.deployment-show-page .deployment-reference-facts dt { font-size:13px; color: var(--muted); margin-bottom: 4px; }
 .deployment-show-page .deployment-reference-facts dd { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; word-break: break-word; }
 .deployment-show-page .deployment-reference-facts .mono { font-family: Consolas, 'SFMono-Regular', monospace; font-size: 13px; font-weight: 500; }
 
@@ -106,7 +106,7 @@
     word-break: break-word;
 }
 
-.deployment-show-page .deployment-reference-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; text-transform: capitalize; white-space: nowrap; }
+.deployment-show-page .deployment-reference-status { display: inline-flex; align-items: center; gap: 6px; font-size:13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; text-transform: capitalize; white-space: nowrap; }
 .deployment-show-page .deployment-reference-status i { width: 6px; height: 6px; border-radius: 50%; }
 .deployment-show-page .deployment-reference-status.is-success { color: #178359; background: #e9f8f2; }
 .deployment-show-page .deployment-reference-status.is-success i { background: var(--green); }
@@ -124,16 +124,16 @@
 .deployment-show-page .deployment-reference-webhook .card-head p,
 .deployment-show-page .deployment-reference-releases .card-head p { font-size: 13px; }
 .deployment-show-page .deployment-reference-webhook-body { padding: 0 20px 18px; }
-.deployment-show-page .deployment-reference-webhook-body label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 12px 0 6px; }
+.deployment-show-page .deployment-reference-webhook-body label { display: block; font-size:13px; font-weight: 600; color: var(--muted); margin: 12px 0 6px; }
 .deployment-show-page .deployment-reference-webhook-body label:first-child { margin-top: 0; }
-.deployment-show-page .deployment-reference-webhook-body code { display: block; font-size: 12px; padding: 10px 12px; border-radius: 8px; background: #f6f7fb; border: 1px solid var(--border); word-break: break-all; font-family: Consolas, 'SFMono-Regular', monospace; color: #4a5064; }
+.deployment-show-page .deployment-reference-webhook-body code { display: block; font-size:13px; padding: 10px 12px; border-radius: 8px; background: #f6f7fb; border: 1px solid var(--border); word-break: break-all; font-family: Consolas, 'SFMono-Regular', monospace; color: #4a5064; }
 .deployment-show-page .deployment-reference-webhook-body p { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
 
 .deployment-show-page .deployment-reference-release { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
 .deployment-show-page .deployment-reference-release > span { flex: 1; min-width: 0; }
 .deployment-show-page .deployment-reference-release strong { display: block; font-size: 14px; font-weight: 600; }
-.deployment-show-page .deployment-reference-release small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
-.deployment-show-page .deployment-reference-release em { font-size: 12px; font-style: normal; font-weight: 600; color: var(--green); }
+.deployment-show-page .deployment-reference-release small { display: block; font-size:13px; color: var(--muted); margin-top: 4px; }
+.deployment-show-page .deployment-reference-release em { font-size:13px; font-style: normal; font-weight: 600; color: var(--green); }
 .deployment-show-page .deployment-reference-release button { border: 1px solid var(--border); background: #fff; color: var(--primary); border-radius: 8px; font-size: 13px; font-weight: 500; padding: 6px 12px; cursor: pointer; }
 .deployment-show-page .deployment-reference-release button:hover { background: #fbfaff; border-color: #ddd8fa; }
 
@@ -171,7 +171,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0 8px;
-    font-size: 8px;
+    font-size:13px;
 }
 .environment-value-actions {
     display: inline-flex;
@@ -219,7 +219,7 @@
     align-items: center;
     padding: 8px 0;
     border-top: 1px solid #f0f1f5;
-    font-size: 12px;
+    font-size:13px;
 }
 .review-credentials li:first-child { border-top: 0; }
 .review-credentials code {
@@ -238,7 +238,7 @@
     margin-bottom: 12px;
 }
 .deployment-show-page .deployment-reference-env-head h3 { margin: 0; }
-.deployment-show-page .deployment-reference-env-head small { font-size: 12px; color: var(--muted); }
+.deployment-show-page .deployment-reference-env-head small { font-size:13px; color: var(--muted); }
 .deployment-show-page .deployment-reference-env-row > div:first-child {
     display: flex;
     flex-direction: column;
@@ -246,7 +246,7 @@
     min-width: 0;
 }
 .deployment-show-page .deployment-reference-env-row small {
-    font-size: 12px;
+    font-size:13px;
     color: var(--muted);
 }
 .deployment-show-page .deployment-env-value {

@@ -33,9 +33,11 @@
                 <button type="button" class="button button--secondary" disabled title="Coming soon">
                     <i data-lucide="settings-2"></i> Log Settings
                 </button>
-                <a href="{{ route('logs.download', request()->query()) }}" class="button button--primary">
-                    <i data-lucide="download"></i> Export Logs
-                </a>
+                <x-plan-locked-action feature="audit_exports" label="log exports">
+                    <a href="{{ route('logs.download', request()->query()) }}" class="button button--primary">
+                        <i data-lucide="download"></i> Export Logs
+                    </a>
+                </x-plan-locked-action>
             </div>
         </div>
 

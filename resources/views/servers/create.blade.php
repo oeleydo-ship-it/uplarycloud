@@ -9,11 +9,11 @@
                     <i data-lucide="chevron-right"></i>
                     Add Server
                 </p>
-                <h1>Add Server <i data-lucide="info"></i></h1>
-                <p>Connect your Linux host and let the platform configure Docker securely.</p>
+                <h1>Add custom server <i data-lucide="info"></i></h1>
+                <p>Connect your Linux host over SSH, or provision a new one with your own Cloud API.</p>
             </div>
             <div class="heading-actions">
-                <a href="{{ route('managed.index') }}" class="button button--secondary"><i data-lucide="cloud-cog"></i> Cloud API</a>
+                <a href="{{ route('cloud-api.index') }}" class="button button--secondary"><i data-lucide="key-round"></i> My Cloud API</a>
                 <a href="{{ route('servers.index') }}" class="button button--secondary"><i data-lucide="x"></i> Cancel</a>
             </div>
         </div>
@@ -25,36 +25,36 @@
                 <i data-lucide="circle-check" class="source-check"></i>
             </button>
             <button type="button" :class="mode === 'cloud' && 'is-selected'" @click="mode='cloud'">
-                <span class="section-icon"><i data-lucide="cloud-cog"></i></span>
-                <span><strong>Provision with cloud API</strong><small>Create a DigitalOcean Droplet or Hetzner Cloud server</small></span>
+                <span class="section-icon"><i data-lucide="cloud"></i></span>
+                <span><strong>Provision with my Cloud API</strong><small>Create a Droplet or Hetzner server with your own provider token</small></span>
                 <i data-lucide="circle-check" class="source-check"></i>
             </button>
         </section>
 
         <section x-show="mode === 'cloud'" x-cloak class="cloud-server-layout">
-            <form method="POST" action="{{ route('managed.servers.store') }}" class="card cloud-server-form" @submit="cloudSubmitting=true">
+            <form method="POST" action="{{ route('servers.cloud.store') }}" class="card cloud-server-form" @submit="cloudSubmitting=true">
                 @csrf
                 <div class="add-server-card-head add-server-card-head--icon">
-                    <span class="section-icon"><i data-lucide="cloud-cog"></i></span>
-                    <div><h2>Cloud API server</h2><p>Uplary creates the instance, installs its SSH key, and provisions Docker automatically.</p></div>
+                    <span class="section-icon"><i data-lucide="cloud"></i></span>
+                    <div><h2>Your Cloud API server</h2><p>Uplary creates the instance with your token, installs its SSH key, and provisions Docker automatically.</p></div>
                 </div>
                 @if($cloudConnections->isEmpty())
-                    <div class="cloud-empty-state"><span class="section-icon"><i data-lucide="key-round"></i></span><h3>Connect a provider API first</h3><p>Add and verify a DigitalOcean or Hetzner API token before creating a server.</p><a href="{{ route('managed.index') }}" class="button button--primary"><i data-lucide="plug-zap"></i> Connect provider API</a></div>
+                    <div class="cloud-empty-state"><span class="section-icon"><i data-lucide="key-round"></i></span><h3>Connect your provider API first</h3><p>Add and verify a DigitalOcean or Hetzner API token that belongs to your account before creating a server.</p><a href="{{ route('cloud-api.index') }}" class="button button--primary"><i data-lucide="plug-zap"></i> Connect my Cloud API</a></div>
                 @else
                     <div class="add-server-fields add-server-fields--two">
                         <label class="field field--wide"><span>Server name *</span><input name="name" x-model="cloud.name" required placeholder="Production Cloud Server"></label>
-                        <label class="field"><span>Verified API account *</span><select name="provider_connection_id" x-model="cloud.connection" @change="selectCloudConnection()" required><option value="">Select an account</option>@foreach($cloudConnections as $connection)<option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}">{{ $connection->name }} · {{ $connection->provider === 'digitalocean' ? 'DigitalOcean' : 'Hetzner' }}</option>@endforeach</select></label>
-                        <label class="field"><span>Server plan *</span><select name="managed_server_plan_id" x-model="cloud.plan" @change="selectCloudPlan()" required><option value="">Select a plan</option>@foreach($cloudPlans as $plan)<option value="{{ $plan->id }}" data-provider="{{ $plan->provider }}" x-show="!cloud.provider || cloud.provider === '{{ $plan->provider }}'">{{ $plan->name }} · {{ $plan->cpu_cores }} vCPU · {{ round($plan->memory_mb / 1024, 1) }} GB · {{ $plan->priceLabel() }}/mo</option>@endforeach</select></label>
+                        <label class="field"><span>My API account *</span><select name="provider_connection_id" x-model="cloud.connection" @change="selectCloudConnection()" required><option value="">Select an account</option>@foreach($cloudConnections as $connection)<option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}">{{ $connection->name }} · {{ $connection->provider === 'digitalocean' ? 'DigitalOcean' : 'Hetzner' }}</option>@endforeach</select></label>
+                        <label class="field"><span>Server size *</span><select name="managed_server_plan_id" x-model="cloud.plan" @change="selectCloudPlan()" required><option value="">Select a size</option>@foreach($cloudPlans as $plan)<option value="{{ $plan->id }}" data-provider="{{ $plan->provider }}" x-show="!cloud.provider || cloud.provider === '{{ $plan->provider }}'">{{ $plan->name }} · {{ $plan->cpu_cores }} vCPU · {{ round($plan->memory_mb / 1024, 1) }} GB · {{ $plan->disk_gb }} GB disk</option>@endforeach</select></label>
                         <label class="field"><span>Region *</span><select name="region" x-model="cloud.region" required><option value="">Select a region</option><template x-for="region in cloud.regions" :key="region"><option :value="region" x-text="region.toUpperCase()"></option></template></select></label>
                         <label class="field"><span>Operating system *</span><select name="image" x-model="cloud.image" required><option value="">Select an image</option><template x-for="image in cloud.images" :key="image"><option :value="image" x-text="image.replaceAll('-', ' ').replace('ubuntu','Ubuntu').replace('debian','Debian')"></option></template></select></label>
                     </div>
-                    <div class="cloud-provision-summary"><i data-lucide="shield-check"></i><span><strong>Automatic secure bootstrap</strong><small>A unique RSA key is generated, its public key is injected through cloud-init, and the encrypted private key is retained by the control plane.</small></span></div>
-                    <div class="add-server-footer"><a href="{{ route('managed.index') }}" class="button button--secondary"><i data-lucide="settings-2"></i> Manage API accounts</a><span></span><button class="button button--primary" :disabled="cloudSubmitting"><i data-lucide="rocket"></i><span x-text="cloudSubmitting ? 'Creating server…' : 'Create & provision server'"></span></button></div>
+                    <div class="cloud-provision-summary"><i data-lucide="shield-check"></i><span><strong>Your provider account</strong><small>Charges appear on your DigitalOcean or Hetzner bill. Platform-managed APIs are never used for this flow.</small></span></div>
+                    <div class="add-server-footer"><a href="{{ route('cloud-api.index') }}" class="button button--secondary"><i data-lucide="settings-2"></i> Manage my API accounts</a><span></span><button class="button button--primary" :disabled="cloudSubmitting"><i data-lucide="rocket"></i><span x-text="cloudSubmitting ? 'Creating server…' : 'Create & provision server'"></span></button></div>
                 @endif
             </form>
             <aside class="add-server-aside">
-                <article class="card aside-card"><span class="section-icon"><i data-lucide="cloud"></i></span><h3>Supported providers</h3><ul><li><i data-lucide="check"></i> DigitalOcean Droplets API</li><li><i data-lucide="check"></i> Hetzner Cloud Servers API</li><li><i data-lucide="check"></i> Automated IPv4 discovery</li><li><i data-lucide="check"></i> Provider lifecycle actions</li></ul></article>
-                <article class="card aside-card aside-card--help"><i data-lucide="lock-keyhole" class="aside-help-icon"></i><div><h3>Credentials stay protected</h3><p>Provider tokens and generated SSH private keys are encrypted at rest and never shown after saving.</p></div></article>
+                <article class="card aside-card"><span class="section-icon"><i data-lucide="cloud"></i></span><h3>Supported providers</h3><ul><li><i data-lucide="check"></i> DigitalOcean Droplets API</li><li><i data-lucide="check"></i> Hetzner Cloud Servers API</li><li><i data-lucide="check"></i> Automated IPv4 discovery</li><li><i data-lucide="check"></i> Encrypted tenant tokens only</li></ul></article>
+                <article class="card aside-card aside-card--help"><i data-lucide="lock-keyhole" class="aside-help-icon"></i><div><h3>Credentials stay protected</h3><p>Your provider tokens and generated SSH private keys are encrypted at rest and never shown after saving.</p></div></article>
             </aside>
         </section>
 
@@ -376,8 +376,8 @@
                 <article class="card aside-card">
                     <span class="section-icon"><i data-lucide="cloud-cog"></i></span>
                     <h3>Provision from a cloud API</h3>
-                    <p>Connect a DigitalOcean or Hetzner API token, choose a region and plan, and let Uplary create the server and its SSH credentials.</p>
-                    <a href="{{ route('managed.index') }}" class="button button--secondary" style="width:100%;justify-content:center">Open cloud providers</a>
+                    <p>Connect a DigitalOcean or Hetzner API token that you own, choose a region and size, and let Uplary create the server and its SSH credentials.</p>
+                    <a href="{{ route('cloud-api.index') }}" class="button button--secondary" style="width:100%;justify-content:center">Manage my Cloud API</a>
                 </article>
                 <article class="card aside-card" x-show="form.auth_mode === 'platform_key'">
                     <span class="section-icon"><i data-lucide="terminal"></i></span>

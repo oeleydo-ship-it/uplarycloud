@@ -11,10 +11,17 @@
             <p>Protect application data with encrypted destinations and tested restore workflows.</p>
         </div>
         <div class="heading-actions">
-            <button type="button" class="button button--secondary" @click="destinationOpen = true"><i data-lucide="cloud"></i> Destination</button>
-            <button type="button" class="button button--secondary" @click="scheduleOpen = true"><i data-lucide="calendar-clock"></i> Schedule</button>
-            <button type="button" class="button button--primary" @click="backupOpen = true"><i data-lucide="plus"></i> Create backup</button>
+            <x-plan-locked-action feature="s3_destinations" label="S3 destinations">
+                <button type="button" class="button button--secondary" @click="destinationOpen = true"><i data-lucide="cloud"></i> Destination</button>
+            </x-plan-locked-action>
+            <x-plan-locked-action quota="backups" label="backups">
+                <button type="button" class="button button--secondary" @click="scheduleOpen = true"><i data-lucide="calendar-clock"></i> Schedule</button>
+            </x-plan-locked-action>
+            <x-plan-locked-action quota="backups" label="backups">
+                <button type="button" class="button button--primary" @click="backupOpen = true"><i data-lucide="plus"></i> Create backup</button>
+            </x-plan-locked-action>
         </div>
+        <x-plan-upgrade-banner quota="backups" />
     </div>
 
     <section class="stats-grid backups-reference-stats">

@@ -9,6 +9,7 @@ use App\Models\DockerContainer;
 use App\Models\DockerImage;
 use App\Models\DockerNetwork;
 use App\Models\DockerVolume;
+use App\Models\Server;
 use App\Support\RemoteShell;
 use Carbon\Carbon;
 use RuntimeException;
@@ -23,13 +24,28 @@ class DockerService
             throw new RuntimeException('Unsupported container action.');
         }
 
+        $container->loadMissing('server');
         $target = $container->docker_id ?: $container->name;
+        $previousStatus = $container->status;
+
+        if ($action === 'restart' && config('infrastructure.driver') !== 'fake') {
+            $container->update(['status' => ContainerStatus::Restarting, 'health' => 'starting']);
+        }
 
         if (config('infrastructure.driver') !== 'fake') {
-            $this->executor->execute(
-                $container->server,
-                'docker '.$action.' '.RemoteShell::quote($target)
-            );
+            try {
+                $this->executor->execute(
+                    $container->server,
+                    'docker '.$action.' '.RemoteShell::quote($target),
+                    $this->commandTimeout()
+                );
+            } catch (\Throwable $exception) {
+                if ($action === 'restart') {
+                    $container->update(['status' => $previousStatus]);
+                }
+
+                throw $exception;
+            }
         }
 
         if ($action === 'remove') {
@@ -52,6 +68,14 @@ class DockerService
         }
 
         $this->refreshContainer($container);
+
+        if ($action === 'restart') {
+            $container->refresh();
+            if ($container->status === ContainerStatus::Restarting) {
+                usleep(400_000);
+                $this->refreshContainer($container);
+            }
+        }
     }
 
     public function refreshContainer(DockerContainer $container): void
@@ -110,7 +134,8 @@ class DockerService
             'image' => (string) ($config['Image'] ?? $container->image),
             'status' => $status,
             'health' => $health,
-            'ports' => $this->parseInspectPorts($network['Ports'] ?? null) ?: $container->ports,
+            // Always trust inspect: empty means no host publishes (EXPOSE-only / Traefik-only).
+            'ports' => $this->parseInspectPorts($network['Ports'] ?? null),
             'restart_count' => (int) ($state['RestartCount'] ?? $container->restart_count),
             'memory_limit_mb' => $memoryLimit,
             'started_at' => $this->parseDockerTime($state['StartedAt'] ?? null) ?? $container->started_at,
@@ -220,7 +245,7 @@ class DockerService
         $project->update(['status' => 'running', 'deployed_at' => now(), 'last_error' => null]);
     }
 
-    public function pruneContainers(\App\Models\Server $server): void
+    public function pruneContainers(Server $server): void
     {
         if (config('infrastructure.driver') !== 'fake') {
             $this->executor->execute($server, 'docker container prune -f');
@@ -247,7 +272,6 @@ class DockerService
     }
 
     /**
-     * @param  mixed  $ports
      * @return list<array{private?: int|string, public?: int|string}>
      */
     public function parseInspectPorts(mixed $ports): array
@@ -258,24 +282,25 @@ class DockerService
 
         $mapped = [];
         foreach ($ports as $privateKey => $bindings) {
-            $private = (int) str_replace('/tcp', '', (string) $privateKey);
+            $private = (int) str_replace(['/tcp', '/udp'], '', (string) $privateKey);
+            // EXPOSE-only ports show up as null/[] with no HostPort — those are internal,
+            // not published to the host. Only keep real publish bindings for the inventory UI.
             if (! is_array($bindings) || $bindings === []) {
-                $mapped[] = ['private' => $private];
                 continue;
             }
 
             foreach ($bindings as $binding) {
-                if (! is_array($binding)) {
+                if (! is_array($binding) || empty($binding['HostPort'])) {
                     continue;
                 }
                 $mapped[] = [
                     'private' => $private,
-                    'public' => isset($binding['HostPort']) ? (int) $binding['HostPort'] : null,
+                    'public' => (int) $binding['HostPort'],
                 ];
             }
         }
 
-        return array_values(array_filter($mapped, fn (array $port) => ($port['private'] ?? null) || ($port['public'] ?? null)));
+        return array_values($mapped);
     }
 
     /**
@@ -352,5 +377,10 @@ class DockerService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function commandTimeout(): int
+    {
+        return max(1, (int) config('infrastructure.command_timeouts.default', 180));
     }
 }

@@ -33,10 +33,12 @@
                     Refresh
                 </button>
             </form>
-            <a href="{{ route('alerts.index') }}" class="button button--primary">
-                <i data-lucide="bell-ring"></i>
-                Alert rules
-            </a>
+            <x-plan-locked-action feature="alerts" label="alerts">
+                <a href="{{ route('alerts.index') }}" class="button button--primary">
+                    <i data-lucide="bell-ring"></i>
+                    Alert rules
+                </a>
+            </x-plan-locked-action>
         </div>
     </div>
 

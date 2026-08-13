@@ -1,0 +1,295 @@
+/* Phase 33: support center + create-ticket modal (scoped) */
+.support-page .support-layout {
+    gap: 18px;
+}
+
+.support-page .support-ticket-head {
+    height: 40px;
+    font-size:14px;
+    letter-spacing: .04em;
+}
+
+.support-page .support-ticket-row {
+    min-height: 68px;
+}
+
+.support-page .support-ticket-row > span:first-child strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.support-page .support-ticket-row > span:first-child small,
+.support-page .support-ticket-row time {
+    font-size:13px;
+    margin-top: 4px;
+}
+
+.support-page .support-category {
+    font-size: 13px;
+}
+
+.support-page .support-category svg {
+    width: 14px;
+    height: 14px;
+}
+
+.support-page .priority-badge {
+    font-size:13px;
+    padding: 5px 9px;
+}
+
+.support-page .ticket-status {
+    font-size: 13px;
+}
+
+.support-page .empty-state {
+    padding: 64px 24px;
+    background: #fff;
+}
+
+.support-page .empty-state h2 {
+    font-size: 16px;
+}
+
+.support-page .empty-state p {
+    font-size: 13px;
+    max-width: 360px;
+    margin: 0 auto 18px;
+    line-height: 1.55;
+}
+
+.support-page .support-help-card {
+    background: #fff;
+    text-align: left;
+    padding: 22px;
+}
+
+.support-page .support-help-card > span {
+    margin: 0 0 14px;
+}
+
+.support-page .support-help-card h2 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.support-page .support-help-card p {
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 16px;
+}
+
+.support-page .support-links-card > a {
+    padding: 13px 16px;
+}
+
+.support-page .support-links-card strong {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.support-page .support-links-card small {
+    font-size:13px;
+}
+
+.support-page .search-filter-form select,
+.support-page .table-search input {
+    font-size: 13px;
+    height: 36px;
+}
+
+.support-page .table-count {
+    font-size:13px;
+}
+
+.support-create-modal {
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(92vh, 820px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    background: #fff;
+    background-image: none;
+    border: 1px solid #e9eaf1;
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(18, 16, 37, .22);
+    color: var(--text);
+}
+
+.support-create-modal__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.support-create-modal__title {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+
+.support-create-modal__title .section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: #f0edff;
+    color: #6c4cf5;
+}
+
+.support-create-modal__title .section-icon svg,
+.support-create-modal__title .section-icon i {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.support-create-modal__title .section-icon > i:has(+ svg) {
+    display: none !important;
+}
+
+.support-create-modal__head h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    margin: 1px 0 0;
+    color: var(--text);
+}
+
+.support-create-modal__head p {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+    margin: 4px 0 0;
+}
+
+.support-create-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 22px;
+    background: #fff;
+    background-image: none;
+}
+
+.support-create-modal__body .form-grid {
+    gap: 16px 14px;
+}
+
+.support-create-modal .field {
+    gap: 8px;
+}
+
+.support-create-modal .field > span {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #454a5d;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.support-create-modal .field input,
+.support-create-modal .field select,
+.support-create-modal .field textarea {
+    width: 100%;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #17152b;
+    background-color: #fff;
+    background-image: none;
+    border: 1px solid #dfe1e8;
+    border-radius: 8px;
+    outline: none;
+    opacity: 1;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.support-create-modal .field input,
+.support-create-modal .field select {
+    height: 44px;
+    padding: 0 12px;
+}
+
+.support-create-modal .field select {
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b90a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 38px;
+    cursor: pointer;
+}
+
+.support-create-modal .field textarea {
+    display: block;
+    min-height: 148px;
+    padding: 12px 14px;
+    resize: vertical;
+    position: relative;
+    z-index: 1;
+    background: #fff none;
+    box-shadow: none;
+}
+
+.support-create-modal .field input:focus,
+.support-create-modal .field select:focus,
+.support-create-modal .field textarea:focus {
+    border-color: #6c4cf5;
+    box-shadow: 0 0 0 3px color-mix(in srgb, #6c4cf5, transparent 88%);
+}
+
+.support-create-modal .field input::placeholder,
+.support-create-modal .field textarea::placeholder {
+    color: #9aa0b3;
+    opacity: 1;
+}
+
+.support-create-modal .field-error {
+    font-size:13px;
+}
+
+.support-create-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.support-create-modal__footer .button {
+    min-width: 118px;
+    height: 40px;
+    font-size: 13px;
+}
+
+.support-create-modal__footer .button--primary {
+    background: #6c4cf5;
+}
+
+@media (max-width: 640px) {
+    .support-create-modal__body .form-grid--two {
+        grid-template-columns: 1fr;
+    }
+
+    .support-create-modal__footer {
+        flex-wrap: wrap;
+    }
+
+    .support-create-modal__footer .button {
+        flex: 1;
+    }
+}

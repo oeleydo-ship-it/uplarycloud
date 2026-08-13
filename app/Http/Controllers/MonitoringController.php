@@ -8,6 +8,7 @@ use App\Models\AlertIncident;
 use App\Models\ApplicationDeployment;
 use App\Models\DockerContainer;
 use App\Models\Server;
+use App\Services\Billing\PlanLimitService;
 use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,11 @@ class MonitoringController extends Controller
         ]);
 
         $range = $filters['range'] ?? '24h';
+        $retention = app(PlanLimitService::class)->plan($context->current())->limit('monitoring_retention_days');
+        $rangeDays = ['1h' => 1, '6h' => 1, '24h' => 1, '7d' => 7, '30d' => 30];
+        if ($retention !== null && ($rangeDays[$range] ?? 1) > $retention) {
+            $range = $retention >= 7 ? '7d' : '24h';
+        }
         $since = match ($range) {
             '1h' => now()->subHour(),
             '6h' => now()->subHours(6),

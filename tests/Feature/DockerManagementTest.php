@@ -92,20 +92,24 @@ class DockerManagementTest extends TestCase
             ->assertDontSee('Server removed');
     }
 
-    public function test_container_actions_are_queued_and_fake_driver_updates_state(): void
+    public function test_container_restart_runs_immediately_and_updates_state(): void
     {
-        Bus::fake();
         [$user, $tenant, $server] = $this->setupOwner();
         $container = DockerContainer::create($this->containerData($tenant, $server, 'Worker'));
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->post(route('containers.action', $container), ['action' => 'restart'])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Worker restarted.');
 
-        Bus::assertDispatched(DockerResourceActionJob::class);
-        app(DockerService::class)->container($container, 'restart');
-        $this->assertSame('running', $container->refresh()->status->value);
+        $container->refresh();
+        $this->assertSame('running', $container->status->value);
         $this->assertSame(1, $container->restart_count);
+        $this->assertDatabaseHas('activity_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'docker.container.restart',
+            'subject_id' => $container->id,
+        ]);
     }
 
     public function test_fake_driver_start_stop_and_restart_update_status(): void
@@ -270,6 +274,43 @@ class DockerManagementTest extends TestCase
         $this->assertStringNotContainsString('1.0 GB', $container->memoryLabel());
     }
 
+    public function test_expose_only_ports_are_shown_as_internal_not_host_ports(): void
+    {
+        [$user, $tenant, $server] = $this->setupOwner();
+        $container = DockerContainer::create(array_merge($this->containerData($tenant, $server, 'Queue Sidecar'), [
+            'ports' => [['private' => 8000]],
+        ]));
+
+        $this->assertSame('Internal', $container->formattedPorts());
+
+        app(DockerService::class)->applyInspectPayload($container, [
+            'Id' => 'abcdef1234567890',
+            'State' => ['Status' => 'running', 'RestartCount' => 0],
+            'Config' => ['Image' => 'platform/app:latest', 'Labels' => []],
+            'HostConfig' => ['Memory' => 0],
+            // Docker marks Dockerfile EXPOSE as null bindings — not published to the host.
+            'NetworkSettings' => ['Ports' => ['8000/tcp' => null]],
+        ]);
+
+        $container->refresh();
+        $this->assertSame([], $container->ports);
+        $this->assertSame('Internal', $container->formattedPorts());
+
+        app(DockerService::class)->applyInspectPayload($container, [
+            'Id' => 'abcdef1234567890',
+            'State' => ['Status' => 'running', 'RestartCount' => 0],
+            'Config' => ['Image' => 'platform/app:latest', 'Labels' => []],
+            'HostConfig' => ['Memory' => 0],
+            'NetworkSettings' => ['Ports' => [
+                '8000/tcp' => [['HostIp' => '0.0.0.0', 'HostPort' => '8012']],
+            ]],
+        ]);
+
+        $container->refresh();
+        $this->assertSame([['private' => 8000, 'public' => 8012]], $container->ports);
+        $this->assertSame('8012:8000', $container->formattedPorts());
+    }
+
     public function test_refresh_stats_does_not_persist_host_ram_as_memory_limit(): void
     {
         [$user, $tenant, $server] = $this->setupOwner();
@@ -310,9 +351,75 @@ class DockerManagementTest extends TestCase
             ->get(route('containers.index'))
             ->assertOk()
             ->assertSee('aria-label="Stop Running Box"', false)
+            ->assertSee('aria-label="Restart Running Box"', false)
             ->assertDontSee('aria-label="Start Running Box"', false)
             ->assertSee('aria-label="Start Stopped Box"', false)
+            ->assertSee('aria-label="Restart Stopped Box"', false)
             ->assertDontSee('aria-label="Stop Stopped Box"', false);
+    }
+
+    public function test_restart_runs_docker_restart_over_ssh_and_refreshes_status(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [$user, $tenant, $server] = $this->setupOwner();
+        $container = DockerContainer::create(array_merge($this->containerData($tenant, $server, 'cloudpress-ge6ed-db'), [
+            'docker_id' => 'a1b2c3d4e5f6',
+            'status' => 'running',
+            'restart_count' => 0,
+        ]));
+
+        $executor = new class extends \App\Services\Infrastructure\FakeServerExecutor
+        {
+            /** @var list<string> */
+            public array $commands = [];
+
+            public function execute(\App\Models\Server $server, string $command, ?int $timeoutSeconds = null): string
+            {
+                $this->commands[] = $command;
+
+                if (str_starts_with($command, 'docker restart ')) {
+                    return '';
+                }
+
+                if (str_contains($command, 'docker inspect')) {
+                    return json_encode([
+                        'Id' => 'a1b2c3d4e5f6abcdef',
+                        'State' => [
+                            'Status' => 'running',
+                            'RestartCount' => 1,
+                            'StartedAt' => now()->toIso8601String(),
+                            'FinishedAt' => '0001-01-01T00:00:00Z',
+                            'Health' => ['Status' => 'healthy'],
+                        ],
+                        'Config' => ['Image' => 'postgres:16', 'Labels' => []],
+                        'HostConfig' => ['Memory' => 0],
+                        'NetworkSettings' => ['Ports' => []],
+                    ]);
+                }
+
+                if (str_contains($command, 'docker stats')) {
+                    return '2.10%|128MiB / 1GiB';
+                }
+
+                return parent::execute($server, $command, $timeoutSeconds);
+            }
+        };
+        $this->app->instance(\App\Contracts\Infrastructure\ServerExecutorInterface::class, $executor);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('containers.action', $container), ['action' => 'restart'])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'cloudpress-ge6ed-db restarted.');
+
+        $restart = collect($executor->commands)->first(fn (string $command) => str_starts_with($command, 'docker restart '));
+        $this->assertNotNull($restart);
+        $this->assertSame("docker restart 'a1b2c3d4e5f6'", $restart);
+        $this->assertTrue(collect($executor->commands)->contains(fn (string $command) => str_contains($command, 'docker inspect')));
+
+        $container->refresh();
+        $this->assertSame('running', $container->status->value);
+        $this->assertSame(1, $container->restart_count);
+        $this->assertSame('healthy', $container->health);
     }
 
     public function test_attached_volume_and_used_image_cannot_be_removed(): void

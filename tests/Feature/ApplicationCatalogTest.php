@@ -17,7 +17,7 @@ class ApplicationCatalogTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(50, Application::count());
+        $this->assertSame(51, Application::count());
         $this->assertGreaterThanOrEqual(40, Application::where('pricing_model', 'free')->count());
         $this->assertGreaterThanOrEqual(17, Application::whereHas('category', fn ($q) => $q->where('slug', 'cms'))->count());
 

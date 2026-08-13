@@ -163,25 +163,25 @@
                                     <form method="POST" action="{{ route('containers.action', $container) }}">
                                         @csrf
                                         <input type="hidden" name="action" value="start">
-                                        <button type="submit" class="icon-button" aria-label="Start {{ $container->name }}"><i data-lucide="play"></i></button>
+                                        <button type="submit" class="icon-button" title="Start" aria-label="Start {{ $container->name }}"><i data-lucide="play"></i></button>
                                     </form>
                                 @endif
                                 @if($canStop)
                                     <form method="POST" action="{{ route('containers.action', $container) }}" onsubmit="return confirm('Stop {{ $container->name }}?')">
                                         @csrf
                                         <input type="hidden" name="action" value="stop">
-                                        <button type="submit" class="icon-button" aria-label="Stop {{ $container->name }}"><i data-lucide="square"></i></button>
+                                        <button type="submit" class="icon-button" title="Stop" aria-label="Stop {{ $container->name }}"><i data-lucide="square"></i></button>
                                     </form>
                                 @endif
                                 @if($canRestart)
                                     <form method="POST" action="{{ route('containers.action', $container) }}" onsubmit="return confirm('Restart {{ $container->name }}?')">
                                         @csrf
                                         <input type="hidden" name="action" value="restart">
-                                        <button type="submit" class="icon-button" aria-label="Restart {{ $container->name }}"><i data-lucide="refresh-cw"></i></button>
+                                        <button type="submit" class="icon-button" title="Restart" aria-label="Restart {{ $container->name }}"><i data-lucide="rotate-cw"></i></button>
                                     </form>
                                 @endif
                                 <details class="containers-more">
-                                    <summary class="icon-button" aria-label="More actions"><i data-lucide="ellipsis"></i></summary>
+                                    <summary class="icon-button" title="More actions" aria-label="More actions"><i data-lucide="ellipsis"></i></summary>
                                     <div class="containers-more-menu">
                                         @if($container->server && ! $container->server->trashed())
                                             <a href="{{ route('servers.show', $container->server) }}"><i data-lucide="server"></i> View server</a>
@@ -195,6 +195,13 @@
                                                 <input type="hidden" name="action" value="inspect">
                                                 <button type="submit"><i data-lucide="scan-search"></i> Sync status</button>
                                             </form>
+                                            @if($canRestart)
+                                                <form method="POST" action="{{ route('containers.action', $container) }}" onsubmit="return confirm('Restart {{ $container->name }}?')">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="restart">
+                                                    <button type="submit"><i data-lucide="rotate-cw"></i> Restart</button>
+                                                </form>
+                                            @endif
                                             @if($canStop)
                                                 <form method="POST" action="{{ route('containers.action', $container) }}">
                                                     @csrf

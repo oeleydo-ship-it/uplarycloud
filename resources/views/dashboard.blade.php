@@ -23,7 +23,9 @@
                             <x-application-icon :application="$application" class="marketplace-app-icon" />
                             <strong>{{ $application->name }}</strong>
                             <small>{{ $application->category?->name ?? 'Application' }}</small>
-                            <a href="{{ route('applications.install', $application) }}" class="button button--secondary">Install</a>
+                            <x-plan-locked-action feature="marketplace" quota="applications" label="Marketplace" class="button button--secondary">
+                                <a href="{{ route('applications.install', $application) }}" class="button button--secondary">Install</a>
+                            </x-plan-locked-action>
                         </article>
                     @empty
                         <div class="dashboard-empty"><i data-lucide="blocks"></i><p>No applications are available yet.</p></div>

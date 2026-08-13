@@ -153,26 +153,54 @@ class WebApplicationDeploymentService
         $network = $d->slug.'-network';
         $this->command($d, 'docker network inspect '.RemoteShell::quote($network).' >/dev/null 2>&1 || docker network create '.RemoteShell::quote($network));
 
+        // Persist Laravel uploads / local files across image rebuilds and redeploys.
+        $this->command(
+            $d,
+            'docker volume inspect '.RemoteShell::quote($d->slug.'-storage').' >/dev/null 2>&1 || docker volume create '.RemoteShell::quote($d->slug.'-storage')
+        );
+
         if ($d->database_engine) {
             $this->provisionDatabase($d, $network);
         }
 
         if ($d->enable_redis) {
-            $this->command(
-                $d,
-                'docker rm -f '.RemoteShell::quote($d->slug.'-redis').' >/dev/null 2>&1 || true'
-                .' && docker run -d --name '.RemoteShell::quote($d->slug.'-redis')
-                .' --network '.RemoteShell::quote($network)
-                .' --restart unless-stopped redis:7-alpine'
-            );
-            $this->log($d, 'Redis cache and queue backend provisioned.');
+            $this->provisionRedis($d, $network);
         }
+    }
+
+    private function provisionRedis(ApplicationDeployment $d, string $network): void
+    {
+        $container = $d->slug.'-redis';
+        $volume = $d->slug.'-redis';
+
+        $this->command(
+            $d,
+            'docker volume inspect '.RemoteShell::quote($volume).' >/dev/null 2>&1 || docker volume create '.RemoteShell::quote($volume)
+        );
+
+        if ($this->containerIsRunning($d, $container)) {
+            $this->log($d, 'Redis sidecar '.$container.' already running; reusing persistent volume '.$volume.'.');
+
+            return;
+        }
+
+        $this->command($d, 'docker rm -f '.RemoteShell::quote($container).' >/dev/null 2>&1 || true');
+        $this->command(
+            $d,
+            'docker run -d --name '.RemoteShell::quote($container)
+            .' --network '.RemoteShell::quote($network)
+            .' --restart unless-stopped'
+            .' -v '.RemoteShell::quote($volume.':/data')
+            .' redis:7-alpine redis-server --appendonly yes'
+        );
+        $this->log($d, 'Redis cache and queue backend provisioned with persistent volume '.$volume.'.');
     }
 
     private function provisionDatabase(ApplicationDeployment $d, string $network): void
     {
         $container = $d->slug.'-db';
         $volume = $d->slug.'-db';
+        // Prefer the existing password so redeploy does not mismatch MariaDB/Postgres init credentials.
         $password = $this->envValue($d, 'DB_PASSWORD') ?: Str::password(32);
         $database = $this->envValue($d, 'DB_DATABASE') ?: 'platform';
         $user = $this->envValue($d, 'DB_USERNAME') ?: 'platform';
@@ -184,7 +212,20 @@ class WebApplicationDeploymentService
         $this->upsertEnv($d, 'DB_USERNAME', $user, false);
         $this->upsertEnv($d, 'DB_PASSWORD', $password, true);
 
-        $this->command($d, 'docker volume create '.RemoteShell::quote($volume).' >/dev/null');
+        // Never `docker rm -v` — named volumes must survive git update / redeploy.
+        $this->command(
+            $d,
+            'docker volume inspect '.RemoteShell::quote($volume).' >/dev/null 2>&1 || docker volume create '.RemoteShell::quote($volume)
+        );
+
+        if ($this->containerIsRunning($d, $container)) {
+            $this->log($d, ($d->database_engine === 'postgresql' ? 'PostgreSQL' : 'MariaDB').' sidecar '.$container.' already running; reusing volume '.$volume.'.');
+            $this->waitForDatabase($d, $container, $password);
+            $this->log($d, 'Database sidecar is accepting connections.');
+
+            return;
+        }
+
         $this->command($d, 'docker rm -f '.RemoteShell::quote($container).' >/dev/null 2>&1 || true');
 
         if ($d->database_engine === 'postgresql') {
@@ -211,9 +252,28 @@ class WebApplicationDeploymentService
             .$env.$mount.' '.RemoteShell::quote($image),
             'pull'
         );
-        $this->log($d, ($d->database_engine === 'postgresql' ? 'PostgreSQL' : 'MariaDB').' database sidecar '.$container.' created.');
+        $this->log($d, ($d->database_engine === 'postgresql' ? 'PostgreSQL' : 'MariaDB').' database sidecar '.$container.' created (volume '.$volume.' preserved).');
         $this->waitForDatabase($d, $container, $password);
         $this->log($d, 'Database sidecar is accepting connections.');
+    }
+
+    private function containerIsRunning(ApplicationDeployment $d, string $container): bool
+    {
+        if (config('infrastructure.driver') === 'fake') {
+            return false;
+        }
+
+        try {
+            $status = trim($this->executor->execute(
+                $d->server,
+                'docker inspect -f {{.State.Running}} '.RemoteShell::quote($container).' 2>/dev/null || true',
+                20
+            ));
+
+            return $status === 'true';
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function waitForDatabase(ApplicationDeployment $d, string $container, string $password): void
@@ -281,28 +341,42 @@ class WebApplicationDeploymentService
         $publish = $d->domain
             ? ''
             : ' -p '.RemoteShell::quote(((int) $d->container_port).':'.((int) $d->container_port));
+        $storage = $d->framework === 'laravel'
+            ? ' -v '.RemoteShell::quote($d->slug.'-storage:/app/storage/app')
+            : '';
 
+        // Recreate app (+ workers) only. DB/Redis sidecars and named volumes stay put.
         $this->command($d, 'docker rm -f '.RemoteShell::quote($d->slug).' >/dev/null 2>&1 || true');
         $this->command(
             $d,
             'docker run -d --name '.RemoteShell::quote($d->slug)
             .' --network '.$network
             .' --restart unless-stopped'
-            .$publish.$env.' '.$image
+            .$publish.$storage.$env.' '.$image
         );
         // Ensure Vite/asset URLs prefer https when served through Traefik.
         $this->command(
             $d,
             'docker exec '.RemoteShell::quote($d->slug).' php artisan config:clear >/dev/null 2>&1 || true'
         );
-        $this->log($d, 'Application container '.$d->slug.' started.');
+        $this->log($d, 'Application container '.$d->slug.' started'.($storage !== '' ? ' with persistent storage volume.' : '.'));
 
-        if ($d->framework === 'laravel' && $d->enable_queue) {
+        if ($d->framework === 'laravel' && $d->enable_horizon) {
+            $this->command($d, 'docker rm -f '.RemoteShell::quote($d->slug.'-horizon').' >/dev/null 2>&1 || true');
+            $this->command(
+                $d,
+                'docker run -d --name '.RemoteShell::quote($d->slug.'-horizon')
+                .' --network '.$network.' --restart unless-stopped'.$storage.' '.$env.' '.$image
+                .' php artisan horizon'
+            );
+            $this->log($d, 'Horizon queue supervisor started on Redis.');
+        } elseif ($d->framework === 'laravel' && $d->enable_queue) {
+            // Horizon replaces a plain queue:work sidecar when both are selected.
             $this->command($d, 'docker rm -f '.RemoteShell::quote($d->slug.'-queue').' >/dev/null 2>&1 || true');
             $this->command(
                 $d,
                 'docker run -d --name '.RemoteShell::quote($d->slug.'-queue')
-                .' --network '.$network.' --restart unless-stopped '.$env.' '.$image
+                .' --network '.$network.' --restart unless-stopped'.$storage.' '.$env.' '.$image
                 .' php artisan queue:work redis --sleep=3 --tries=3 --timeout=90'
             );
             $this->log($d, 'Queue worker started on Redis.');
@@ -312,7 +386,7 @@ class WebApplicationDeploymentService
             $this->command(
                 $d,
                 'docker run -d --name '.RemoteShell::quote($d->slug.'-scheduler')
-                .' --network '.$network.' --restart unless-stopped '.$env.' '.$image
+                .' --network '.$network.' --restart unless-stopped'.$storage.' '.$env.' '.$image
                 .' php artisan schedule:work'
             );
             $this->log($d, 'Scheduler sidecar started.');
@@ -322,7 +396,7 @@ class WebApplicationDeploymentService
             $this->command(
                 $d,
                 'docker run -d --name '.RemoteShell::quote($d->slug.'-reverb')
-                .' --network '.$network.' --restart unless-stopped '.$env.' '.$image
+                .' --network '.$network.' --restart unless-stopped'.$storage.' '.$env.' '.$image
                 .' php artisan reverb:start --host=0.0.0.0 --port=8080'
             );
             $this->log($d, 'Reverb websocket server started.');
@@ -478,7 +552,7 @@ class WebApplicationDeploymentService
                 'SESSION_DRIVER' => 'redis',
             ];
         }
-        if ($d->enable_queue) {
+        if ($d->enable_queue || $d->enable_horizon) {
             $env['QUEUE_CONNECTION'] = 'redis';
         }
         if ($d->enable_reverb) {

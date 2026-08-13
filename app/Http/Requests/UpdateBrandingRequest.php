@@ -2,15 +2,13 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\MembershipRole;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateBrandingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $role = $this->user()?->tenants()->find(session('tenant_id'))?->pivot?->role;
-        return $role && MembershipRole::from($role)->canManageWorkspace();
+        return (bool) $this->user()?->is_super_admin;
     }
 
     public function rules(): array

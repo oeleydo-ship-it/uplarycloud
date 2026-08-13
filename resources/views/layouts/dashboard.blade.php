@@ -28,6 +28,13 @@
                         <button @click="show=false"><i data-lucide="x"></i></button>
                     </div>
                 @endif
+                @if($errors->any() && str_contains(strtolower($errors->first()), 'plan'))
+                    <div class="toast toast--error" x-data="{show:true}" x-show="show" x-transition>
+                        <i data-lucide="triangle-alert"></i>
+                        <span>{{ $errors->first() }} <a href="{{ route('billing.index') }}">View plans</a></span>
+                        <button @click="show=false"><i data-lucide="x"></i></button>
+                    </div>
+                @endif
                 {{ $slot }}
             </main>
         </div>

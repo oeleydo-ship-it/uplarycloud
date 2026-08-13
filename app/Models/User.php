@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\PlatformSettings;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,7 +13,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
@@ -50,6 +52,19 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_super_admin' => 'boolean',
             'last_active_at' => 'datetime',
         ];
+    }
+
+    /**
+     * When platform email verification is off, treat all users as verified
+     * so the console `verified` middleware and MustVerifyEmail checks pass.
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        if (! app(PlatformSettings::class)->emailVerificationRequired()) {
+            return true;
+        }
+
+        return ! is_null($this->email_verified_at);
     }
 
     public function tenants(): BelongsToMany

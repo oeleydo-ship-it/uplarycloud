@@ -127,8 +127,8 @@
                             <div><dt>Framework</dt><dd>{{ $deployment->buildPack?->name }} {{ $deployment->runtime_version }}</dd></div>
                             <div><dt>Repository</dt><dd class="mono">{{ $deployment->repository_url }}</dd></div>
                             <div><dt>Branch / commit</dt><dd class="mono">{{ $deployment->branch }} · {{ $deployment->commit_hash ? substr($deployment->commit_hash, 0, 8) : 'pending' }}</dd></div>
-                            @if($deployment->enable_redis || $deployment->enable_queue || $deployment->enable_reverb || $deployment->enable_scheduler)
-                                <div><dt>Sidecars</dt><dd>{{ collect(['Redis' => $deployment->enable_redis, 'Queue' => $deployment->enable_queue, 'Reverb' => $deployment->enable_reverb, 'Scheduler' => $deployment->enable_scheduler])->filter()->keys()->join(', ') ?: 'None' }}</dd></div>
+                            @if($deployment->enable_redis || $deployment->enable_queue || $deployment->enable_reverb || $deployment->enable_horizon || $deployment->enable_scheduler)
+                                <div><dt>Sidecars</dt><dd>{{ collect(['Redis' => $deployment->enable_redis, 'Queue' => $deployment->enable_queue && ! $deployment->enable_horizon, 'Horizon' => $deployment->enable_horizon, 'Reverb' => $deployment->enable_reverb, 'Scheduler' => $deployment->enable_scheduler])->filter()->keys()->join(', ') ?: 'None' }}</dd></div>
                             @endif
                         @endif
                         <div><dt>Docker image</dt><dd class="mono">{{ $deployment->docker_image }}:{{ $deployment->docker_tag }}</dd></div>

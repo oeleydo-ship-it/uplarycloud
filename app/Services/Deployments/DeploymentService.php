@@ -380,6 +380,15 @@ class DeploymentService
         return match ($slug) {
             'minio' => ' server /data --console-address ":9001"',
             'keycloak' => ' start-dev',
+            'openclaw' => ' sh -lc '.RemoteShell::quote(
+                'set -eu; '
+                .'if [ ! -s /home/node/.openclaw/openclaw.json ]; then '
+                .'node dist/index.js onboard --non-interactive --accept-risk --skip-health --mode local --auth-choice skip --gateway-auth token --gateway-token-ref-env OPENCLAW_GATEWAY_TOKEN --skip-channels --no-install-daemon; '
+                .'fi; '
+                .'ORIGIN="${OPENCLAW_PUBLIC_ORIGIN:-http://127.0.0.1:18789}"; '
+                .'node dist/index.js config set --batch-json "[{\"path\":\"gateway.mode\",\"value\":\"local\"},{\"path\":\"gateway.bind\",\"value\":\"lan\"},{\"path\":\"gateway.controlUi.allowedOrigins\",\"value\":[\"$ORIGIN\",\"http://127.0.0.1:18789\",\"http://localhost:18789\"]}]"; '
+                .'exec node dist/index.js gateway --bind lan --port 18789'
+            ),
             default => '',
         };
     }
@@ -413,6 +422,13 @@ class DeploymentService
         $deployment->unsetRelation('environmentVariables');
         $deployment->load('environmentVariables');
 
+        // Reuse a healthy DB sidecar on redeploy so named volume data is not interrupted.
+        if ($this->containerIsRunning($deployment, $container)) {
+            $this->log($deployment, 'success', 'Managed database sidecar '.$container.' already running; reusing volume '.$deployment->slug.'-db.');
+
+            return;
+        }
+
         $this->command($deployment, 'docker rm -f '.RemoteShell::quote($container).' >/dev/null 2>&1 || true');
 
         $dbEnv = ' --env '.RemoteShell::quote('MYSQL_DATABASE='.$spec['database'])
@@ -426,8 +442,27 @@ class DeploymentService
             .' -v '.RemoteShell::quote($deployment->slug.'-db:/var/lib/mysql')
             .$dbEnv.' '.RemoteShell::quote($spec['image']);
 
-        $this->log($deployment, 'info', 'Creating managed database sidecar '.$container.'.');
+        $this->log($deployment, 'info', 'Creating managed database sidecar '.$container.' (volume '.$deployment->slug.'-db preserved).');
         $this->command($deployment, $command);
+    }
+
+    private function containerIsRunning(ApplicationDeployment $deployment, string $container): bool
+    {
+        if (config('infrastructure.driver') === 'fake') {
+            return false;
+        }
+
+        try {
+            $status = trim($this->executor->execute(
+                $deployment->server,
+                'docker inspect -f {{.State.Running}} '.RemoteShell::quote($container).' 2>/dev/null || true',
+                20
+            ));
+
+            return $status === 'true';
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

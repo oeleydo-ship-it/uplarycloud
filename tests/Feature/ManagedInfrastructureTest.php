@@ -15,6 +15,7 @@ use App\Services\Infrastructure\InfrastructureBillingService;
 use App\Services\Infrastructure\ManagedInfrastructureService;
 use App\Services\Infrastructure\Providers\DigitalOceanAdapter;
 use App\Services\Infrastructure\Providers\HetznerCloudAdapter;
+use App\Support\PlatformSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -40,14 +41,27 @@ class ManagedInfrastructureTest extends TestCase
 
         $connection = ProviderConnection::firstOrFail();
         $this->assertSame('super-secret-token', $connection->api_token);
+        $this->assertSame($tenant->id, $connection->tenant_id);
+        $this->assertFalse($connection->platform_managed);
         $this->assertDatabaseMissing('provider_connections', ['api_token' => 'super-secret-token']);
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
             ->post(route('managed.connections.verify', $connection))->assertRedirect()->assertSessionHas('success');
         $this->assertNotNull($connection->fresh()->last_verified_at);
     }
 
+    public function test_tenant_cannot_verify_platform_managed_connection(): void
+    {
+        [$owner, $tenant] = $this->workspace();
+        $platform = $this->platformConnection();
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('managed.connections.verify', $platform))
+            ->assertNotFound();
+    }
+
     public function test_managed_console_is_role_and_tenant_scoped(): void
     {
+        $this->enableManagedServers();
         [$owner, $tenant] = $this->workspace();
         $this->managedPlan();
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->get(route('managed.index'))
@@ -57,31 +71,83 @@ class ManagedInfrastructureTest extends TestCase
         $this->actingAs($viewer)->withSession(['tenant_id' => $tenant->id])->get(route('managed.index'))->assertForbidden();
 
         [$otherOwner, $otherTenant] = $this->workspace();
-        $connection = $this->connection($tenant);
+        $connection = $this->tenantConnection($tenant);
         $this->actingAs($otherOwner)->withSession(['tenant_id' => $otherTenant->id])
             ->post(route('managed.connections.verify', $connection))->assertNotFound();
     }
 
-    public function test_add_server_page_exposes_verified_digitalocean_and_hetzner_api_accounts(): void
+    public function test_managed_option_hidden_until_superadmin_enables_it(): void
+    {
+        [$owner, $tenant] = $this->workspace();
+        $this->platformConnection();
+        $this->managedPlan();
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('servers.index'))
+            ->assertOk()
+            ->assertSee('Add custom own server')
+            ->assertDontSee('Add managed server');
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('servers.create.managed'))
+            ->assertNotFound();
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('managed.index'))
+            ->assertNotFound();
+
+        $this->enableManagedServers();
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('servers.index'))
+            ->assertOk()
+            ->assertSee('Add managed server');
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('servers.create.managed'))
+            ->assertOk()
+            ->assertSee('Add managed server')
+            ->assertDontSee('My API account');
+    }
+
+    public function test_custom_create_page_uses_tenant_cloud_api_not_platform_tokens(): void
     {
         [$owner, $tenant] = $this->workspace();
         $digitalOcean = $this->managedPlan();
-        $hetzner = ManagedServerPlan::create(['provider' => 'hetzner', 'provider_plan_id' => 'cx22',
-            'name' => 'Shared CX22', 'cpu_cores' => 2, 'memory_mb' => 4096, 'disk_gb' => 40,
-            'bandwidth_gb' => 20000, 'monthly_cost' => 450, 'monthly_price' => 850, 'currency' => 'USD',
-            'regions' => ['fsn1', 'nbg1'], 'images' => ['ubuntu-24.04'], 'active' => true]);
-        ProviderConnection::create(['tenant_id' => null, 'name' => 'Production DigitalOcean',
-            'provider' => 'digitalocean', 'api_token' => 'do-token', 'active' => true, 'platform_managed' => true, 'last_verified_at' => now()]);
-        ProviderConnection::create(['tenant_id' => null, 'name' => 'Production Hetzner',
-            'provider' => 'hetzner', 'api_token' => 'hz-token', 'active' => true, 'platform_managed' => true, 'last_verified_at' => now()]);
+        $this->platformConnection('Platform DigitalOcean');
+        $tenantConnection = $this->tenantConnection($tenant, 'My DigitalOcean');
 
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->get(route('servers.create'))
             ->assertOk()
-            ->assertSee('Provision with cloud API')
-            ->assertSee('Production DigitalOcean')
-            ->assertSee('Production Hetzner')
+            ->assertSee('Provision with my Cloud API')
+            ->assertSee('My DigitalOcean')
             ->assertSee($digitalOcean->name)
-            ->assertSee($hetzner->name);
+            ->assertDontSee('Platform DigitalOcean');
+    }
+
+    public function test_tenant_cloud_provision_uses_own_credentials_and_skips_managed_billing(): void
+    {
+        Queue::fake();
+        [$owner, $tenant] = $this->workspace();
+        $plan = $this->managedPlan();
+        $connection = $this->tenantConnection($tenant);
+        $platform = $this->platformConnection('Platform DO');
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->post(route('servers.cloud.store'), [
+            'name' => 'BYO Cloud', 'provider_connection_id' => $connection->id,
+            'managed_server_plan_id' => $plan->id, 'region' => 'fra1', 'image' => 'ubuntu-24.04',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $server = Server::where('name', 'BYO Cloud')->firstOrFail();
+        $this->assertSame('byos', $server->server_type);
+        $this->assertSame($connection->id, $server->provider_connection_id);
+        $this->assertNotSame($platform->id, $server->provider_connection_id);
+        Queue::assertPushedOn('infrastructure', CreateManagedServerJob::class);
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->post(route('servers.cloud.store'), [
+            'name' => 'Steal Platform', 'provider_connection_id' => $platform->id,
+            'managed_server_plan_id' => $plan->id, 'region' => 'fra1', 'image' => 'ubuntu-24.04',
+        ])->assertNotFound();
     }
 
     public function test_digitalocean_adapter_sends_a_real_droplet_create_request(): void
@@ -90,7 +156,7 @@ class ManagedInfrastructureTest extends TestCase
             'id' => 12345, 'status' => 'new', 'networks' => ['v4' => [['type' => 'public', 'ip_address' => '203.0.113.15']]],
         ]], 202)]);
         [$owner, $tenant] = $this->workspace();
-        $connection = $this->connection($tenant);
+        $connection = $this->tenantConnection($tenant);
         $plan = $this->managedPlan();
         $server = $this->managedServer($tenant);
         $server->setRelation('providerConnection', $connection);
@@ -114,7 +180,7 @@ class ManagedInfrastructureTest extends TestCase
         ]], 201)]);
         [$owner, $tenant] = $this->workspace();
         $connection = ProviderConnection::create(['tenant_id' => $tenant->id, 'name' => 'Hetzner API',
-            'provider' => 'hetzner', 'api_token' => 'hetzner-token', 'active' => true, 'last_verified_at' => now()]);
+            'provider' => 'hetzner', 'api_token' => 'hetzner-token', 'active' => true, 'platform_managed' => false, 'last_verified_at' => now()]);
         $plan = ManagedServerPlan::create(['provider' => 'hetzner', 'provider_plan_id' => 'cx22', 'name' => 'CX22',
             'cpu_cores' => 2, 'memory_mb' => 4096, 'disk_gb' => 40, 'bandwidth_gb' => 20000,
             'monthly_cost' => 450, 'monthly_price' => 850, 'currency' => 'USD', 'regions' => ['fsn1'],
@@ -122,7 +188,7 @@ class ManagedInfrastructureTest extends TestCase
         $server = Server::create(['tenant_id' => $tenant->id, 'provider_connection_id' => $connection->id,
             'managed_server_plan_id' => $plan->id, 'name' => 'Hetzner Production', 'provider' => 'hetzner',
             'provider_region' => 'fsn1', 'provider_image' => 'ubuntu-24.04', 'ip_address' => '0.0.0.0',
-            'operating_system' => 'ubuntu-24.04', 'server_type' => 'managed', 'status' => 'pending',
+            'operating_system' => 'ubuntu-24.04', 'server_type' => 'byos', 'status' => 'pending',
             'authentication_method' => 'ssh_key', 'cpu_cores' => 2, 'memory_mb' => 4096, 'disk_gb' => 40]);
         $server->setRelation('providerConnection', $connection);
 
@@ -140,10 +206,11 @@ class ManagedInfrastructureTest extends TestCase
 
     public function test_create_request_builds_server_steps_and_queues_cloud_job(): void
     {
+        $this->enableManagedServers();
         Queue::fake();
         [$owner, $tenant] = $this->workspace();
         $plan = $this->managedPlan();
-        $connection = $this->connection($tenant);
+        $connection = $this->platformConnection();
 
         $response = $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->post(route('managed.servers.store'), [
             'name' => 'Managed API', 'provider_connection_id' => $connection->id,
@@ -151,7 +218,7 @@ class ManagedInfrastructureTest extends TestCase
         ])->assertRedirect()->assertSessionHas('success');
 
         $server = Server::where('name', 'Managed API')->firstOrFail();
-        $response->assertRedirect(route('servers.provisioning',$server));
+        $response->assertRedirect(route('servers.provisioning', $server));
         $this->assertSame('managed', $server->server_type);
         $this->assertSame('pending', $server->status->value);
         $this->assertCount(7, $server->provisioningSteps);
@@ -163,7 +230,7 @@ class ManagedInfrastructureTest extends TestCase
     {
         [$owner, $tenant] = $this->workspace();
         $server = $this->managedServer($tenant);
-        $operation = $this->operation($server, $owner, 'create');
+        $operation = $this->operation($server, $owner, 'create', ['billing' => true]);
         $service = app(ManagedInfrastructureService::class);
 
         $service->create($operation);
@@ -178,6 +245,35 @@ class ManagedInfrastructureTest extends TestCase
         $this->assertSame(1, $server->infrastructureCharges()->where('charge_type', 'managed_server')->count());
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])->get(route('billing.index'))
             ->assertOk()->assertSee('Managed infrastructure charges');
+    }
+
+    public function test_byos_cloud_provision_does_not_accrue_platform_charges(): void
+    {
+        [$owner, $tenant] = $this->workspace();
+        $plan = $this->managedPlan();
+        $connection = $this->tenantConnection($tenant);
+        $server = Server::create([
+            'tenant_id' => $tenant->id,
+            'provider_connection_id' => $connection->id,
+            'managed_server_plan_id' => $plan->id,
+            'name' => 'BYO Billing Check',
+            'provider' => 'digitalocean',
+            'provider_region' => 'fra1',
+            'provider_image' => 'ubuntu-24.04',
+            'ip_address' => '0.0.0.0',
+            'operating_system' => 'ubuntu-24.04',
+            'server_type' => 'byos',
+            'status' => 'pending',
+            'authentication_method' => 'ssh_key',
+            'cpu_cores' => $plan->cpu_cores,
+            'memory_mb' => $plan->memory_mb,
+            'disk_gb' => $plan->disk_gb,
+        ]);
+        $operation = $this->operation($server, $owner, 'create', ['billing' => false, 'public_key' => 'ssh-rsa test']);
+
+        app(ManagedInfrastructureService::class)->create($operation);
+
+        $this->assertDatabaseMissing('infrastructure_charges', ['server_id' => $server->id]);
     }
 
     public function test_lifecycle_actions_restart_resize_rebuild_and_destroy(): void
@@ -207,6 +303,7 @@ class ManagedInfrastructureTest extends TestCase
 
     public function test_controller_queues_action_and_managed_plan_limit_is_enforced(): void
     {
+        $this->enableManagedServers();
         Queue::fake();
         [$owner, $tenant] = $this->workspace(1);
         $server = $this->managedServer($tenant, true);
@@ -225,6 +322,11 @@ class ManagedInfrastructureTest extends TestCase
         $this->assertDatabaseMissing('servers', ['tenant_id' => $tenant->id, 'name' => 'Over Limit']);
     }
 
+    private function enableManagedServers(): void
+    {
+        app(PlatformSettings::class)->put('general', ['managed_servers_enabled' => true]);
+    }
+
     private function workspace(int $managedLimit = 5): array
     {
         $owner = User::factory()->create();
@@ -234,13 +336,34 @@ class ManagedInfrastructureTest extends TestCase
             'monthly_price' => 2900, 'yearly_price' => 29000, 'currency' => 'USD',
             'limits' => ['servers' => 10, 'managed_servers' => $managedLimit, 'team_members' => 10], 'features' => [], 'active' => true]);
         $tenant->subscriptions()->create(['plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+
         return [$owner, $tenant];
     }
 
-    private function connection(Tenant $tenant): ProviderConnection
+    private function platformConnection(string $name = 'Cloud Platform'): ProviderConnection
     {
-        return ProviderConnection::create(['tenant_id' => null, 'name' => 'Cloud '.fake()->unique()->word(),
-            'provider' => 'digitalocean', 'api_token' => 'test-token', 'active' => true, 'platform_managed' => true, 'last_verified_at' => now()]);
+        return ProviderConnection::create([
+            'tenant_id' => null,
+            'name' => $name.' '.fake()->unique()->numerify('###'),
+            'provider' => 'digitalocean',
+            'api_token' => 'platform-token',
+            'active' => true,
+            'platform_managed' => true,
+            'last_verified_at' => now(),
+        ]);
+    }
+
+    private function tenantConnection(Tenant $tenant, string $name = 'Tenant Cloud'): ProviderConnection
+    {
+        return ProviderConnection::create([
+            'tenant_id' => $tenant->id,
+            'name' => $name.' '.fake()->unique()->numerify('###'),
+            'provider' => 'digitalocean',
+            'api_token' => 'test-token',
+            'active' => true,
+            'platform_managed' => false,
+            'last_verified_at' => now(),
+        ]);
     }
 
     private function managedPlan(string $providerId = 's-1vcpu-1gb', int $price = 900, int $cpu = 1, int $memory = 1024): ManagedServerPlan
@@ -254,7 +377,8 @@ class ManagedInfrastructureTest extends TestCase
     private function managedServer(Tenant $tenant, bool $online = false): Server
     {
         $plan = ManagedServerPlan::first() ?? $this->managedPlan();
-        $connection = ProviderConnection::firstWhere('tenant_id', $tenant->id) ?? $this->connection($tenant);
+        $connection = ProviderConnection::query()->where('platform_managed', true)->first() ?? $this->platformConnection();
+
         return Server::create(['tenant_id' => $tenant->id, 'provider_connection_id' => $connection->id,
             'managed_server_plan_id' => $plan->id, 'name' => 'Managed '.fake()->unique()->word(),
             'provider' => 'digitalocean', 'provider_resource_id' => $online ? 'cloud-123' : null,

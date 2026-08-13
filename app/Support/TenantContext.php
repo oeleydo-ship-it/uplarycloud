@@ -19,6 +19,11 @@ class TenantContext
         return $this->tenant ?? throw new RuntimeException('No tenant is active for this request.');
     }
 
+    public function has(): bool
+    {
+        return $this->tenant !== null;
+    }
+
     public function id(): int
     {
         return $this->current()->getKey();

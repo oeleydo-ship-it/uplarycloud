@@ -60,6 +60,22 @@ class WebApplicationDeploymentTest extends TestCase
         $this->assertTrue($deployment->enable_reverb);
     }
 
+    public function test_git_deployment_can_enable_horizon_and_requires_redis(): void
+    {
+        Bus::fake();
+        [$user, $tenant, $server] = $this->owner();
+        $pack = $this->buildPack();
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])->post(route('applications.web.store'), $this->payload($pack, $server, [
+            'enable_horizon' => 1,
+        ]))->assertRedirect();
+
+        $deployment = ApplicationDeployment::firstOrFail();
+        $this->assertTrue($deployment->enable_horizon);
+        $this->assertTrue($deployment->enable_redis);
+        $this->assertFalse($deployment->enable_queue);
+    }
+
     public function test_fake_web_build_with_sidecars_completes_successfully(): void
     {
         [$user, $tenant, $server] = $this->owner();
@@ -82,6 +98,50 @@ class WebApplicationDeploymentTest extends TestCase
         $this->assertSame('mysql', $deployment->database_engine);
         $this->assertNotNull($deployment->environmentVariables()->where('key', 'DB_HOST')->value('value'));
         $this->assertNotNull($deployment->environmentVariables()->where('key', 'APP_KEY')->value('value'));
+    }
+
+    public function test_fake_web_build_with_horizon_starts_supervisor_and_sets_queue_connection(): void
+    {
+        [$user, $tenant, $server] = $this->owner();
+        $deployment = $this->deployment($tenant, $server, $user, $this->buildPack());
+        $deployment->update([
+            'enable_redis' => true,
+            'enable_horizon' => true,
+            'enable_queue' => true,
+            'database_engine' => 'mysql',
+        ]);
+
+        foreach (array_values(WebApplicationDeploymentService::STAGES) as $position => $name) {
+            $keys = array_keys(WebApplicationDeploymentService::STAGES);
+            $deployment->steps()->create(['key' => $keys[$position], 'name' => $name, 'position' => $position + 1]);
+        }
+
+        $executor = new class extends \App\Services\Infrastructure\FakeServerExecutor
+        {
+            /** @var list<string> */
+            public array $commands = [];
+
+            public function execute(\App\Models\Server $server, string $command, ?int $timeoutSeconds = null): string
+            {
+                $this->commands[] = $command;
+
+                return parent::execute($server, $command, $timeoutSeconds);
+            }
+        };
+        $this->app->instance(\App\Contracts\Infrastructure\ServerExecutorInterface::class, $executor);
+
+        (new ProcessWebApplicationDeploymentJob($deployment->id, $tenant->id, $user->id))->handle(app(WebApplicationDeploymentService::class), app(DeploymentService::class));
+
+        $deployment->refresh();
+        $this->assertSame('running', $deployment->status->value, $deployment->last_error ?? 'Build failed');
+        $this->assertTrue($deployment->logs()->where('message', 'like', '%Horizon%')->exists());
+        $this->assertFalse($deployment->logs()->where('message', 'like', '%Queue worker%')->exists());
+
+        $horizon = collect($executor->commands)->first(fn (string $command) => str_contains($command, 'php artisan horizon'));
+        $this->assertNotNull($horizon);
+        $this->assertStringContainsString('QUEUE_CONNECTION=redis', $horizon);
+        $this->assertStringContainsString($deployment->slug.'-horizon', $horizon);
+        $this->assertFalse(collect($executor->commands)->contains(fn (string $command) => str_contains($command, 'php artisan queue:work')));
     }
 
     public function test_laravel_runtime_forces_https_asset_url_when_domain_set(): void
@@ -140,6 +200,75 @@ class WebApplicationDeploymentTest extends TestCase
 
         Bus::assertDispatched(ProcessWebApplicationDeploymentJob::class);
         $this->assertSame('queued', $deployment->refresh()->status->value);
+    }
+
+    public function test_git_redeploy_reuses_named_volumes_and_never_wipes_data(): void
+    {
+        [$user, $tenant, $server] = $this->owner();
+        $deployment = $this->deployment($tenant, $server, $user, $this->buildPack());
+        $deployment->update([
+            'enable_redis' => true,
+            'enable_queue' => true,
+            'database_engine' => 'mysql',
+        ]);
+        $deployment->environmentVariables()->create([
+            'key' => 'DB_PASSWORD',
+            'value' => 'existing-db-secret',
+            'secret' => true,
+        ]);
+
+        foreach (array_values(WebApplicationDeploymentService::STAGES) as $position => $name) {
+            $keys = array_keys(WebApplicationDeploymentService::STAGES);
+            $deployment->steps()->create(['key' => $keys[$position], 'name' => $name, 'position' => $position + 1]);
+        }
+
+        $executor = new class extends \App\Services\Infrastructure\FakeServerExecutor
+        {
+            /** @var list<string> */
+            public array $commands = [];
+
+            public function execute(\App\Models\Server $server, string $command, ?int $timeoutSeconds = null): string
+            {
+                $this->commands[] = $command;
+
+                return parent::execute($server, $command, $timeoutSeconds);
+            }
+        };
+        $this->app->instance(\App\Contracts\Infrastructure\ServerExecutorInterface::class, $executor);
+
+        (new ProcessWebApplicationDeploymentJob($deployment->id, $tenant->id, $user->id))->handle(app(WebApplicationDeploymentService::class), app(DeploymentService::class));
+
+        $deployment->refresh();
+        $this->assertSame('running', $deployment->status->value, $deployment->last_error ?? 'Build failed');
+        $this->assertSame('existing-db-secret', $deployment->environmentVariables()->where('key', 'DB_PASSWORD')->value('value'));
+
+        $joined = implode("\n", $executor->commands);
+        $this->assertStringNotContainsString('docker rm -v', $joined);
+        $this->assertStringNotContainsString('migrate:fresh', $joined);
+        $this->assertStringContainsString('migrate --force', $joined);
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'docker volume inspect') && str_contains($command, $deployment->slug.'-db')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'docker volume inspect') && str_contains($command, $deployment->slug.'-storage')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'docker volume inspect') && str_contains($command, $deployment->slug.'-redis')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'docker run')
+                && str_contains($command, $deployment->slug.'-storage:/app/storage/app')
+                && (str_contains($command, "--name {$deployment->slug} ")
+                    || str_contains($command, "--name '{$deployment->slug}'")
+                    || str_contains($command, '--name '.escapeshellarg($deployment->slug)))
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'docker run')
+                && str_contains($command, $deployment->slug.'-db:/var/lib/mysql')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, 'redis-server --appendonly yes')
+        ));
     }
 
     public function test_repository_and_shell_commands_are_strictly_validated(): void

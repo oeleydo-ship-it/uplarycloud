@@ -8,7 +8,7 @@
             </div>
             <div class="heading-actions">
                 <a href="{{ route('servers.index') }}" class="button button--secondary"><i data-lucide="refresh-cw"></i> Refresh</a>
-                <a href="{{ route('servers.create') }}" class="button button--primary"><i data-lucide="plus"></i> Add Server</a>
+                <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :quota-reached="$planAccess->atCapacity('servers')" />
             </div>
         </div>
 
@@ -32,7 +32,7 @@
                     <span><i data-lucide="server"></i></span>
                     <h2>No servers found</h2>
                     <p>Connect your first Linux server to start deploying applications.</p>
-                    <a href="{{ route('servers.create') }}" class="button button--primary"><i data-lucide="plus"></i> Add Server</a>
+                    <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :quota-reached="$planAccess->atCapacity('servers')" empty />
                 </div>
             @else
                 <div class="server-reference-table">

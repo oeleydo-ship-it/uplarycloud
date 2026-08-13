@@ -6,5 +6,5 @@
         <div class="form-between"><label class="check"><input type="checkbox" name="remember" value="1"><span>Remember me</span></label><a href="{{ route('password.request') }}">Forgot password?</a></div>
         <button class="button button--primary button--full" type="submit">Sign in <i data-lucide="arrow-right"></i></button>
     </form>
-    <p class="auth-switch">New to {{ config('app.name') }}? <a href="{{ route('register') }}">Create an account</a></p>
+    <p class="auth-switch">New to {{ app(\App\Support\Branding::class)->name() }}? <a href="{{ route('register') }}">Create an account</a></p>
 </x-auth-layout>

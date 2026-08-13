@@ -24,7 +24,7 @@
 .volumes-page .volumes-reference-table-scroll::-webkit-scrollbar-thumb { background: #d4d7e4; border-radius: 999px; }
 .volumes-page .volumes-reference-table { min-width: 0; width: 100%; }
 .volumes-page .volumes-reference-head,.volumes-page .volumes-reference-row { display: grid; grid-template-columns: minmax(170px, 1.15fr) minmax(160px, 1fr) minmax(130px, .85fr) minmax(120px, .8fr) 100px 96px 108px 120px; gap: 16px; align-items: center; padding: 0 24px; }
-.volumes-page .volumes-reference-head { height: 48px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: #8b90a3; text-transform: uppercase; letter-spacing: .04em; background: #fafafd; }
+.volumes-page .volumes-reference-head { height: 48px; border-bottom: 1px solid var(--border); font-size:13px; font-weight: 600; color: #8b90a3; text-transform: uppercase; letter-spacing: .04em; background: #fafafd; }
 .volumes-page .volumes-reference-head>span:last-child,.volumes-page .volumes-reference-row>.volumes-actions { position: sticky; right: 0; z-index: 2; padding-right: 4px; background: #fafafd; box-shadow: -10px 0 16px rgba(250, 250, 253, .95); }
 .volumes-page .volumes-reference-row { min-height: 96px; padding-top: 16px; padding-bottom: 16px; border-bottom: 1px solid #edf0f4; transition: .15s; }
 .volumes-page .volumes-reference-row>.volumes-actions { background: #fff; box-shadow: -10px 0 16px rgba(255, 255, 255, .95); }
@@ -33,19 +33,19 @@
 .volumes-page .volumes-reference-row:last-child { border-bottom: 0; }
 .volumes-page .volumes-reference-row>span strong,.volumes-page .volumes-reference-row>span small { display: block; }
 .volumes-page .volumes-reference-row>span strong { font-size: 14px; font-weight: 600; color: var(--text); }
-.volumes-page .volumes-reference-row>span small { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.volumes-page .volumes-reference-row>span small { font-size:13px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 .volumes-page .volumes-reference-row>span small a { color: var(--primary); font-weight: 500; }
 .volumes-page .volumes-muted { color: var(--muted)!important; }
 .volumes-page .volumes-reference-primary { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 14px; padding-right: 8px; }
 .volumes-page .volumes-icon { width: 44px; height: 44px; border-radius: 10px; background: #f0edff; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .volumes-page .volumes-icon svg { width: 18px; height: 18px; }
-.volumes-page .volumes-reference-primary .mono { font-family: Consolas, 'SFMono-Regular', monospace; font-size: 11px; color: #8b90a3; }
+.volumes-page .volumes-reference-primary .mono { font-family: Consolas, 'SFMono-Regular', monospace; font-size:14px; color: #8b90a3; }
 .volumes-page .volumes-application { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: center; padding-right: 8px; }
 .volumes-page .volumes-application>strong:first-child { grid-column: 1 / -1; }
 .volumes-page .volumes-application>small { grid-column: 1 / -1; }
 .volumes-page .volumes-metric .metric-track { width: 72px; height: 4px; margin-top: 6px; border-radius: 5px; background: #eef0f4; overflow: hidden; }
 .volumes-page .volumes-metric .metric-track i { display: block; height: 100%; background: var(--primary); border-radius: 5px; }
-.volumes-page .volumes-status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-style: normal; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.volumes-page .volumes-status-badge { display: inline-flex; align-items: center; gap: 6px; font-size:13px; font-style: normal; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
 .volumes-page .volumes-status-badge i { width: 6px; height: 6px; border-radius: 50%; }
 .volumes-page .volumes-status-badge--success { color: #178359; background: #e9f8f2; }
 .volumes-page .volumes-status-badge--success i { background: var(--green); }

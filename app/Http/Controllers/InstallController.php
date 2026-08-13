@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Support\InstallationState;
 use App\Support\PlatformSettings;
+use Database\Seeders\ApplicationCatalogSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -59,9 +60,22 @@ class InstallController extends Controller
                 'support_email' => $user->email,
                 'default_timezone' => config('app.timezone', 'UTC'),
                 'default_currency' => 'USD',
+                'default_language' => config('app.locale', 'en'),
+                'date_format' => 'M j, Y',
+                'time_format' => 'g:i A',
                 'registration_enabled' => true,
-                'email_verification' => true,
+                'email_verification' => ! app()->environment('local'),
                 'maintenance_mode' => false,
+            ]);
+
+            $settings->put('branding', [
+                'name' => $platformName,
+                'short_name' => strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $platformName) ?: 'UP', 0, 2)),
+                'tagline' => 'Deploy confidently. Operate clearly.',
+                'primary_color' => '#6C4CF5',
+                'secondary_color' => '#17152B',
+                'company_name' => $platformName,
+                'support_email' => $user->email,
             ]);
 
             $installation->markInstalled();
@@ -76,6 +90,10 @@ class InstallController extends Controller
 
             return [$user, $tenant];
         });
+
+        // Catalog is global (not tenant-scoped). Seed outside the install transaction
+        // so a catalog failure does not roll back the superadmin/workspace.
+        app(ApplicationCatalogSeeder::class)->run();
 
         Auth::login($user);
         $request->session()->regenerate();

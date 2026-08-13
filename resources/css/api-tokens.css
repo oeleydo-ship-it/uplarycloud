@@ -1,0 +1,487 @@
+/* API Tokens — same type scale as the rest of the tenant console. */
+.api-reference-page {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    color: var(--text);
+}
+
+.api-reference-page .api-heading {
+    align-items: flex-end;
+    margin-bottom: 22px;
+}
+
+.api-reference-page .api-heading .breadcrumb {
+    color: #5f6578 !important;
+    font-size: 13px !important;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.api-reference-page .api-heading h1 {
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -.03em;
+    margin: 0 0 8px;
+    font-weight: 750;
+}
+
+.api-reference-page .api-heading > div > p:last-child {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #4f5568;
+    max-width: 640px;
+}
+
+.api-reference-page .api-heading .button {
+    height: 42px;
+    font-size: 14px;
+    padding: 0 16px;
+}
+
+.api-reference-page .token-reveal {
+    display: grid;
+    grid-template-columns: 1fr minmax(280px, 1.7fr) auto;
+    align-items: center;
+    gap: 16px;
+    background: #25213d;
+    color: #fff;
+    padding: 16px 18px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+}
+
+.api-reference-page .token-reveal > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.api-reference-page .token-reveal > div span {
+    display: flex;
+    flex-direction: column;
+}
+
+.api-reference-page .token-reveal strong {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.api-reference-page .token-reveal small {
+    color: #c5bfd8;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+.api-reference-page .token-reveal code {
+    background: #171427;
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow: auto;
+    font-size: 14px;
+    color: #c9bcff;
+}
+
+.api-reference-page .token-reveal button {
+    border: 1px solid #5e557d;
+    background: #383250;
+    color: #fff;
+    border-radius: 8px;
+    height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+}
+
+.api-reference-page .api-stats {
+    margin-bottom: 20px;
+}
+
+.api-reference-page .api-stats .stat-label {
+    font-size: 13px;
+    color: #5a6073;
+}
+
+.api-reference-page .api-stats .stat-value {
+    font-size: 26px;
+}
+
+.api-reference-page .api-stats .stat-detail {
+    font-size: 13px;
+    color: #5a6073;
+}
+
+.api-reference-page .api-filterbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(140px, .7fr)) auto;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.api-reference-page .api-filterbar .table-search {
+    display: block;
+}
+
+.api-reference-page .api-filterbar .table-search svg {
+    width: 16px;
+    left: 12px;
+    top: 13px;
+    color: #6d7386;
+}
+
+.api-reference-page .api-filterbar .table-search input {
+    width: 100%;
+    height: 44px;
+    font-size: 14px;
+    padding: 0 12px 0 38px;
+    color: var(--text);
+}
+
+.api-reference-page .api-filterbar select {
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.api-reference-page .api-filterbar .button {
+    height: 44px;
+    font-size: 14px;
+}
+
+.api-reference-page .api-content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 16px;
+    align-items: start;
+}
+
+.api-reference-page .api-token-table-card {
+    overflow: hidden;
+}
+
+.api-reference-page .api-token-head,
+.api-reference-page .api-token-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.3fr) 120px minmax(150px, 1fr) 110px 110px 88px 48px;
+    gap: 12px;
+    align-items: center;
+    padding: 0 18px;
+}
+
+.api-reference-page .api-token-head {
+    height: 44px;
+    background: #fafafd;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #5a6073;
+}
+
+.api-reference-page .api-token-row {
+    min-height: 72px;
+    border-bottom: 1px solid #f0f1f5;
+    color: inherit;
+}
+
+.api-reference-page .api-token-row:hover,
+.api-reference-page .api-token-row.is-selected {
+    background: #fbfaff;
+}
+
+.api-reference-page .api-token-row.is-selected {
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.api-reference-page .api-token-row > span:first-child strong,
+.api-reference-page .api-token-row > span:first-child small,
+.api-reference-page .api-token-row time small {
+    display: block;
+}
+
+.api-reference-page .api-token-row > span:first-child strong {
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--text);
+}
+
+.api-reference-page .api-token-row > span:first-child small,
+.api-reference-page .api-token-row time,
+.api-reference-page .api-token-row time small {
+    font-size: 13px;
+    color: #5a6073;
+    margin-top: 3px;
+}
+
+.api-reference-page .api-token-row > code {
+    font-size: 13px;
+    color: #3b3f54;
+}
+
+.api-reference-page .scope-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.api-reference-page .scope-list em {
+    font-size: 12px;
+    font-style: normal;
+    color: #3d4a66;
+    background: #f0f2f8;
+    border-radius: 999px;
+    padding: 4px 8px;
+}
+
+.api-reference-page .scope-list small {
+    font-size: 12px;
+    color: #5a6073;
+}
+
+.api-reference-page .environment-badge,
+.api-reference-page .api-status {
+    display: inline-flex;
+    width: max-content;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 650;
+}
+
+.api-reference-page .api-more {
+    width: 32px;
+    height: 32px;
+}
+
+.api-reference-page .api-pagination {
+    min-height: 56px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: #5a6073;
+}
+
+.api-reference-page .api-about {
+    margin-top: 16px;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+}
+
+.api-reference-page .api-about h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text);
+}
+
+.api-reference-page .api-about p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #4f5568;
+    margin: 6px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.api-reference-page .api-about p svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--green);
+}
+
+.api-reference-page .api-about a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+.api-reference-page .api-about a svg {
+    width: 14px;
+}
+
+.api-reference-page .api-token-details {
+    padding: 20px;
+    position: sticky;
+    top: 72px;
+}
+
+.api-reference-page .api-token-details > h2 {
+    font-size: 18px;
+    margin: 0 0 16px;
+}
+
+.api-reference-page .api-detail-title {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.api-reference-page .api-detail-title strong {
+    font-size: 16px;
+}
+
+.api-reference-page .api-detail-title small {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: #5a6073;
+    margin-top: 6px;
+}
+
+.api-reference-page .api-detail-block {
+    margin-top: 16px;
+}
+
+.api-reference-page .api-detail-block > label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #3d4254;
+    margin-bottom: 8px;
+}
+
+.api-reference-page .api-detail-block > code {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--primary);
+    background: #f7f4ff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.api-reference-page .api-token-details dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.api-reference-page .api-token-details dt {
+    font-size: 13px;
+    color: #5a6073;
+}
+
+.api-reference-page .api-token-details dd {
+    font-size: 14px;
+    font-weight: 650;
+    margin: 4px 0 0;
+}
+
+.api-reference-page .api-token-details dd small {
+    display: block;
+    font-weight: 400;
+    font-size: 13px;
+    color: #5a6073;
+    margin-top: 3px;
+}
+
+.api-reference-page .api-token-details .button {
+    font-size: 14px;
+    height: 40px;
+}
+
+.api-reference-page .api-token-details form {
+    margin-top: 10px;
+}
+
+.api-reference-page .healthy-empty {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.api-reference-page .healthy-empty svg {
+    width: 28px;
+    height: 28px;
+    color: var(--primary);
+}
+
+.api-reference-page .healthy-empty strong {
+    display: block;
+    font-size: 16px;
+    margin-top: 12px;
+    color: var(--text);
+}
+
+.api-reference-page .healthy-empty small {
+    display: block;
+    font-size: 13px;
+    color: #5a6073;
+    margin-top: 6px;
+}
+
+.api-reference-page .api-token-modal {
+    width: min(650px, calc(100vw - 30px));
+}
+
+.api-reference-page .api-token-modal .domain-modal-head h2 {
+    font-size: 18px;
+}
+
+.api-reference-page .api-token-modal .domain-modal-head p {
+    font-size: 14px;
+    color: #4f5568;
+}
+
+.api-reference-page .api-token-modal .field > span,
+.api-reference-page .scope-picker legend {
+    font-size: 13px;
+    font-weight: 650;
+    color: #3d4254;
+}
+
+.api-reference-page .api-token-modal .field input,
+.api-reference-page .api-token-modal .field select,
+.api-reference-page .api-token-modal .field textarea {
+    font-size: 14px;
+    min-height: 42px;
+}
+
+.api-reference-page .scope-picker label span {
+    font-size: 14px;
+    padding: 10px 12px;
+}
+
+.api-reference-page .api-token-modal .field > small {
+    font-size: 13px;
+    color: #5a6073;
+}
+
+.api-reference-page .domain-modal-actions .button {
+    font-size: 14px;
+    height: 40px;
+}
+
+@media (max-width: 1200px) {
+    .api-reference-page .api-content-grid { grid-template-columns: 1fr; }
+    .api-reference-page .api-token-details { position: static; }
+    .api-reference-page .api-filterbar { grid-template-columns: 2fr 1fr 1fr; }
+    .api-reference-page .api-filterbar select:nth-of-type(3),
+    .api-reference-page .api-filterbar .button { grid-row: 2; }
+    .api-reference-page .api-token-table-card { overflow-x: auto; }
+    .api-reference-page .api-token-head,
+    .api-reference-page .api-token-row { min-width: 980px; }
+}
+
+@media (max-width: 700px) {
+    .api-reference-page .api-filterbar { grid-template-columns: 1fr; }
+    .api-reference-page .api-filterbar select:nth-of-type(3),
+    .api-reference-page .api-filterbar .button { grid-row: auto; }
+    .api-reference-page .api-about { grid-template-columns: 1fr; }
+    .api-reference-page .api-token-details dl { grid-template-columns: 1fr; }
+    .api-reference-page .token-reveal { grid-template-columns: 1fr; }
+}

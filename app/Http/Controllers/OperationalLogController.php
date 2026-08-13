@@ -6,6 +6,7 @@ use App\Models\Application;
 use App\Models\ApplicationDeployment;
 use App\Models\OperationalLog;
 use App\Models\Server;
+use App\Services\Billing\PlanLimitService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -123,8 +124,9 @@ class OperationalLogController extends Controller
         ]);
     }
 
-    public function download(Request $request, TenantContext $context): StreamedResponse
+    public function download(Request $request, TenantContext $context, PlanLimitService $limits): StreamedResponse
     {
+        $limits->enforceFeature($context->current(), 'audit_exports');
         $rangeKey = (string) $request->input('range', '1h');
         $rangeStart = $this->rangeStart($rangeKey);
         $serverId = $this->serverId($request);

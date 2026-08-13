@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ContainerStatus;
+use App\Events\DockerResourceUpdated;
 use App\Jobs\CollectOperationsMetricsJob;
-use App\Jobs\DockerResourceActionJob;
+use App\Models\ActivityLog;
 use App\Models\Application;
 use App\Models\DockerContainer;
 use App\Models\Server;
@@ -113,7 +114,7 @@ class DockerContainerController extends Controller
         return back()->with('success', 'Unused container cleanup completed.');
     }
 
-    public function action(Request $request, DockerContainer $container, TenantContext $ctx, ContainerInventoryService $inventory): RedirectResponse
+    public function action(Request $request, DockerContainer $container, TenantContext $ctx, ContainerInventoryService $inventory, DockerService $docker): RedirectResponse
     {
         abort_unless($container->tenant_id === $ctx->id(), 404);
 
@@ -135,13 +136,37 @@ class DockerContainerController extends Controller
                 return back()->with('success', 'Container status refreshed from Docker.');
             }
 
-            DockerResourceActionJob::dispatch('container', $container->id, $action, $ctx->id(), $request->user()->id);
+            $docker->container($container, $action);
 
-            return back()->with('success', ucfirst($action).' action queued.');
+            ActivityLog::create([
+                'tenant_id' => $ctx->id(),
+                'user_id' => $request->user()->id,
+                'action' => 'docker.container.'.$action,
+                'description' => 'Container '.$action.' completed',
+                'subject_type' => DockerContainer::class,
+                'subject_id' => $container->id,
+                'created_at' => now(),
+            ]);
+            event(new DockerResourceUpdated($ctx->id(), 'container', $container->uuid, $action, 'completed'));
+
+            return back()->with('success', $this->actionSuccessMessage($action, $container->name));
         } catch (Throwable $exception) {
             report($exception);
 
             return back()->with('error', 'Unable to '.$action.' container: '.$exception->getMessage());
         }
+    }
+
+    private function actionSuccessMessage(string $action, string $name): string
+    {
+        return match ($action) {
+            'start' => $name.' started.',
+            'stop' => $name.' stopped.',
+            'restart' => $name.' restarted.',
+            'pause' => $name.' paused.',
+            'unpause' => $name.' unpaused.',
+            'remove' => $name.' removed.',
+            default => ucfirst($action).' completed.',
+        };
     }
 }

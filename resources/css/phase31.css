@@ -1,0 +1,230 @@
+/* Phase 31: Add Server dropdown + tenant Cloud API */
+.add-server-dropdown {
+    position: relative;
+    display: inline-flex;
+    vertical-align: middle;
+    z-index: 50;
+}
+
+.add-server-dropdown__trigger {
+    gap: 8px;
+}
+
+.add-server-dropdown__chevron {
+    width: 14px;
+    height: 14px;
+    margin-left: 2px;
+    transition: transform .15s ease;
+}
+
+.add-server-dropdown__chevron.is-open {
+    transform: rotate(180deg);
+}
+
+.add-server-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    width: min(360px, calc(100vw - 32px));
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(36, 32, 70, .16);
+    isolation: isolate;
+}
+
+.add-server-dropdown--empty .add-server-dropdown__menu {
+    left: 0;
+    right: auto;
+}
+
+.add-server-dropdown__item {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    padding: 12px 12px;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+}
+
+.add-server-dropdown__item:hover,
+.add-server-dropdown__item:focus-visible {
+    background: #f6f4ff;
+    outline: none;
+}
+
+.add-server-dropdown__item:hover .add-server-dropdown__copy strong,
+.add-server-dropdown__item:focus-visible .add-server-dropdown__copy strong {
+    color: var(--primary);
+}
+
+.add-server-dropdown__copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.add-server-dropdown__copy strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.25;
+    color: var(--text);
+}
+
+.add-server-dropdown__copy small {
+    display: block;
+    font-size:13px;
+    line-height: 1.4;
+    color: var(--muted);
+}
+
+.add-server-dropdown__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #f0edff;
+    color: #6c4cf5;
+}
+
+.add-server-dropdown__icon--managed {
+    background: #eef6ff;
+    color: #3b82f6;
+}
+
+.add-server-dropdown__icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.cloud-api-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.cloud-api-page .page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.cloud-api-page .page-heading h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    margin: 4px 0 6px;
+}
+
+.cloud-api-page .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.cloud-api-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.cloud-api-layout > .card {
+    padding: 22px;
+}
+
+.cloud-api-row {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+}
+
+.cloud-api-row:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.cloud-api-row strong,
+.cloud-api-row small {
+    display: block;
+}
+
+.cloud-api-row small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size:13px;
+}
+
+.cloud-api-error {
+    display: block;
+    margin-top: 4px;
+    color: #b42318;
+    font-size:13px;
+    font-style: normal;
+}
+
+.cloud-api-page .cloud-provider-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0edff;
+    color: #6c4cf5;
+    font-size:13px;
+    font-weight: 700;
+}
+
+.servers-page .empty-state .add-server-dropdown {
+    margin-top: 4px;
+}
+
+.servers-page .heading-actions {
+    position: relative;
+    z-index: 40;
+    overflow: visible;
+}
+
+.servers-page .servers-reference-heading {
+    overflow: visible;
+}
+
+@media (max-width: 900px) {
+    .cloud-api-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .servers-page .heading-actions .add-server-dropdown {
+        display: none;
+    }
+}
+
+.admin-heading-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin-heading-actions form {
+    margin: 0;
+}

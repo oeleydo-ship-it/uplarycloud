@@ -115,6 +115,16 @@ class CatalogEnvironmentFactory
                 ['key' => 'WEBUI_SECRET_KEY', 'value' => '', 'description' => 'Session signing secret', 'secret' => true],
                 ['key' => 'ENABLE_SIGNUP', 'value' => 'true', 'description' => 'Allow first-user signup', 'secret' => false],
             ],
+            'openclaw' => [
+                $this->tz(),
+                ['key' => 'OPENCLAW_GATEWAY_TOKEN', 'value' => '', 'description' => 'Control UI and Gateway authentication token', 'secret' => true],
+                ['key' => 'OPENCLAW_PUBLIC_ORIGIN', 'value' => 'https://openclaw.example.com', 'description' => 'Exact public HTTPS origin used to access the Control UI', 'secret' => false],
+                ['key' => 'OPENCLAW_DISABLE_BONJOUR', 'value' => '1', 'description' => 'Disable container mDNS advertising', 'secret' => false],
+                ['key' => 'HOME', 'value' => '/home/node', 'description' => 'Persistent runtime home', 'secret' => false],
+                ['key' => 'OPENCLAW_HOME', 'value' => '/home/node', 'description' => 'OpenClaw home directory', 'secret' => false],
+                ['key' => 'OPENCLAW_STATE_DIR', 'value' => '/home/node/.openclaw', 'description' => 'Persistent state directory', 'secret' => false],
+                ['key' => 'OPENCLAW_CONFIG_PATH', 'value' => '/home/node/.openclaw/openclaw.json', 'description' => 'Gateway configuration file', 'secret' => false],
+            ],
             'postgresql' => [
                 $this->tz(),
                 ['key' => 'POSTGRES_USER', 'value' => 'postgres', 'description' => 'Database superuser', 'secret' => false],

@@ -1,0 +1,41 @@
+.plan-upgrade-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid #dfd7ff;
+    border-radius: 10px;
+    background: #f6f3ff;
+    color: #4b3cb8;
+}
+.plan-upgrade-banner svg { width: 16px; flex: 0 0 auto; }
+.plan-upgrade-banner span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.plan-upgrade-banner small { color: #6b63a3; font-size: 13px; }
+.plan-upgrade-banner .button { height: 34px; padding: 0 12px; }
+.plan-upgrade-button { white-space: nowrap; }
+.plan-locked {
+    max-width: 560px;
+    margin: 48px auto;
+    padding: 36px 28px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+}
+.plan-locked-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 16px;
+    border-radius: 14px;
+    background: #f0edff;
+    color: var(--primary);
+    display: grid;
+    place-items: center;
+}
+.plan-locked-icon svg { width: 22px; }
+.plan-locked h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: -.03em; }
+.plan-locked p { margin: 0 0 22px; color: var(--muted); line-height: 1.6; }
+.plan-locked-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.nav-item.is-locked { opacity: .55; }
+.toast--error a { color: inherit; font-weight: 700; margin-left: 6px; }

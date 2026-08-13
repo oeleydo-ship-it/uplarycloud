@@ -11,8 +11,13 @@ use App\Models\ActivityLog;
 use App\Models\DockerContainer;
 use App\Models\DockerVolume;
 use App\Models\ManagedServerPlan;
+use App\Models\ProviderConnection;
 use App\Models\Server;
 use App\Models\ServerMetric;
+use App\Services\Billing\PlanLimitService;
+use App\Services\Servers\ControlPlaneKeyService;
+use App\Services\Servers\ServerProvisionVerifier;
+use App\Support\PlatformSettings;
 use App\Support\TenantContext;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
@@ -20,13 +25,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use App\Services\Billing\PlanLimitService;
-use App\Services\Servers\ControlPlaneKeyService;
-use App\Services\Servers\ServerProvisionVerifier;
 
 class ServerController extends Controller
 {
-    public function index(Request $request, TenantContext $context): View
+    public function index(Request $request, TenantContext $context, PlatformSettings $settings): View
     {
         $query = Server::query()->where('tenant_id', $context->id())->withCount(['provisioningSteps', 'containers', 'applicationDeployments'])->with(['metrics' => fn ($q) => $q->latest('recorded_at')->limit(1)]);
         $query->when($request->string('search')->isNotEmpty(), fn ($q) => $q->where(fn ($inner) => $inner->where('name', 'like', '%'.$request->string('search').'%')->orWhere('ip_address', 'like', '%'.$request->string('search').'%')));
@@ -41,21 +43,26 @@ class ServerController extends Controller
         $volumesQuery = DockerVolume::query()->where('tenant_id', $tenant->id);
         $lastBackup = $tenant->backups()->latest('completed_at')->first();
 
-        return view('servers.index', ['servers' => $query->paginate(10)->withQueryString(), 'counts' => [
-            'all' => $tenantServers->count(),
-            'online' => (clone $tenantServers)->where('status', 'online')->count(),
-            'offline' => (clone $tenantServers)->where('status', 'offline')->count(),
-            'provisioning' => (clone $tenantServers)->where('status', 'provisioning')->count(),
-            'containers' => (clone $containersQuery)->count(),
-            'containers_running' => (clone $containersQuery)->where('status', 'running')->count(),
-            'volumes' => (clone $volumesQuery)->count(),
-            'volumes_gb' => round((clone $volumesQuery)->sum('size_bytes') / 1073741824),
-            'backups' => $tenant->backups()->count(),
-            'last_backup' => $lastBackup?->completed_at?->diffForHumans(short: true),
-        ], 'tags' => $tenantServers->get()->flatMap(fn ($server) => $server->tags ?? [])->unique()->sort()->values()]);
+        return view('servers.index', [
+            'servers' => $query->paginate(10)->withQueryString(),
+            'managedServersEnabled' => $settings->managedServersEnabled() && app(PlanLimitService::class)->allowsFeature($tenant, 'managed_servers'),
+            'counts' => [
+                'all' => $tenantServers->count(),
+                'online' => (clone $tenantServers)->where('status', 'online')->count(),
+                'offline' => (clone $tenantServers)->where('status', 'offline')->count(),
+                'provisioning' => (clone $tenantServers)->where('status', 'provisioning')->count(),
+                'containers' => (clone $containersQuery)->count(),
+                'containers_running' => (clone $containersQuery)->where('status', 'running')->count(),
+                'volumes' => (clone $volumesQuery)->count(),
+                'volumes_gb' => round((clone $volumesQuery)->sum('size_bytes') / 1073741824),
+                'backups' => $tenant->backups()->count(),
+                'last_backup' => $lastBackup?->completed_at?->diffForHumans(short: true),
+            ],
+            'tags' => $tenantServers->get()->flatMap(fn ($server) => $server->tags ?? [])->unique()->sort()->values(),
+        ]);
     }
 
-    public function create(TenantContext $context, ControlPlaneKeyService $keys): View
+    public function create(TenantContext $context, ControlPlaneKeyService $keys, PlatformSettings $settings): View
     {
         $this->authorize('create', Server::class);
 
@@ -65,16 +72,43 @@ class ServerController extends Controller
             'providers' => ServerProvider::cases(),
             'platformPublicKey' => $platformPublicKey,
             'platformAuthorizeCommand' => $keys->authorizeCommand($platformPublicKey),
-            'cloudConnections' => \App\Models\ProviderConnection::query()
+            'managedServersEnabled' => $settings->managedServersEnabled() && app(PlanLimitService::class)->allowsFeature($context->current(), 'managed_servers'),
+            'cloudConnections' => $context->current()->providerConnections()
+                ->where('platform_managed', false)
                 ->whereIn('provider', ['digitalocean', 'hetzner'])
                 ->where('active', true)
-                ->where('platform_managed', true)
                 ->whereNotNull('last_verified_at')
-                ->orderBy('name')->get(),
+                ->orderBy('name')
+                ->get(),
             'cloudPlans' => ManagedServerPlan::query()
                 ->whereIn('provider', ['digitalocean', 'hetzner'])
                 ->where('active', true)
-                ->orderBy('position')->get(),
+                ->orderBy('position')
+                ->get(),
+        ]);
+    }
+
+    public function createManaged(TenantContext $context, PlatformSettings $settings): View
+    {
+        $this->authorize('create', Server::class);
+        abort_unless($settings->managedServersEnabled(), 404);
+        app(PlanLimitService::class)->enforceFeature($context->current(), 'managed_servers');
+
+        $connections = ProviderConnection::query()
+            ->where('platform_managed', true)
+            ->whereIn('provider', ['digitalocean', 'hetzner'])
+            ->where('active', true)
+            ->whereNotNull('last_verified_at')
+            ->orderBy('name')
+            ->get();
+
+        return view('servers.create-managed', [
+            'cloudConnections' => $connections,
+            'cloudPlans' => ManagedServerPlan::query()
+                ->whereIn('provider', $connections->pluck('provider')->unique()->all() ?: ['digitalocean', 'hetzner'])
+                ->where('active', true)
+                ->orderBy('position')
+                ->get(),
         ]);
     }
 
@@ -107,9 +141,11 @@ class ServerController extends Controller
                 $server->provisioningSteps()->create(['key' => $key, 'label' => $label, 'position' => $server->provisioningSteps()->count() + 1]);
             }
             ActivityLog::create(['tenant_id' => $context->id(), 'user_id' => $request->user()->id, 'action' => 'server.created', 'description' => $server->name.' added', 'subject_type' => Server::class, 'subject_id' => $server->id, 'ip_address' => $request->ip()]);
+
             return $server;
         });
         ProvisionServerJob::dispatch($server);
+
         return redirect()->route('servers.provisioning', $server);
     }
 
@@ -199,6 +235,7 @@ class ServerController extends Controller
             'ip_address' => $request->ip(),
         ]);
         $server->delete();
+
         return redirect()->route('servers.index')->with('success', $server->name.' was removed from the control plane. Persistent remote data was not deleted.');
     }
 

@@ -1,5 +1,5 @@
 <x-dashboard-layout title="Support">
-    <div x-data="{ createOpen: {{ $errors->any() ? 'true' : 'false' }} }">
+    <div class="support-page" x-data="{ createOpen: {{ $errors->any() ? 'true' : 'false' }} }">
         <div class="page-heading">
             <div><p class="breadcrumb">Help / Support</p><h1>Support center</h1><p>Get help with deployments, infrastructure, billing, and workspace access.</p></div>
             <div class="heading-actions"><button class="button button--primary" @click="createOpen=true"><i data-lucide="plus"></i> New ticket</button></div>
@@ -44,18 +44,75 @@
             </aside>
         </section>
 
-        <div class="modal-backdrop" x-show="createOpen" x-cloak @click.self="createOpen=false">
-            <form class="modal-card support-create-modal" method="post" action="{{ route('support.store') }}">@csrf
-                <div class="modal-head"><div><h2>Create support ticket</h2><p>Give the support team enough context to investigate.</p></div><button type="button" class="icon-button" @click="createOpen=false"><i data-lucide="x"></i></button></div>
-                <div class="form-grid form-grid--two">
-                    <label class="field field--wide"><span>Subject</span><input name="subject" value="{{ old('subject') }}" required maxlength="180">@error('subject')<small class="field-error">{{ $message }}</small>@enderror</label>
-                    <label class="field"><span>Category</span><select name="category" required>@foreach(['deployment','server','billing','domain','backup','account','other'] as $category)<option value="{{ $category }}" @selected(old('category')===$category)>{{ ucfirst($category) }}</option>@endforeach</select></label>
-                    <label class="field"><span>Priority</span><select name="priority" required>@foreach(['low','normal','high','urgent'] as $priority)<option value="{{ $priority }}" @selected(old('priority','normal')===$priority)>{{ ucfirst($priority) }}</option>@endforeach</select></label>
-                    <label class="field"><span>Affected server</span><select name="server_id"><option value="">None</option>@foreach($servers as $server)<option value="{{ $server->id }}" @selected((string)old('server_id')===(string)$server->id)>{{ $server->name }}</option>@endforeach</select></label>
-                    <label class="field"><span>Affected application</span><select name="application_deployment_id"><option value="">None</option>@foreach($deployments as $deployment)<option value="{{ $deployment->id }}" @selected((string)old('application_deployment_id')===(string)$deployment->id)>{{ $deployment->name }}</option>@endforeach</select></label>
-                    <label class="field field--wide"><span>Description</span><textarea name="description" rows="7" required>{{ old('description') }}</textarea>@error('description')<small class="field-error">{{ $message }}</small>@enderror</label>
+        <div class="modal-backdrop" x-show="createOpen" x-cloak @click.self="createOpen=false" @keydown.escape.window="createOpen=false">
+            <form class="support-create-modal" method="post" action="{{ route('support.store') }}" @click.stop>
+                @csrf
+                <div class="support-create-modal__head">
+                    <div class="support-create-modal__title">
+                        <span class="section-icon"><i data-lucide="life-buoy"></i></span>
+                        <div>
+                            <h2>Create support ticket</h2>
+                            <p>Give the support team enough context to investigate.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="icon-button" @click="createOpen=false" aria-label="Close"><i data-lucide="x"></i></button>
                 </div>
-                <div class="modal-actions"><button type="button" class="button button--secondary" @click="createOpen=false">Cancel</button><button class="button button--primary"><i data-lucide="send"></i> Create ticket</button></div>
+                <div class="support-create-modal__body">
+                    <label class="field field--wide">
+                        <span>Subject</span>
+                        <input name="subject" value="{{ old('subject') }}" required maxlength="180" placeholder="Briefly describe the issue" autocomplete="off">
+                        @error('subject')<small class="field-error">{{ $message }}</small>@enderror
+                    </label>
+                    <div class="form-grid form-grid--two">
+                        <label class="field">
+                            <span>Category</span>
+                            <select name="category" required>
+                                @foreach(['deployment','server','billing','domain','backup','account','other'] as $category)
+                                    <option value="{{ $category }}" @selected(old('category')===$category)>{{ ucfirst($category) }}</option>
+                                @endforeach
+                            </select>
+                            @error('category')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Priority</span>
+                            <select name="priority" required>
+                                @foreach(['low','normal','high','urgent'] as $priority)
+                                    <option value="{{ $priority }}" @selected(old('priority','normal')===$priority)>{{ ucfirst($priority) }}</option>
+                                @endforeach
+                            </select>
+                            @error('priority')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Affected server</span>
+                            <select name="server_id">
+                                <option value="">None</option>
+                                @foreach($servers as $server)
+                                    <option value="{{ $server->id }}" @selected((string)old('server_id')===(string)$server->id)>{{ $server->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('server_id')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Affected application</span>
+                            <select name="application_deployment_id">
+                                <option value="">None</option>
+                                @foreach($deployments as $deployment)
+                                    <option value="{{ $deployment->id }}" @selected((string)old('application_deployment_id')===(string)$deployment->id)>{{ $deployment->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('application_deployment_id')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                    </div>
+                    <label class="field field--wide">
+                        <span>Description</span>
+                        <textarea name="description" rows="7" required placeholder="What happened, what you expected, and any error messages.">{{ old('description') }}</textarea>
+                        @error('description')<small class="field-error">{{ $message }}</small>@enderror
+                    </label>
+                </div>
+                <div class="support-create-modal__footer">
+                    <button type="button" class="button button--secondary" @click="createOpen=false">Cancel</button>
+                    <button type="submit" class="button button--primary"><i data-lucide="send"></i> Create ticket</button>
+                </div>
             </form>
         </div>
     </div>

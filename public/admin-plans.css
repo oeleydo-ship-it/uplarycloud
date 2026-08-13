@@ -1,0 +1,21 @@
+.admin-dialog--plan{width:min(880px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto}
+.admin-plan-lead{margin:0 0 8px;color:var(--admin-muted);font-size:13px;line-height:1.5}
+.admin-plan-section{margin:4px 0 8px;padding-top:12px;border-top:1px solid var(--admin-border)}
+.admin-plan-section h3{margin:0 0 4px;font-size:15px}
+.admin-plan-section>p{margin:0 0 10px;color:var(--admin-muted);font-size:13px}
+.admin-plan-group{display:block;margin:10px 0 6px;color:var(--admin-primary);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.admin-switches--plan{margin:0;border:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:transparent}
+.admin-dialog--plan .admin-switches--plan label,.admin-switches--plan label{min-height:0;margin:0;padding:9px 11px;border:1px solid var(--admin-border);border-radius:8px;display:flex;flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:10px;text-align:left;background:#fff}
+.admin-switches--plan label:last-child{border:1px solid var(--admin-border)}
+.admin-dialog--plan .admin-switches--plan label>span,.admin-switches--plan label>span{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;font-size:13px;font-weight:500;text-align:left}
+.admin-switches--plan strong{display:block;font-size:13px;font-weight:650;color:var(--admin-text)}
+.admin-switches--plan small{display:block;margin-top:1px;color:var(--admin-muted);font-size:12px;line-height:1.4;font-weight:400}
+.admin-dialog--plan .admin-switches--plan input[type=checkbox],.admin-switches--plan input[type=checkbox]{width:16px;min-width:16px;height:16px;margin:2px 0 0;padding:0;border:0;border-radius:3px;flex:0 0 auto;accent-color:var(--admin-primary);background:transparent}
+.admin-form-grid--plan{padding:0;gap:10px 14px}
+.admin-form-grid--plan label{text-align:left}
+@media(max-width:700px){.admin-switches--plan,.admin-form-grid--plan{grid-template-columns:1fr}}
+.admin-plan-gates{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.admin-plan-gates em{font-style:normal;padding:3px 7px;border-radius:999px;font-size:11px}
+.admin-plan-gates em.is-on{background:#e9f8f2;color:#21765a}
+.admin-plan-gates em.is-off{background:#f4f5f8;color:#8d92a3}
+.admin-plan-grid ul{min-height:0}

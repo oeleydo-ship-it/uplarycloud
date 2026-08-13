@@ -20,13 +20,13 @@
 .domains-page .domains-reference-table-card { overflow:visible; }
 .domains-page .domains-reference-table { min-width:1240px; }
 .domains-page .domains-reference-head,.domains-page .domains-reference-row { display:grid; grid-template-columns:minmax(230px,1.4fr) minmax(130px,.8fr) minmax(120px,.75fr) minmax(160px,1fr) 110px 120px 120px 130px; gap:12px; align-items:center; padding:0 20px; }
-.domains-page .domains-reference-head { height:44px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; color:#8b90a3; text-transform:uppercase; letter-spacing:.04em; background:#fafafd; }
+.domains-page .domains-reference-head { height:44px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; color:#8b90a3; text-transform:uppercase; letter-spacing:.04em; background:#fafafd; }
 .domains-page .domains-reference-row { min-height:76px; border-bottom:1px solid #edf0f4; transition:.15s; }
 .domains-page .domains-reference-row:hover { background:#fbfaff; }
 .domains-page .domains-reference-row:last-child { border-bottom:0; }
 .domains-page .domains-reference-row>span strong,.domains-page .domains-reference-row>span small { display:block; }
 .domains-page .domains-reference-row>span strong { font-size:14px; font-weight:600; color:var(--text); }
-.domains-page .domains-reference-row>span small { font-size:12px; color:var(--muted); margin-top:4px; }
+.domains-page .domains-reference-row>span small { font-size:13px; color:var(--muted); margin-top:4px; }
 .domains-page .domain-muted { color:var(--muted)!important; }
 .domains-page .domains-reference-primary { display:grid; grid-template-columns:30px 1fr; align-items:center; gap:12px; }
 .domains-page .domain-hostname { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -34,10 +34,10 @@
 .domains-page .domain-hostname a:hover { color:var(--primary); }
 .domains-page .domain-external { display:inline-flex; color:#9ca0af; }
 .domains-page .domain-external svg { width:13px; height:13px; }
-.domains-page .domain-badge { display:inline-flex; font-size:11px; font-weight:600; font-style:normal; border-radius:5px; padding:3px 8px; }
+.domains-page .domain-badge { display:inline-flex; font-size:14px; font-weight:600; font-style:normal; border-radius:5px; padding:3px 8px; }
 .domains-page .domain-badge--primary { color:var(--primary); background:#eeeaff; }
 .domains-page .domain-badge--root { color:#3974b9; background:#edf4ff; }
-.domains-page .domain-server-status { font-size:12px; font-weight:500; }
+.domains-page .domain-server-status { font-size:13px; font-weight:500; }
 .domains-page .domain-server-status--success { color:#178359; }
 .domains-page .domain-server-status--warning { color:#ad6b15; }
 .domains-page .domain-server-status--running { color:#3974b9; }
@@ -48,14 +48,14 @@
 .domains-page .domain-ssl-state--warning { color:#ad6b15; }
 .domains-page .domain-ssl-state--failed { color:#c43d51; }
 .domains-page .domain-ssl-state--muted { color:var(--muted); }
-.domains-page .domain-ssl small { font-size:12px; color:var(--muted); margin-top:4px; display:block; }
+.domains-page .domain-ssl small { font-size:13px; color:var(--muted); margin-top:4px; display:block; }
 .domains-page .domain-ssl form { margin:4px 0 0; }
-.domains-page .domain-inline-action { border:0; background:none; padding:0; font-size:12px; color:var(--primary); font-weight:500; cursor:pointer; }
+.domains-page .domain-inline-action { border:0; background:none; padding:0; font-size:13px; color:var(--primary); font-weight:500; cursor:pointer; }
 .domains-page .domain-inline-action:hover { text-decoration:underline; }
 .domains-page .domain-application { display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:center; }
 .domains-page .domain-application>strong:first-child { grid-column:1/-1; }
 .domains-page .domain-application>small { grid-column:1/-1; }
-.domains-page .domain-type { display:inline-flex; align-items:center; font-size:12px; font-style:normal; font-weight:600; padding:5px 10px; border-radius:999px; white-space:nowrap; }
+.domains-page .domain-type { display:inline-flex; align-items:center; font-size:13px; font-style:normal; font-weight:600; padding:5px 10px; border-radius:999px; white-space:nowrap; }
 .domains-page .domain-type--application { color:var(--primary); background:#f0edff; }
 .domains-page .domain-type--redirect { color:#ad6b15; background:#fff4df; }
 .domains-page .domain-expiry-soon { color:#ad6b15!important; font-weight:600; }
@@ -97,9 +97,9 @@
 .domains-page .domain-modal--form .field { gap:7px; }
 .domains-page .domain-modal--form .field>span { font-size:13px; font-weight:600; color:#454a5d; display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .domains-page .domain-modal--form .field>span b { font-weight:600; color:var(--primary); margin-left:2px; }
-.domains-page .domain-modal--form .field>span em { float:none; font-style:normal; font-size:11px; font-weight:600; color:#8b90a3; background:#f4f5f9; border-radius:999px; padding:2px 8px; }
-.domains-page .domain-modal--form .field>small:not(.field-error) { font-size:12px; color:var(--muted); margin-top:2px; line-height:1.45; }
-.domains-page .domain-modal--form .field-error { font-size:12px; }
+.domains-page .domain-modal--form .field>span em { float:none; font-style:normal; font-size:14px; font-weight:600; color:#8b90a3; background:#f4f5f9; border-radius:999px; padding:2px 8px; }
+.domains-page .domain-modal--form .field>small:not(.field-error) { font-size:13px; color:var(--muted); margin-top:2px; line-height:1.45; }
+.domains-page .domain-modal--form .field-error { font-size:13px; }
 .domains-page .domain-modal--form .field input,
 .domains-page .domain-modal--form .field select { height:42px; font-size:14px; border-radius:8px; padding:0 12px; border:1px solid #dfe1e8; }
 .domains-page .domain-modal--form .field select { appearance:none; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b90a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right:36px; }
@@ -132,7 +132,7 @@
     width:auto;
     margin:2px 0 0;
     padding:0;
-    font-size:12px;
+    font-size:13px;
     font-weight:600;
     letter-spacing:.04em;
     text-transform:uppercase;
@@ -232,7 +232,7 @@
 }
 .domains-page .domain-modal--form .domain-toggle-hint {
     display:block;
-    font-size:12px;
+    font-size:13px;
     font-weight:400;
     line-height:1.35;
     color:var(--muted);
@@ -286,7 +286,7 @@
     margin-top:1px;
 }
 .domains-page .domain-modal--form .dns-preview > i:has(+ svg) { display:none !important; }
-.domains-page .domain-modal--form .dns-preview p { font-size:12px; line-height:1.5; margin:0; color:#6a6580; }
+.domains-page .domain-modal--form .dns-preview p { font-size:13px; line-height:1.5; margin:0; color:#6a6580; }
 .domains-page .domain-modal--form .dns-preview strong { color:#3d3a55; font-weight:650; }
 
 .domains-page .domain-modal--form .domain-modal-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 20px 16px; }

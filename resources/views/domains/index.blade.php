@@ -11,9 +11,14 @@
             <p>Manage your domains, DNS, SSL certificates and redirects.</p>
         </div>
         <div class="heading-actions">
-            <button type="button" class="button button--secondary" @click="importOpen = true"><i data-lucide="download"></i> Import Domain</button>
-            <button type="button" class="button button--primary" @click="addOpen = true"><i data-lucide="plus"></i> Add Domain</button>
+            <x-plan-locked-action quota="domains" label="domains">
+                <button type="button" class="button button--secondary" @click="importOpen = true"><i data-lucide="download"></i> Import Domain</button>
+            </x-plan-locked-action>
+            <x-plan-locked-action quota="domains" label="domains">
+                <button type="button" class="button button--primary" @click="addOpen = true"><i data-lucide="plus"></i> Add Domain</button>
+            </x-plan-locked-action>
         </div>
+        <x-plan-upgrade-banner quota="domains" />
     </div>
 
     <section class="stats-grid domains-reference-stats">

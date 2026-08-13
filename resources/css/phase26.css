@@ -76,7 +76,7 @@
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     padding: 12px 20px;
-    font-size: 12px;
+    font-size:13px;
     font-weight: 700;
     color: #8b90a3;
     text-transform: uppercase;
@@ -108,7 +108,7 @@
 .operations-page .incident-list .severity-pill {
     padding: 6px 10px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size:13px;
     font-weight: 650;
 }
 .operations-page .incident-list .severity-pill.error,

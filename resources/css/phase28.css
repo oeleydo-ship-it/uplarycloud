@@ -184,7 +184,7 @@
 }
 
 .server-detail-page .mini-metric small {
-    font-size: 12px;
+    font-size:13px;
     color: var(--muted);
     line-height: 1.4;
 }
@@ -306,13 +306,13 @@
 }
 
 .server-detail-page .services-grid small {
-    font-size: 12px;
+    font-size:13px;
     color: var(--muted);
     margin-top: 3px;
 }
 
 .server-detail-page .services-grid .status {
-    font-size: 12px;
+    font-size:13px;
     font-weight: 600;
 }
 
@@ -335,7 +335,7 @@
 .server-detail-page .settings-facts > div:nth-child(even) { padding-left: 20px; }
 
 .server-detail-page .settings-facts dt {
-    font-size: 12px;
+    font-size:13px;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
@@ -357,7 +357,7 @@
 
 .server-detail-page .settings-tag-list b {
     display: inline-flex;
-    font-size: 12px;
+    font-size:13px;
     font-weight: 600;
     font-style: normal;
     color: var(--primary);

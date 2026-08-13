@@ -26,33 +26,45 @@ class TenantIsolationTest extends TestCase
         $this->assertSame($own->id, session('tenant_id'));
     }
 
-    public function test_branding_updates_only_the_active_workspace(): void
+    public function test_console_colors_update_only_the_active_workspace(): void
     {
         $user = User::factory()->create();
         $own = Tenant::create(['name' => 'Own Workspace']);
         $foreign = Tenant::create(['name' => 'Foreign Workspace']);
         $own->users()->attach($user, ['role' => 'owner']);
-        Setting::create(['tenant_id' => $foreign->id, 'group' => 'branding', 'key' => 'name', 'value' => 'Foreign Brand']);
+        Setting::create(['tenant_id' => $foreign->id, 'group' => 'theme', 'key' => 'primary_color', 'value' => '#111111']);
 
-        $this->actingAs($user)->withSession(['tenant_id' => $own->id])->put('/settings/branding', [
-            'name' => 'Own Brand', 'short_name' => 'OB', 'tagline' => '',
-            'primary_color' => '#6C4CF5', 'secondary_color' => '#17152B',
-            'company_name' => '', 'website' => '', 'support_email' => '',
-            'documentation_url' => '', 'copyright' => '',
+        $this->actingAs($user)->withSession(['tenant_id' => $own->id])->put(route('settings.update'), [
+            'name' => 'Own Workspace',
+            'timezone' => 'UTC',
+            'language' => 'en',
+            'date_format' => 'M j, Y',
+            'time_format' => 'g:i A',
+            'primary_color' => '#FF5500',
+            'secondary_color' => '#221133',
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('settings', ['tenant_id' => $own->id, 'key' => 'name', 'value' => 'Own Brand']);
-        $this->assertDatabaseHas('settings', ['tenant_id' => $foreign->id, 'key' => 'name', 'value' => 'Foreign Brand']);
+        $this->assertDatabaseHas('settings', ['tenant_id' => $own->id, 'group' => 'theme', 'key' => 'primary_color', 'value' => '#FF5500']);
+        $this->assertDatabaseHas('settings', ['tenant_id' => $foreign->id, 'group' => 'theme', 'key' => 'primary_color', 'value' => '#111111']);
+        $this->assertDatabaseMissing('settings', ['tenant_id' => $own->id, 'group' => 'branding', 'key' => 'name']);
     }
 
-    public function test_viewer_cannot_update_branding(): void
+    public function test_viewer_cannot_update_console_colors(): void
     {
         $user = User::factory()->create();
         $tenant = Tenant::create(['name' => 'Read Only']);
         $tenant->users()->attach($user, ['role' => 'viewer']);
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
-            ->put('/settings/branding', [])->assertForbidden();
+            ->put(route('settings.update'), [
+                'name' => 'Read Only',
+                'timezone' => 'UTC',
+                'language' => 'en',
+                'date_format' => 'M j, Y',
+                'time_format' => 'g:i A',
+                'primary_color' => '#FF0000',
+                'secondary_color' => '#00FF00',
+            ])->assertForbidden();
     }
 
     public function test_dashboard_actions_link_to_real_destinations(): void

@@ -1,27 +1,155 @@
 <x-dashboard-layout title="Settings">
-    <div class="page-heading settings-heading"><div><p class="breadcrumb">Dashboard / Settings</p><h1>Settings</h1><p>Manage your SaaS platform, billing, and preferences.</p></div></div>
-    <nav class="settings-tabs settings-tabs--reference"><a class="is-active" href="{{ route('settings') }}"><i data-lucide="settings-2"></i> General</a><a href="{{ route('billing.index') }}"><i data-lucide="badge-dollar-sign"></i> Subscription</a><a href="{{ route('team.index') }}"><i data-lucide="users"></i> Tenant management</a><a href="{{ route('api-tokens.index') }}"><i data-lucide="shield-check"></i> Security</a><a href="{{ route('billing.index') }}"><i data-lucide="wallet-cards"></i> Payments</a><a href="{{ route('support.index') }}"><i data-lucide="mail"></i> Email</a><a href="{{ route('settings.branding') }}"><i data-lucide="palette"></i> Branding</a><a href="{{ route('system-health') }}"><i data-lucide="sliders-horizontal"></i> Advanced</a></nav>
-    <div class="reference-settings-grid">
+    <div class="page-heading workspace-settings-heading">
+        <div>
+            <p class="breadcrumb">Workspace / Settings</p>
+            <h1>Settings</h1>
+            <p>Workspace name, locale, and console colors for this tenant.</p>
+        </div>
+        <button form="workspace-settings-form" class="button button--primary" type="submit">
+            <i data-lucide="save"></i> Save changes
+        </button>
+    </div>
+
+    @if(auth()->user()->is_super_admin)
+        <a class="workspace-settings-banner" href="{{ route('admin.settings') }}">
+            <span class="workspace-settings-banner__icon"><i data-lucide="shield-check"></i></span>
+            <span>
+                <strong>Platform settings live in the Platform Console</strong>
+                <small>Product name and logo live under Branding. Maintenance, SMTP, gateways, tenants, and plans are not managed here.</small>
+            </span>
+            <em>Open console <i data-lucide="arrow-right"></i></em>
+        </a>
+    @endif
+
+    <div class="workspace-settings-grid">
         <section class="settings-main">
-            <form id="general-settings-form" class="card reference-settings-card" method="post" action="{{ route('settings.update') }}">@csrf @method('PUT')
-                <div class="reference-card-title"><h2>Platform settings</h2><p>Configure your SaaS platform settings.</p></div>
-                <div class="form-grid form-grid--two reference-form-grid">
-                    <label class="field"><span>Platform name</span><input name="name" value="{{ old('name', app(\App\Support\TenantContext::class)->current()->name) }}" required>@error('name')<small class="field-error">{{ $message }}</small>@enderror</label>
-                    <label class="field"><span>Platform URL</span><input type="url" name="platform_url" value="{{ old('platform_url', $generalSettings['platform_url']) }}" required>@error('platform_url')<small class="field-error">{{ $message }}</small>@enderror</label>
-                    <label class="field"><span>Default timezone</span><select name="timezone">@foreach(['UTC'=>'(UTC+00:00) UTC','Asia/Dubai'=>'(UTC+04:00) Asia/Dubai','Europe/London'=>'Europe/London','America/New_York'=>'America/New York','Asia/Singapore'=>'Asia/Singapore'] as $value=>$label)<option value="{{ $value }}" @selected(old('timezone',$generalSettings['timezone'])===$value)>{{ $label }}</option>@endforeach</select></label>
-                    <label class="field"><span>Default language</span><select name="language">@foreach(['en'=>'English','ar'=>'Arabic','fr'=>'French','de'=>'German','es'=>'Spanish'] as $value=>$label)<option value="{{ $value }}" @selected(old('language',$generalSettings['language'])===$value)>{{ $label }}</option>@endforeach</select></label>
-                    <label class="field"><span>Date format</span><select name="date_format">@foreach(['M j, Y'=>'May 12, 2024 (MMM DD, YYYY)','d/m/Y'=>'12/05/2024 (DD/MM/YYYY)','m/d/Y'=>'05/12/2024 (MM/DD/YYYY)','Y-m-d'=>'2024-05-12 (YYYY-MM-DD)'] as $value=>$label)<option value="{{ $value }}" @selected(old('date_format',$generalSettings['date_format'])===$value)>{{ $label }}</option>@endforeach</select></label>
-                    <label class="field"><span>Time format</span><select name="time_format"><option value="g:i A" @selected(old('time_format',$generalSettings['time_format'])==='g:i A')>12 Hour (02:30 PM)</option><option value="H:i" @selected(old('time_format',$generalSettings['time_format'])==='H:i')>24 Hour (14:30)</option></select></label>
-                </div><button class="button button--primary reference-save"><i data-lucide="save"></i> Save changes</button>
+            <form id="workspace-settings-form" method="post" action="{{ route('settings.update') }}">
+                @csrf @method('PUT')
+                <article class="card settings-section">
+                    <div class="section-heading">
+                        <span class="section-icon"><i data-lucide="building-2"></i></span>
+                        <div>
+                            <h2>Workspace</h2>
+                            <p>This name is shown to your team across the console.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>Workspace name</span>
+                            <input name="name" value="{{ old('name', $tenant->name) }}" required maxlength="80">
+                            @error('name')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                    </div>
+                </article>
+
+                <article class="card settings-section">
+                    <div class="section-heading">
+                        <span class="section-icon"><i data-lucide="globe-2"></i></span>
+                        <div>
+                            <h2>Locale &amp; formats</h2>
+                            <p>Timezone, language, and date display for this workspace.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid form-grid--two">
+                        <label class="field">
+                            <span>Timezone</span>
+                            <select name="timezone">
+                                @foreach (['UTC' => '(UTC+00:00) UTC', 'Asia/Dubai' => '(UTC+04:00) Asia/Dubai', 'Europe/London' => 'Europe/London', 'America/New_York' => 'America/New York', 'Asia/Singapore' => 'Asia/Singapore'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('timezone', $generalSettings['timezone']) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Language</span>
+                            <select name="language">
+                                @foreach (['en' => 'English', 'ar' => 'Arabic', 'fr' => 'French', 'de' => 'German', 'es' => 'Spanish'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('language', $generalSettings['language']) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Date format</span>
+                            <select name="date_format">
+                                @foreach (['M j, Y' => 'May 12, 2024 (MMM DD, YYYY)', 'd/m/Y' => '12/05/2024 (DD/MM/YYYY)', 'm/d/Y' => '05/12/2024 (MM/DD/YYYY)', 'Y-m-d' => '2024-05-12 (YYYY-MM-DD)'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('date_format', $generalSettings['date_format']) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Time format</span>
+                            <select name="time_format">
+                                <option value="g:i A" @selected(old('time_format', $generalSettings['time_format']) === 'g:i A')>12 Hour (02:30 PM)</option>
+                                <option value="H:i" @selected(old('time_format', $generalSettings['time_format']) === 'H:i')>24 Hour (14:30)</option>
+                            </select>
+                        </label>
+                    </div>
+                </article>
+
+                <article class="card settings-section">
+                    <div class="section-heading">
+                        <span class="section-icon"><i data-lucide="palette"></i></span>
+                        <div>
+                            <h2>Console colors</h2>
+                            <p>These colors apply only to this workspace console. Product name and logo are set by the platform.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid form-grid--two">
+                        <label class="field">
+                            <span>Primary color</span>
+                            <div class="color-field">
+                                <input type="color" value="{{ old('primary_color', $consoleColors['primary_color']) }}" oninput="this.nextElementSibling.value=this.value">
+                                <input name="primary_color" value="{{ old('primary_color', $consoleColors['primary_color']) }}" required>
+                            </div>
+                        </label>
+                        <label class="field">
+                            <span>Secondary color</span>
+                            <div class="color-field">
+                                <input type="color" value="{{ old('secondary_color', $consoleColors['secondary_color']) }}" oninput="this.nextElementSibling.value=this.value">
+                                <input name="secondary_color" value="{{ old('secondary_color', $consoleColors['secondary_color']) }}" required>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="brand-preview" style="--preview-primary:{{ old('primary_color', $consoleColors['primary_color']) }};--preview-secondary:{{ old('secondary_color', $consoleColors['secondary_color']) }}">
+                        <div>
+                            <span class="brand-mark"><i data-lucide="layers-3"></i></span>
+                            <strong>Console preview</strong>
+                        </div>
+                        <button type="button">Primary action</button>
+                        <a href="#">Example link</a>
+                    </div>
+                </article>
             </form>
-            <article class="card maintenance-card"><div class="maintenance-copy"><h2>Maintenance mode</h2><p>Enable maintenance mode to prevent users from accessing the platform.</p></div><label class="switch-control"><input form="general-settings-form" type="checkbox" name="maintenance_mode" value="1" @checked(old('maintenance_mode',$generalSettings['maintenance_mode']))><span></span></label><div class="maintenance-notice"><i data-lucide="info"></i> Only administrators will be able to access the platform when maintenance mode is enabled.</div></article>
-            <article class="card reference-branding-card"><div class="reference-card-title"><h2>Custom branding</h2><p>Customize the look and feel of the platform.</p></div><div class="branding-assets-row"><div class="branding-asset"><span>Logo</span><div><span class="brand-mark brand-mark--large">@if($brandingSettings['logo'])<img src="{{ Storage::url($brandingSettings['logo']) }}" alt="Logo">@else<i data-lucide="layers-3"></i>@endif</span><span><strong>{{ $brandingSettings['logo'] ? basename($brandingSettings['logo']) : 'Uplary logo' }}</strong><small>PNG, JPG or WebP · max 2 MB</small></span><a class="button button--secondary" href="{{ route('settings.branding') }}">Change</a></div></div><div class="branding-asset"><span>Favicon</span><div><span class="brand-mark">@if($brandingSettings['favicon'])<img src="{{ Storage::url($brandingSettings['favicon']) }}" alt="Favicon">@else<i data-lucide="square-stack"></i>@endif</span><span><strong>{{ $brandingSettings['favicon'] ? basename($brandingSettings['favicon']) : 'favicon.ico' }}</strong><small>Image, up to 512 KB</small></span><a class="button button--secondary" href="{{ route('settings.branding') }}">Change</a></div></div></div><a class="button button--primary" href="{{ route('settings.branding') }}"><i data-lucide="palette"></i> Manage branding</a></article>
-            <article class="card danger-zone"><div><h2>Danger zone</h2><p>These actions are irreversible. Please be careful.</p></div><div class="danger-action"><span><strong>Reset workspace preferences</strong><small>Restore general and branding preferences to defaults.</small></span><button class="button button--danger" disabled>Reset</button></div><div class="danger-action"><span><strong>Delete workspace</strong><small>Contact support to permanently remove the workspace and all data.</small></span><a class="button button--danger-solid" href="{{ route('support.index') }}">Contact support</a></div></article>
         </section>
-        <aside class="reference-settings-aside">
-            <article class="card platform-info-card"><div class="reference-card-title"><h2>Platform information</h2></div><dl><div><dt>SaaS version</dt><dd>v1.0.0</dd></div><div><dt>PHP version</dt><dd>{{ PHP_VERSION }}</dd></div><div><dt>Laravel version</dt><dd>{{ app()->version() }}</dd></div><div><dt>Server time</dt><dd>{{ now()->format('M j, Y g:i A') }}</dd></div><div><dt>Environment</dt><dd><span class="info-pill">{{ ucfirst(app()->environment()) }}</span></dd></div><div><dt>Workspace</dt><dd>{{ app(\App\Support\TenantContext::class)->current()->name }}</dd></div></dl><a class="button button--secondary button--full" href="{{ route('activity.index') }}">View activity <i data-lucide="external-link"></i></a></article>
-            <article class="card quick-settings-card"><div class="reference-card-title"><h2>Quick actions</h2></div><a href="{{ route('team.index') }}"><i data-lucide="user-round-plus"></i><span><strong>Invite team member</strong><small>Add a user to this workspace</small></span><i data-lucide="chevron-right"></i></a><a href="{{ route('billing.index') }}"><i data-lucide="badge-dollar-sign"></i><span><strong>Manage plan</strong><small>Review subscription and usage</small></span><i data-lucide="chevron-right"></i></a><a href="{{ route('system-health') }}"><i data-lucide="heart-pulse"></i><span><strong>System health</strong><small>Check readiness and dependencies</small></span><i data-lucide="chevron-right"></i></a><a href="{{ route('support.index') }}"><i data-lucide="life-buoy"></i><span><strong>Contact support</strong><small>Open and track a request</small></span><i data-lucide="chevron-right"></i></a></article>
-            <article class="card need-help-card"><div class="reference-card-title"><h2>Need help?</h2><p>If you need help with settings, use our documentation or contact support.</p></div>@if($brandingSettings['documentation_url'])<a href="{{ $brandingSettings['documentation_url'] }}" target="_blank">View documentation <i data-lucide="external-link"></i></a>@endif<a href="{{ route('support.index') }}">Contact support <i data-lucide="external-link"></i></a></article>
+
+        <aside class="workspace-settings-aside">
+            <article class="card workspace-link-card">
+                <div class="reference-card-title">
+                    <h2>Workspace</h2>
+                    <p>Team and billing stay in this tenant console.</p>
+                </div>
+                <a href="{{ route('team.index') }}">
+                    <i data-lucide="user-round-plus"></i>
+                    <span><strong>Invite teammates</strong><small>Roles and access for this workspace</small></span>
+                    <i data-lucide="chevron-right"></i>
+                </a>
+                <a href="{{ route('billing.index') }}">
+                    <i data-lucide="credit-card"></i>
+                    <span><strong>Plan &amp; billing</strong><small>Your subscription, not platform gateways</small></span>
+                    <i data-lucide="chevron-right"></i>
+                </a>
+                <a href="{{ route('support.index') }}">
+                    <i data-lucide="life-buoy"></i>
+                    <span><strong>Contact support</strong><small>Open a request for this workspace</small></span>
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            </article>
+            <article class="card help-card">
+                <i data-lucide="info"></i>
+                <div>
+                    <h3>What you can change here</h3>
+                    <p>Workspace name, locale, and console colors. Product name and logo stay in the Platform Console.</p>
+                </div>
+            </article>
         </aside>
     </div>
 </x-dashboard-layout>

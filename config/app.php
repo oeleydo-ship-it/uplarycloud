@@ -30,6 +30,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Disable email verification
+    |--------------------------------------------------------------------------
+    |
+    | When true, console access never requires a verified email (overrides the
+    | Superadmin General Settings toggle). Set DISABLE_EMAIL_VERIFICATION=true
+    | for development. The runtime toggle lives at /admin/settings.
+    |
+    */
+
+    'disable_email_verification' => filter_var(
+        env('DISABLE_EMAIL_VERIFICATION', false),
+        FILTER_VALIDATE_BOOL
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |
