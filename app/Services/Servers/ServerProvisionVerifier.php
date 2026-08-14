@@ -4,6 +4,7 @@ namespace App\Services\Servers;
 
 use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Models\Server;
+use App\Support\RemoteShell;
 use RuntimeException;
 use Throwable;
 
@@ -32,7 +33,7 @@ class ServerProvisionVerifier
 
         if ($server->install_docker) {
             try {
-                $docker = trim($this->executor->execute($server, 'command -v docker >/dev/null 2>&1 && docker version --format "{{.Server.Version}}"'));
+                $docker = trim($this->run($server, 'command -v docker >/dev/null 2>&1 && docker version --format "{{.Server.Version}}"'));
                 if ($docker === '' || str_starts_with($docker, '[fake]')) {
                     $failures[] = 'Docker Engine is not running on the host.';
                 }
@@ -41,7 +42,7 @@ class ServerProvisionVerifier
             }
 
             try {
-                $compose = trim($this->executor->execute($server, 'docker compose version --short'));
+                $compose = trim($this->run($server, 'docker compose version --short'));
                 if ($compose === '' || str_starts_with($compose, '[fake]')) {
                     $failures[] = 'Docker Compose is not available on the host.';
                 }
@@ -50,7 +51,7 @@ class ServerProvisionVerifier
             }
 
             try {
-                $this->executor->execute($server, 'test -d /opt/uplary/apps');
+                $this->run($server, 'test -d /opt/uplary/apps');
             } catch (Throwable) {
                 $failures[] = 'Platform directories were not created on the host.';
             }
@@ -58,7 +59,7 @@ class ServerProvisionVerifier
 
         if ($server->install_proxy) {
             try {
-                $traefik = trim($this->executor->execute(
+                $traefik = trim($this->run(
                     $server,
                     'docker ps --filter name=uplary-traefik --filter status=running --format "{{.Names}}"'
                 ));
@@ -72,13 +73,22 @@ class ServerProvisionVerifier
 
         if ($server->install_monitoring) {
             try {
-                $this->executor->execute($server, 'test -x /opt/uplary/monitoring/health.sh');
+                $this->run($server, 'test -x /opt/uplary/monitoring/health.sh');
             } catch (Throwable) {
                 $failures[] = 'Host metrics collector was not installed.';
             }
         }
 
         return $failures;
+    }
+
+    private function run(Server $server, string $command): string
+    {
+        if (strcasecmp((string) $server->ssh_username, 'root') !== 0) {
+            $command = 'sudo -n sh -c '.RemoteShell::quote($command);
+        }
+
+        return $this->executor->execute($server, $command);
     }
 
     public function allowsSimulatedProvisioning(string $ipAddress): bool

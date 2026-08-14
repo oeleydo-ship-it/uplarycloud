@@ -12,6 +12,8 @@ use RuntimeException;
 
 class ManagedInfrastructureService
 {
+    public const PROVISIONING_SSH_USER = 'uplary';
+
     public function __construct(private readonly CloudProviderFactory $providers, private readonly InfrastructureBillingService $billing) {}
 
     public function create(InfrastructureOperation $operation): void
@@ -63,17 +65,25 @@ class ManagedInfrastructureService
         $parameters = $operation->parameters ?? [];
         $this->start($operation, ucfirst($operation->action).' requested for the managed server.');
         $result = match ($operation->action) {
-            'restart' => $adapter->restart($server),'resize' => $this->resize($adapter, $server, $operation, $parameters),'rebuild' => $adapter->rebuild($server, $parameters['image'] ?? $server->provider_image),'destroy' => $adapter->destroy($server),'sync' => $adapter->status($server),default => throw new RuntimeException('Unsupported infrastructure action.')
+            'restart' => $adapter->restart($server),
+            'poweroff' => $adapter->powerOff($server),
+            'resize' => $this->resize($adapter, $server, $operation, $parameters),
+            'rebuild' => $adapter->rebuild($server, $parameters['image'] ?? $server->provider_image),
+            'destroy' => $adapter->destroy($server),
+            'sync' => $adapter->status($server),
+            default => throw new RuntimeException('Unsupported infrastructure action.'),
         };
         if (isset($result['ip_address'])) {
             $server->update(['ip_address' => $result['ip_address']]);
-        }if ($operation->action === 'rebuild') {
+        }
+        if ($operation->action === 'rebuild') {
             $server->update(['provider_image' => $parameters['image'] ?? $server->provider_image, 'operating_system' => $parameters['image'] ?? $server->operating_system, 'status' => ServerStatus::Provisioning]);
-        } elseif ($operation->action === 'destroy') {
-            $server->update(['status' => ServerStatus::Offline]);
+        } elseif ($operation->action === 'destroy' || $operation->action === 'poweroff') {
+            $server->update(['status' => ServerStatus::Offline, 'last_seen_at' => now()]);
         } elseif (in_array($operation->action, ['restart', 'sync'], true)) {
             $server->update(['status' => ServerStatus::Online, 'last_seen_at' => now()]);
-        }$this->complete($operation, $result, ucfirst($operation->action).' completed successfully.');
+        }
+        $this->complete($operation, $result, ucfirst($operation->action).' completed successfully.');
         ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.'.$operation->action, 'description' => $server->name.' '.$operation->action.' completed', 'subject_type' => Server::class, 'subject_id' => $server->id]);
     }
 
@@ -137,6 +147,85 @@ class ManagedInfrastructureService
         event(new ManagedInfrastructureUpdated($operation->fresh()));
     }
 
+    /**
+     * Replace a cloud droplet that was created before root-expiry fixes.
+     * Destroys the old instance and creates a fresh one with updated cloud-init.
+     */
+    public function recreateDropletForProvisioning(Server $server, string $publicKey): void
+    {
+        $server->loadMissing('providerConnection', 'managedPlan', 'credential');
+        $adapter = $this->providers->make($server->providerConnection);
+        $operation = $server->infrastructureOperations()
+            ->where('action', 'create')
+            ->latest('id')
+            ->first();
+        $plan = $this->planFor($server, $operation?->parameters ?? []);
+
+        if (filled($server->provider_resource_id)) {
+            try {
+                $adapter->destroy($server);
+            } catch (\Throwable) {
+            }
+        }
+
+        $result = $adapter->create($server, $plan, [
+            'region' => $server->provider_region,
+            'image' => $server->provider_image,
+            'user_data' => $this->cloudInit($publicKey),
+        ]);
+
+        $server->update([
+            'provider_resource_id' => $result['resource_id'],
+            'ip_address' => $result['ip_address'],
+            'ssh_username' => self::PROVISIONING_SSH_USER,
+            'status' => ServerStatus::Provisioning,
+            'failure_reason' => null,
+        ]);
+
+        if ($server->ip_address === '0.0.0.0') {
+            for ($attempt = 0; $attempt < 15; $attempt++) {
+                sleep(2);
+                $status = $adapter->status($server->fresh());
+                if (($status['ip_address'] ?? '0.0.0.0') !== '0.0.0.0') {
+                    $server->update(['ip_address' => $status['ip_address']]);
+                    break;
+                }
+            }
+        }
+
+        $server->provisioningSteps()->update([
+            'status' => 'pending',
+            'message' => null,
+            'completed_at' => null,
+        ]);
+    }
+
+    public function publicKeyFor(Server $server): ?string
+    {
+        $operation = $server->infrastructureOperations()
+            ->where('action', 'create')
+            ->whereNotNull('parameters->public_key')
+            ->latest('id')
+            ->first();
+
+        $fromOperation = $operation?->parameters['public_key'] ?? null;
+        if (is_string($fromOperation) && $fromOperation !== '') {
+            return $fromOperation;
+        }
+
+        $server->loadMissing('credential');
+        $privateKey = $server->credential?->private_key;
+        if (! is_string($privateKey) || $privateKey === '') {
+            return null;
+        }
+
+        try {
+            return trim((string) \phpseclib3\Crypt\PublicKeyLoader::loadPrivateKey($privateKey)->getPublicKey()->toString('OpenSSH'));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function cloudInit(?string $publicKey): string
     {
         $key = $publicKey ? str_replace(["\r", "\n"], '', trim($publicKey)) : null;
@@ -147,21 +236,34 @@ class ManagedInfrastructureService
             ."ssh_pwauth: false\n"
             ."disable_root: false\n"
             ."chpasswd:\n"
-            ."  expire: false\n";
+            ."  expire: false\n"
+            ."bootcmd:\n"
+            ."  - [ sh, -c, 'chage -d -1 root 2>/dev/null || true' ]\n"
+            ."  - [ sh, -c, 'chage -I -1 -m 0 -M 99999 root 2>/dev/null || true' ]\n";
 
         if ($key) {
-            $config .= "ssh_authorized_keys:\n  - {$key}\n"
-                ."users:\n"
+            $config .= "users:\n"
                 ."  - name: root\n"
                 ."    lock_passwd: true\n"
+                ."    expiredate: -1\n"
+                ."    ssh_authorized_keys:\n"
+                ."      - {$key}\n"
+                ."  - name: ".self::PROVISIONING_SSH_USER."\n"
+                ."    groups: [sudo]\n"
+                ."    shell: /bin/bash\n"
+                ."    lock_passwd: true\n"
+                ."    sudo: ALL=(ALL) NOPASSWD:ALL\n"
                 ."    ssh_authorized_keys:\n"
                 ."      - {$key}\n"
                 ."runcmd:\n"
-                ."  - mkdir -p /root/.ssh /opt/uplary\n"
-                ."  - chmod 700 /root/.ssh\n"
+                ."  - mkdir -p /root/.ssh /home/".self::PROVISIONING_SSH_USER."/.ssh /opt/uplary\n"
+                ."  - chmod 700 /root/.ssh /home/".self::PROVISIONING_SSH_USER."/.ssh\n"
                 ."  - grep -qxF '{$key}' /root/.ssh/authorized_keys 2>/dev/null || echo '{$key}' >> /root/.ssh/authorized_keys\n"
-                ."  - chmod 600 /root/.ssh/authorized_keys\n"
-                ."  - chage -d -1 root || true\n";
+                ."  - grep -qxF '{$key}' /home/".self::PROVISIONING_SSH_USER."/.ssh/authorized_keys 2>/dev/null || echo '{$key}' >> /home/".self::PROVISIONING_SSH_USER."/.ssh/authorized_keys\n"
+                ."  - chmod 600 /root/.ssh/authorized_keys /home/".self::PROVISIONING_SSH_USER."/.ssh/authorized_keys\n"
+                ."  - chown -R ".self::PROVISIONING_SSH_USER.":".self::PROVISIONING_SSH_USER." /home/".self::PROVISIONING_SSH_USER."/.ssh\n"
+                ."  - chage -d -1 root || true\n"
+                ."  - chage -I -1 -m 0 -M 99999 root || true\n";
         } else {
             $config .= "runcmd:\n  - mkdir -p /opt/uplary\n  - chage -d -1 root || true\n";
         }

@@ -139,6 +139,11 @@ class FakeCloudProviderAdapter implements CloudProviderAdapterInterface
         return ['resource_id' => $server->provider_resource_id, 'status' => 'restarting'];
     }
 
+    public function powerOff(Server $server): array
+    {
+        return ['resource_id' => $server->provider_resource_id, 'status' => 'powered_off'];
+    }
+
     public function resize(Server $server, ManagedServerPlan $plan): array
     {
         return ['resource_id' => $server->provider_resource_id, 'status' => 'resizing', 'plan' => $plan->provider_plan_id];

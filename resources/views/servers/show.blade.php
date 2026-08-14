@@ -54,6 +54,12 @@
                         <a href="{{ route('servers.details', $server) }}#settings"><i data-lucide="settings"></i> Server settings</a>
                         <a href="{{ route('monitoring.index', $serverFilter) }}"><i data-lucide="activity"></i> Open monitoring</a>
                         <a href="{{ route('logs.index', ['server_id' => $server->id]) }}"><i data-lucide="scroll-text"></i> View logs</a>
+                        @unless($server->isProvisioningIncomplete())
+                            @can('operate', $server)
+                                <div class="server-more-divider"></div>
+                                <x-server-power-actions :server="$server" :has-attached-apps="$server->applicationDeployments()->exists()" />
+                            @endcan
+                        @endunless
                         @can('delete', $server)
                             @if($server->applicationDeployments()->exists())
                                 <a href="{{ route('applications.installed', $serverFilter) }}"><i data-lucide="blocks"></i> Remove applications first</a>

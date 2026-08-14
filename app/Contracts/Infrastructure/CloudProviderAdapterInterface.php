@@ -21,6 +21,8 @@ interface CloudProviderAdapterInterface
 
     public function restart(Server $server): array;
 
+    public function powerOff(Server $server): array;
+
     public function resize(Server $server, ManagedServerPlan $plan): array;
 
     public function rebuild(Server $server, string $image): array;

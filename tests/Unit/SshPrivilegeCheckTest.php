@@ -63,7 +63,12 @@ class SshPrivilegeCheckTest extends TestCase
         $this->assertTrue(SSHServerExecutor::looksLikeExpiredPassword(
             'You must change your password now and login again!'
         ));
+        $this->assertTrue(SSHServerExecutor::looksLikeExpiredPassword(
+            'You are required to change your password immediately (administrator enforced).'
+        ));
         $this->assertFalse(SSHServerExecutor::looksLikeExpiredPassword('Docker version 27.0.3'));
+        $this->assertTrue(SSHServerExecutor::looksLikeShellPrompt("Welcome to Ubuntu\nroot@ubuntu:~# "));
+        $this->assertFalse(SSHServerExecutor::looksLikeShellPrompt("WARNING: Your password has expired.\n"));
     }
 
     public function test_memory_rule_accepts_advertised_2gb_and_rejects_1gb(): void

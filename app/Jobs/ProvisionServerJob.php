@@ -7,6 +7,7 @@ use App\Enums\ServerStatus;
 use App\Events\ServerProvisioningUpdated;
 use App\Models\ActivityLog;
 use App\Models\Server;
+use App\Services\Infrastructure\ManagedInfrastructureService;
 use App\Services\Servers\ServerProvisionVerifier;
 use App\Support\RemoteShell;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -36,7 +37,7 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 
     private const PROVISION_TIMEOUT = 900;
 
-    public function handle(ServerExecutorInterface $executor, ServerProvisionVerifier $verifier): void
+    public function handle(ServerExecutorInterface $executor, ServerProvisionVerifier $verifier, ManagedInfrastructureService $managedInfrastructure): void
     {
         $server = $this->server->fresh(['credential', 'provisioningSteps']);
         if (! $this->force && $server->status === ServerStatus::Online && $server->isFullyProvisioned()) {
@@ -82,6 +83,20 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
                 };
                 $this->completed($server, $step, $message);
             } catch (Throwable $exception) {
+                if (
+                    $step->key === 'connect'
+                    && $this->shouldRecreateCloudDroplet($exception, $server)
+                ) {
+                    $publicKey = $managedInfrastructure->publicKeyFor($server);
+                    if ($publicKey !== null) {
+                        $this->running($server, $step, 'Recreating cloud instance with updated first-boot configuration…');
+                        $managedInfrastructure->recreateDropletForProvisioning($server->fresh(), $publicKey);
+                        self::dispatch($server->fresh(), force: true)->delay(now()->addSeconds(90));
+
+                        return;
+                    }
+                }
+
                 if ($this->shouldRetryWithoutFailing($exception) && $this->attempts() < $this->tries) {
                     $this->running($server, $step, 'Waiting for SSH on the new instance to become ready…');
                     $server->update(['status' => ServerStatus::Provisioning, 'failure_reason' => null]);
@@ -152,6 +167,10 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
             throw new RuntimeException('The cloud instance does not have a public IP yet.');
         }
 
+        if (filled($server->provider_resource_id) && filled($server->provider_connection_id)) {
+            $this->waitForCloudInit($executor, $server);
+        }
+
         $result = $executor->test($server);
         if (! $result['success']) {
             throw new RuntimeException($result['message'] ?? 'SSH connection failed.');
@@ -168,6 +187,25 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
         $server->update(array_intersect_key($system, array_flip(['operating_system', 'cpu_cores', 'memory_mb', 'disk_gb'])));
 
         return 'Secure SSH connection and sudo access verified';
+    }
+
+    private function waitForCloudInit(ServerExecutorInterface $executor, Server $server): void
+    {
+        $command = $this->waitForAptLocksScript().'; '
+            .'if command -v cloud-init >/dev/null 2>&1; then cloud-init status --wait >/dev/null 2>&1 || true; fi';
+
+        try {
+            $executor->execute($server, $this->sudo($server, $command), 360);
+        } catch (Throwable) {
+            throw new RuntimeException('The cloud instance is still finishing first-boot package setup.');
+        }
+    }
+
+    private function waitForAptLocksScript(): string
+    {
+        return 'for i in $(seq 1 72); do '
+            .'if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then break; fi; '
+            .'sleep 5; done';
     }
 
     private function waitingForCloudInstance(Server $server): bool
@@ -189,6 +227,35 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
             'no route', 'connection reset', 'unable to connect', 'network is unreachable',
             'operating system is not supported',
             'password has expired', 'password change required', 'no tty available',
+            'could not get lock', 'unable to lock directory', 'finishing first-boot',
+        ] as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function shouldRecreateCloudDroplet(Throwable $exception, Server $server): bool
+    {
+        if (! filled($server->provider_resource_id) || ! filled($server->provider_connection_id)) {
+            return false;
+        }
+
+        if (strcasecmp((string) $server->ssh_username, ManagedInfrastructureService::PROVISIONING_SSH_USER) === 0) {
+            return false;
+        }
+
+        $message = strtolower($exception->getMessage());
+
+        foreach ([
+            'password expiry could not be cleared',
+            'password has expired',
+            'password change required',
+            'you must change your password',
+            'required to change your password',
+            'no tty available',
         ] as $needle) {
             if (str_contains($message, $needle)) {
                 return true;
@@ -224,14 +291,21 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 
     private function docker(ServerExecutorInterface $executor, Server $server): string
     {
-        $executor->execute($server, $this->sudo($server, "set -e; export DEBIAN_FRONTEND=noninteractive; command -v curl >/dev/null || (apt-get update -y && apt-get install -y curl ca-certificates); if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi; systemctl enable --now docker; docker version --format '{{.Server.Version}}'; docker compose version --short"), self::PROVISION_TIMEOUT);
+        $dockerGroup = strcasecmp((string) $server->ssh_username, 'root') !== 0
+            ? 'usermod -aG docker '.escapeshellarg((string) $server->ssh_username).' || true; '
+            : '';
+
+        $executor->execute($server, $this->sudo($server, 'set -e; '.$this->waitForAptLocksScript().'; export DEBIAN_FRONTEND=noninteractive; command -v curl >/dev/null || (apt-get update -y && apt-get install -y curl ca-certificates); if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi; '.$dockerGroup.'systemctl enable --now docker; docker version --format \'{{.Server.Version}}\'; docker compose version --short'), self::PROVISION_TIMEOUT);
 
         return 'Docker Engine and Compose plugin installed';
     }
 
     private function configure(ServerExecutorInterface $executor, Server $server): string
     {
-        $executor->execute($server, $this->sudo($server, "set -e; install -d -m 0750 /opt/uplary/{apps,backups,traefik,monitoring}; docker network inspect uplary-proxy >/dev/null 2>&1 || docker network create uplary-proxy; cat > /etc/docker/daemon.json <<'JSON'\n{\"log-driver\":\"json-file\",\"log-opts\":{\"max-size\":\"10m\",\"max-file\":\"3\"},\"live-restore\":true}\nJSON\nsystemctl restart docker"), self::PROVISION_TIMEOUT);
+        $executor->execute($server, $this->sudo($server, 'set -e; install -d -m 0750 /opt/uplary/apps /opt/uplary/backups /opt/uplary/traefik /opt/uplary/monitoring; docker network inspect uplary-proxy >/dev/null 2>&1 || docker network create uplary-proxy; cat > /etc/docker/daemon.json <<\'JSON\'
+{"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"},"live-restore":true}
+JSON
+systemctl restart docker'), self::PROVISION_TIMEOUT);
 
         return 'Docker daemon, directories and private proxy network configured';
     }
@@ -264,7 +338,26 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 
     private function monitoring(ServerExecutorInterface $executor, Server $server): string
     {
-        $executor->execute($server, $this->sudo($server, "cat > /opt/uplary/monitoring/health.sh <<'SH'\n#!/bin/sh\nprintf '{\"cpu\":\"%s\",\"memory_kb\":\"%s\",\"disk_percent\":\"%s\"}\\n' \"$(awk -v RS='' '{print $1}' /proc/loadavg)\" \"$(awk '/MemAvailable/{print $2}' /proc/meminfo)\" \"$(df -P / | awk 'NR==2{gsub(/%/,\"\",$5);print $5}')\"\nSH\nchmod 0750 /opt/uplary/monitoring/health.sh"));
+        $directory = '/opt/uplary/monitoring';
+        $target = $directory.'/health.sh';
+        $temporary = $directory.'/.health.sh.tmp';
+        $script = <<<'SH'
+#!/bin/sh
+set -eu
+printf '{"cpu":"%s","memory_kb":"%s","disk_percent":"%s"}\n' \
+    "$(awk '{print $1}' /proc/loadavg)" \
+    "$(awk '/MemAvailable/{print $2}' /proc/meminfo)" \
+    "$(df -P / | awk 'NR==2{gsub(/%/,"",$5);print $5}')"
+SH;
+        $command = 'set -eu; '
+            .'install -d -m 0750 '.RemoteShell::quote($directory).'; '
+            .'test -d '.RemoteShell::quote($directory).'; '
+            .'printf %s '.RemoteShell::quote($script).' > '.RemoteShell::quote($temporary).'; '
+            .'chmod 0750 '.RemoteShell::quote($temporary).'; '
+            .'mv -f '.RemoteShell::quote($temporary).' '.RemoteShell::quote($target).'; '
+            .'test -x '.RemoteShell::quote($target);
+
+        $executor->execute($server, $this->sudo($server, $command));
 
         return 'Secure host metrics collector installed';
     }

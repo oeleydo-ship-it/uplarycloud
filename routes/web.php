@@ -34,6 +34,7 @@ use App\Http\Controllers\PlatformManagedInfrastructureController;
 use App\Http\Controllers\ServerConnectionController;
 use App\Http\Controllers\ServerConnectionValidationController;
 use App\Http\Controllers\ServerController;
+use App\Http\Controllers\ServerPowerController;
 use App\Http\Controllers\ServerProvisioningController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\SupportController;
@@ -146,6 +147,7 @@ Route::middleware(['auth', 'tenant', 'platform.access'])->group(function (): voi
     Route::post('/servers/{server}/test-connection', ServerConnectionController::class)->name('servers.test-connection');
     Route::get('/servers/{server}/details', [ServerController::class, 'details'])->name('servers.details');
     Route::post('/servers/{server}/refresh', [ServerController::class, 'refresh'])->name('servers.refresh');
+    Route::post('/servers/{server}/power', [ServerPowerController::class, 'store'])->name('servers.power');
     Route::get('/servers/{server}', [ServerController::class, 'show'])->name('servers.show');
     Route::delete('/servers/{server}', [ServerController::class, 'destroy'])->name('servers.destroy');
     Route::get('/containers', [DockerContainerController::class, 'index'])->name('containers.index');

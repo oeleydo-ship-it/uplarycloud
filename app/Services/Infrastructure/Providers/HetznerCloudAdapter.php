@@ -134,6 +134,11 @@ class HetznerCloudAdapter implements CloudProviderAdapterInterface
         return $this->action($server, 'reboot');
     }
 
+    public function powerOff(Server $server): array
+    {
+        return $this->action($server, 'shutdown');
+    }
+
     public function resize(Server $server, ManagedServerPlan $plan): array
     {
         return $this->action($server, 'change_type', ['server_type' => $plan->provider_plan_id, 'upgrade_disk' => true]);

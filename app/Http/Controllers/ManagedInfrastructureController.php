@@ -184,7 +184,7 @@ class ManagedInfrastructureController extends Controller
                 'server_type' => 'byos',
                 'status' => ServerStatus::Pending,
                 'authentication_method' => 'ssh_key',
-                'ssh_username' => 'root',
+                'ssh_username' => \App\Services\Infrastructure\ManagedInfrastructureService::PROVISIONING_SSH_USER,
                 'cpu_cores' => max(1, (int) ($plan['cpu_cores'] ?? 1)),
                 'memory_mb' => max(512, (int) ($plan['memory_mb'] ?? 1024)),
                 'disk_gb' => max(10, (int) ($plan['disk_gb'] ?? 10)),

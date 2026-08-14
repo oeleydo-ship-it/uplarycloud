@@ -125,6 +125,7 @@
 .server-detail-page .server-more-menu button:hover { background: #f6f7fb; }
 .server-detail-page .server-more-menu .is-danger { color: var(--red); }
 .server-detail-page .server-more-menu form { margin: 0; width: 100%; }
+.server-detail-page .server-more-divider { height: 1px; background: var(--border); margin: 6px 4px; }
 
 /* Horizontal resource tabs */
 .server-detail-page .detail-tabs {

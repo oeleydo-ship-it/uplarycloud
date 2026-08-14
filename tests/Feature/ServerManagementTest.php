@@ -148,6 +148,63 @@ class ServerManagementTest extends TestCase
         $this->assertSame(2048, $server->memory_mb);
     }
 
+    public function test_monitoring_collector_is_installed_atomically_after_its_directory_is_verified(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'memory_mb' => 2048,
+            'disk_gb' => 50,
+        ]));
+        $this->seedProvisioningSteps($server);
+
+        $monitoringCommand = null;
+        $this->mock(\App\Contracts\Infrastructure\ServerExecutorInterface::class, function ($mock) use (&$monitoringCommand): void {
+            $mock->shouldReceive('test')->once()->andReturn([
+                'success' => true,
+                'message' => 'ok',
+                'system' => [
+                    'operating_system' => 'ubuntu-24.04',
+                    'cpu_cores' => 1,
+                    'memory_mb' => 2048,
+                    'disk_gb' => 50,
+                    'docker_available' => false,
+                ],
+            ]);
+            $mock->shouldReceive('execute')->andReturnUsing(function ($host, string $command) use (&$monitoringCommand) {
+                if (str_contains($command, '.health.sh.tmp')) {
+                    $monitoringCommand = $command;
+                }
+                if (str_contains($command, 'docker version --format')) {
+                    return '28.3.3';
+                }
+                if (str_contains($command, 'docker compose version --short')) {
+                    return '2.38.2';
+                }
+                if (str_contains($command, 'echo READY')) {
+                    return 'READY';
+                }
+
+                return '[ok]';
+            });
+        });
+        $this->mock(\App\Services\Servers\ServerProvisionVerifier::class, function ($mock): void {
+            $mock->shouldReceive('allowsSimulatedProvisioning')->andReturn(true);
+            $mock->shouldReceive('assertProvisioned')->andReturnNull();
+        });
+
+        app()->call([new ProvisionServerJob($server), 'handle']);
+
+        $this->assertNotNull($monitoringCommand);
+        $this->assertStringContainsString('set -eu', $monitoringCommand);
+        $this->assertStringContainsString("install -d -m 0750 '/opt/uplary/monitoring'", $monitoringCommand);
+        $this->assertStringContainsString("test -d '/opt/uplary/monitoring'", $monitoringCommand);
+        $this->assertStringContainsString("mv -f '/opt/uplary/monitoring/.health.sh.tmp' '/opt/uplary/monitoring/health.sh'", $monitoringCommand);
+        $this->assertStringContainsString("test -x '/opt/uplary/monitoring/health.sh'", $monitoringCommand);
+        $this->assertStringNotContainsString("<<'SH'", $monitoringCommand);
+    }
+
     public function test_advertised_1gb_cloud_size_still_fails_ram_requirement(): void
     {
         config(['infrastructure.driver' => 'ssh']);
@@ -721,6 +778,75 @@ class ServerManagementTest extends TestCase
             ->assertSee(app(\App\Services\Servers\ControlPlaneKeyService::class)->publicKeyForTenant($tenant), false);
 
         Bus::assertDispatched(ProvisionServerJob::class);
+    }
+
+    public function test_owner_can_queue_server_power_actions(): void
+    {
+        Bus::fake();
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'status' => 'online',
+            'provisioned_at' => now(),
+        ]));
+        $this->seedProvisioningSteps($server, completed: true);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('servers.power', $server), ['action' => 'shutdown'])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        Bus::assertDispatched(\App\Jobs\ServerPowerActionJob::class, fn ($job) => $job->server->is($server) && $job->action === 'shutdown');
+    }
+
+    public function test_restore_power_action_is_blocked_when_applications_are_attached(): void
+    {
+        Bus::fake();
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'status' => 'online',
+            'provisioned_at' => now(),
+        ]));
+        $this->seedProvisioningSteps($server, completed: true);
+        ApplicationDeployment::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'name' => 'Demo App',
+            'slug' => 'demo-app',
+            'deployment_type' => 'custom',
+            'docker_image' => 'nginx',
+            'docker_tag' => 'latest',
+            'restart_policy' => 'unless-stopped',
+            'status' => 'running',
+        ]);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('servers.index'))
+            ->assertOk()
+            ->assertSee('Remove applications to restore')
+            ->assertDontSee('Restore clean OS &amp; reprovision');
+
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_viewer_cannot_queue_server_power_actions(): void
+    {
+        Bus::fake();
+        [$user, $tenant] = $this->member('viewer');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'status' => 'online',
+            'provisioned_at' => now(),
+        ]));
+        $this->seedProvisioningSteps($server, completed: true);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('servers.power', $server), ['action' => 'reboot'])
+            ->assertForbidden();
+
+        Bus::assertNothingDispatched();
     }
 
     private function payload(array $overrides = []): array

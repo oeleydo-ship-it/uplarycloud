@@ -261,7 +261,7 @@ class ManagedInfrastructureTest extends TestCase
 
         $server = Server::where('name', 'BYO Cloud')->firstOrFail();
         $this->assertSame('byos', $server->server_type);
-        $this->assertSame('root', $server->ssh_username);
+        $this->assertSame(ManagedInfrastructureService::PROVISIONING_SSH_USER, $server->ssh_username);
         $this->assertSame('ssh_key', $server->authentication_method->value);
         $this->assertSame($connection->id, $server->provider_connection_id);
         $this->assertNotSame($platform->id, $server->provider_connection_id);

@@ -8,6 +8,7 @@
 <div
     class="add-server-dropdown{{ $empty ? ' add-server-dropdown--empty' : '' }}"
     x-data="{ open: false }"
+    :class="{ 'is-open': open }"
     @keydown.escape.window="open = false"
 >
     @if($quotaReached)

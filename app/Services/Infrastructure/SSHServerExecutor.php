@@ -7,16 +7,19 @@ use App\Enums\ServerAuthenticationMethod;
 use App\Exceptions\RemoteCommandException;
 use App\Models\Server;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Exception\TimeoutException;
 use phpseclib3\Net\SFTP;
 use phpseclib3\Net\SSH2;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
 use Throwable;
 
 class SSHServerExecutor implements ServerExecutorInterface
 {
+    private ?string $pamPassword = null;
     public function test(Server $server): array
     {
         try {
@@ -202,15 +205,17 @@ class SSHServerExecutor implements ServerExecutorInterface
 
     /**
      * Ubuntu 24.04 cloud images often expire the root password. PAM then
-     * rejects non-interactive exec with "no TTY available". Request a real PTY,
-     * wait until chage/passwd actually finishes, then use a fresh connection.
+     * rejects non-interactive exec with "no TTY available". Open an interactive
+     * login shell (real PTY), wait until chage/passwd finishes, then verify on
+     * a fresh non-PTY connection. Fall back to system `ssh -tt` if needed.
      */
     private function clearExpiredRootPassword(Server $server): void
     {
+        $buffer = '';
         for ($attempt = 0; $attempt < 2; $attempt++) {
             $buffer = $this->runExpiryClearSession($server);
             if (str_contains($buffer, 'UPLARY_CHAGE_DONE')) {
-                Log::info('Cleared expired root password on TTY', [
+                Log::info('Cleared expired root password on interactive TTY', [
                     'server_id' => $server->id,
                     'ip' => $server->ip_address,
                     'attempt' => $attempt + 1,
@@ -219,16 +224,38 @@ class SSHServerExecutor implements ServerExecutorInterface
             }
         }
 
+        if (! $this->rootPasswordIsUsable($server) && PHP_OS_FAMILY !== 'Windows') {
+            $sshTt = $this->clearExpiredRootPasswordViaSystemSsh($server);
+            $buffer .= "\n".$sshTt;
+            if (str_contains($sshTt, 'UPLARY_CHAGE_DONE')) {
+                Log::info('Cleared expired root password via ssh -tt', [
+                    'server_id' => $server->id,
+                    'ip' => $server->ip_address,
+                ]);
+            }
+        }
+
+        if (! $this->rootPasswordIsUsable($server)) {
+            throw new RuntimeException(
+                'Root password expiry could not be cleared on a TTY session. '.str($buffer)->limit(300)
+            );
+        }
+    }
+
+    private function rootPasswordIsUsable(Server $server): bool
+    {
         $verify = $this->authenticate($server);
         $probe = (string) $verify->exec('true');
         $stderr = (string) $verify->getStdError();
+        $exit = $verify->getExitStatus();
         $verify->disconnect();
 
-        if (self::looksLikeExpiredPassword($probe."\n".$stderr)) {
-            throw new RuntimeException(
-                'Root password expiry could not be cleared on a TTY session. '.str($probe.' '.$stderr)->limit(300)
-            );
-        }
+        return $exit === 0 && ! self::looksLikeExpiredPassword($probe."\n".$stderr);
+    }
+
+    private function expiryClearCommand(): string
+    {
+        return 'chage -d -1 root; chage -I -1 -m 0 -M 99999 root; passwd -x -1 root >/dev/null 2>&1; echo UPLARY_CHAGE_DONE';
     }
 
     private function runExpiryClearSession(Server $server): string
@@ -236,32 +263,27 @@ class SSHServerExecutor implements ServerExecutorInterface
         $ssh = $this->authenticate($server);
         $ssh->setTerminal('xterm');
         $ssh->setWindowSize(80, 24);
-        $ssh->enablePTY();
         $ssh->setTimeout(8);
-
-        $clear = 'chage -d -1 root; chage -I -1 -m 0 -M 99999 root; passwd -x -1 root >/dev/null 2>&1; echo UPLARY_CHAGE_DONE';
-        if ($ssh->exec($clear) === false) {
-            $ssh->disablePTY();
-            $ssh->disconnect();
-            throw new RuntimeException('Could not open a TTY session to clear the expired root password.');
-        }
+        $ssh->openShell();
 
         $buffer = '';
         $sentCurrent = false;
         $newPasswordWrites = 0;
-        $deadline = microtime(true) + 40;
+        $sentChage = false;
+        $secret = $this->passwordToSatisfyPam($server);
+        $deadline = microtime(true) + 50;
 
         try {
             while (microtime(true) < $deadline) {
-                $ssh->setTimeout(5);
+                $ssh->setTimeout(4);
                 try {
-                    $chunk = $ssh->read('', SSH2::READ_NEXT);
-                } catch (TimeoutException) {
+                    $chunk = $ssh->read('', SSH2::READ_NEXT, SSH2::CHANNEL_SHELL);
+                } catch (Throwable) {
                     $chunk = '';
                 }
 
                 if ($chunk === true) {
-                    break;
+                    $chunk = '';
                 }
                 if (is_string($chunk) && $chunk !== '') {
                     $buffer .= $chunk;
@@ -271,26 +293,191 @@ class SSHServerExecutor implements ServerExecutorInterface
                     break;
                 }
 
-                $tail = strtolower(substr($buffer, -400));
-                if (! $sentCurrent && str_contains($tail, 'current password:')) {
-                    $ssh->write($this->rootPasswordForPrompt($server)."\n");
-                    $sentCurrent = true;
-                    continue;
+                $plain = strtolower(preg_replace('/\x1b\[[0-9;]*[A-Za-z]/', '', $buffer) ?? $buffer);
+                $tail = substr($plain, -600);
+                $forcedChange = str_contains($plain, 'change your password')
+                    || str_contains($plain, 'changing password')
+                    || str_contains($plain, 'password immediately')
+                    || str_contains($plain, 'required to change');
+
+                try {
+                    if (! $sentCurrent && preg_match('/(current password:|\(current\) unix password:)/i', $tail)) {
+                        $current = $this->rootPasswordForPrompt($server);
+                        $ssh->write(($current !== '' ? $current : $secret)."\n", SSH2::CHANNEL_SHELL);
+                        $sentCurrent = true;
+                        continue;
+                    }
+                    if ($newPasswordWrites < 2 && preg_match('/((enter )?new( unix)? password:|retype|re-enter|reenter)/i', $tail)) {
+                        $ssh->write($secret."\n", SSH2::CHANNEL_SHELL);
+                        $newPasswordWrites++;
+                        continue;
+                    }
+                    if ($forcedChange && $newPasswordWrites < 2) {
+                        $ssh->write($secret."\n", SSH2::CHANNEL_SHELL);
+                        $newPasswordWrites++;
+                        continue;
+                    }
+
+                    if (! $sentChage && self::looksLikeShellPrompt($buffer)) {
+                        $ssh->write($this->expiryClearCommand()."\n", SSH2::CHANNEL_SHELL);
+                        $sentChage = true;
+                    }
+                } catch (Throwable) {
+                    break;
                 }
-                if ($newPasswordWrites < 2 && preg_match('/(new password:|retype|re-enter)/i', $tail)) {
-                    $ssh->write($this->rootPasswordForPrompt($server)."\n");
-                    $newPasswordWrites++;
+            }
+
+            if (! $sentChage && ! str_contains($buffer, 'UPLARY_CHAGE_DONE') && self::looksLikeShellPrompt($buffer)) {
+                $ssh->write($this->expiryClearCommand()."\n", SSH2::CHANNEL_SHELL);
+                $ssh->setTimeout(12);
+                try {
+                    $buffer .= (string) $ssh->read('UPLARY_CHAGE_DONE', SSH2::READ_SIMPLE, SSH2::CHANNEL_SHELL);
+                } catch (TimeoutException) {
                 }
             }
         } finally {
             try {
-                $ssh->disablePTY();
                 $ssh->disconnect();
             } catch (Throwable) {
             }
         }
 
+        Log::info('Root expiry interactive TTY output', [
+            'server_id' => $server->id,
+            'output' => str(str_replace($secret, '***', $buffer))->limit(1500)->toString(),
+            'sent_chage' => $sentChage,
+            'password_prompts' => $newPasswordWrites,
+        ]);
+
         return $buffer;
+    }
+
+    private function passwordToSatisfyPam(Server $server): string
+    {
+        if ($this->pamPassword !== null) {
+            return $this->pamPassword;
+        }
+
+        $existing = $this->rootPasswordForPrompt($server);
+        $this->pamPassword = $existing !== '' ? $existing : Str::password(24, symbols: false);
+
+        return $this->pamPassword;
+    }
+
+    private function clearExpiredRootPasswordViaSystemSsh(Server $server): string
+    {
+        $server->loadMissing('credential');
+        $binary = (new ExecutableFinder)->find('ssh');
+        $key = $server->credential?->private_key;
+        if ($binary === null || $key === null || $key === '') {
+            return '';
+        }
+
+        $keyFile = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'uplary-ssh-'.bin2hex(random_bytes(6)).'.pem';
+        file_put_contents($keyFile, str_ends_with($key, "\n") ? $key : $key."\n");
+        $this->restrictPrivateKeyFile($keyFile);
+
+        $knownHosts = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+        $cmd = [
+            $binary,
+            '-tt',
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile='.$knownHosts,
+            '-o', 'IdentitiesOnly=yes',
+            '-o', 'BatchMode=yes',
+            '-o', 'ConnectTimeout=20',
+            '-p', (string) $server->ssh_port,
+            '-i', $keyFile,
+            $server->ssh_username.'@'.$server->ip_address,
+        ];
+
+        $secret = $this->passwordToSatisfyPam($server);
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes, null, null, ['bypass_shell' => true]);
+        if (! is_resource($process)) {
+            @unlink($keyFile);
+
+            return '';
+        }
+
+        foreach ([0, 1, 2] as $fd) {
+            stream_set_blocking($pipes[$fd], false);
+        }
+
+        $buffer = '';
+        $sentCurrent = false;
+        $newPasswordWrites = 0;
+        $sentChage = false;
+        $deadline = microtime(true) + 50;
+
+        try {
+            while (microtime(true) < $deadline) {
+                $status = proc_get_status($process);
+                foreach ([1, 2] as $fd) {
+                    $buffer .= (string) stream_get_contents($pipes[$fd]);
+                }
+                if (str_contains($buffer, 'UPLARY_CHAGE_DONE')) {
+                    break;
+                }
+
+                $plain = strtolower(preg_replace('/\x1b\[[0-9;]*[A-Za-z]/', '', $buffer) ?? $buffer);
+                $forcedChange = str_contains($plain, 'change your password')
+                    || str_contains($plain, 'changing password')
+                    || str_contains($plain, 'password immediately')
+                    || str_contains($plain, 'required to change');
+
+                if (! $sentCurrent && preg_match('/(current password:|\(current\) unix password:)/i', $plain)) {
+                    $current = $this->rootPasswordForPrompt($server);
+                    fwrite($pipes[0], ($current !== '' ? $current : $secret)."\n");
+                    $sentCurrent = true;
+                } elseif ($newPasswordWrites < 2 && preg_match('/((enter )?new( unix)? password:|retype|re-enter|reenter)/i', $plain)) {
+                    fwrite($pipes[0], $secret."\n");
+                    $newPasswordWrites++;
+                } elseif ($forcedChange && $newPasswordWrites < 2) {
+                    fwrite($pipes[0], $secret."\n");
+                    $newPasswordWrites++;
+                    usleep(400000);
+                } elseif (! $sentChage && self::looksLikeShellPrompt($buffer)) {
+                    fwrite($pipes[0], $this->expiryClearCommand()."\n");
+                    $sentChage = true;
+                }
+
+                if (! ($status['running'] ?? false)) {
+                    break;
+                }
+                usleep(200000);
+            }
+        } finally {
+            foreach ($pipes as $pipe) {
+                if (is_resource($pipe)) {
+                    fclose($pipe);
+                }
+            }
+            proc_terminate($process);
+            proc_close($process);
+            @unlink($keyFile);
+        }
+
+        Log::info('ssh -tt expiry session', [
+            'server_id' => $server->id,
+            'output' => str($buffer)->limit(500)->toString(),
+            'password_prompts' => $newPasswordWrites,
+            'sent_chage' => $sentChage,
+        ]);
+
+        return $buffer;
+    }
+
+    private function restrictPrivateKeyFile(string $keyFile): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $user = (string) getenv('USERNAME');
+            @exec('icacls '.escapeshellarg($keyFile).' /inheritance:r /grant:r '.escapeshellarg($user.':(R)').' 2>NUL');
+
+            return;
+        }
+
+        @chmod($keyFile, 0600);
     }
 
     public static function looksLikeExpiredPassword(string $output): bool
@@ -300,7 +487,17 @@ class SSHServerExecutor implements ServerExecutorInterface
         return str_contains($lower, 'password has expired')
             || str_contains($lower, 'password change required')
             || str_contains($lower, 'you must change your password')
+            || str_contains($lower, 'required to change your password')
+            || (str_contains($lower, 'change your password') && str_contains($lower, 'immediately'))
             || (str_contains($lower, 'no tty available') && str_contains($lower, 'password'));
+    }
+
+    public static function looksLikeShellPrompt(string $output): bool
+    {
+        $plain = preg_replace('/\x1b\[[0-9;]*[A-Za-z]/', '', str_replace("\r", '', $output)) ?? $output;
+        $tail = substr($plain, -120);
+
+        return (bool) preg_match('/(^|\n)[^\n]*[#$]\s*$/', $tail);
     }
 
     private function rootPasswordForPrompt(Server $server): string

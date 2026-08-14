@@ -160,6 +160,11 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
         return $this->action($server, 'reboot');
     }
 
+    public function powerOff(Server $server): array
+    {
+        return $this->action($server, 'power_off');
+    }
+
     public function resize(Server $server, ManagedServerPlan $plan): array
     {
         return $this->action($server, 'resize', ['size' => $plan->provider_plan_id, 'disk' => true]);

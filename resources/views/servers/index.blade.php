@@ -90,14 +90,55 @@
                                 <small class="positive">Running</small>
                             </span>
                             <span class="server-actions">
-                                <a href="{{ $manageUrl }}" class="button button--secondary">Manage</a>
-                                <div class="server-more" x-data="{ open: false, top: 0, left: 0 }" @keydown.escape.window="open=false" @scroll.window="open=false" @resize.window="open=false">
-                                    <button type="button" x-ref="trigger" class="icon-button" aria-label="More actions for {{ $server->name }}" :aria-expanded="open" @click="const rect=$refs.trigger.getBoundingClientRect(); const menuHeight=154; top=(window.innerHeight-rect.bottom < menuHeight+16) ? Math.max(12, rect.top-menuHeight-8) : rect.bottom+8; left=Math.max(12, Math.min(window.innerWidth-232, rect.right-220)); open=!open"><i data-lucide="ellipsis"></i></button>
+                                <div
+                                    class="server-more"
+                                    x-data="{
+                                        open: false,
+                                        top: 0,
+                                        left: 0,
+                                        toggle() {
+                                            if (this.open) {
+                                                this.open = false;
+                                                return;
+                                            }
+
+                                            this.open = true;
+                                            this.$nextTick(() => {
+                                                const trigger = this.$refs.trigger.getBoundingClientRect();
+                                                const menu = this.$refs.menu;
+                                                const gap = 8;
+                                                const edge = 12;
+                                                const menuHeight = menu.offsetHeight;
+                                                const menuWidth = menu.offsetWidth;
+                                                const cardBottom = this.$refs.trigger.closest('.server-reference-table-card')
+                                                    .getBoundingClientRect().bottom;
+                                                const availableBottom = Math.min(window.innerHeight - edge, cardBottom);
+                                                const fitsBelow = availableBottom - trigger.bottom >= menuHeight + gap;
+
+                                                this.top = fitsBelow
+                                                    ? trigger.bottom + gap
+                                                    : Math.max(edge, trigger.top - menuHeight - gap);
+                                                this.left = Math.max(edge, Math.min(window.innerWidth - menuWidth - edge, trigger.right - menuWidth));
+                                            });
+                                        },
+                                    }"
+                                    @keydown.escape.window="open = false"
+                                    @scroll.window="open = false"
+                                    @resize.window="open = false"
+                                >
+                                    <button type="button" x-ref="trigger" class="icon-button server-actions-trigger" aria-label="Actions for {{ $server->name }}" :aria-expanded="open" @click="toggle()"><i data-lucide="ellipsis-vertical"></i></button>
                                     <template x-teleport="body">
-                                        <div class="server-more-menu server-more-menu--floating" x-cloak x-show="open" x-transition.opacity @click.outside="open=false" :style="`top:${top}px;left:${left}px`">
+                                        <div x-ref="menu" class="server-more-menu server-more-menu--floating" x-cloak x-show="open" x-transition.opacity @click.outside="open = false" :style="`top:${top}px; left:${left}px`">
                                             <a href="{{ route('servers.details', $server) }}"><i data-lucide="eye"></i> View server details</a>
                                             <a href="{{ $manageUrl }}"><i data-lucide="settings-2"></i> Manage</a>
+                                            @unless($server->isProvisioningIncomplete())
+                                                @can('operate', $server)
+                                                    <div class="server-more-divider"></div>
+                                                    <x-server-power-actions :server="$server" :has-attached-apps="$hasAttachedApps" />
+                                                @endcan
+                                            @endunless
                                             @can('delete', $server)
+                                                <div class="server-more-divider"></div>
                                                 @if($hasAttachedApps)
                                                     <span class="server-destroy-blocked" title="Remove attached applications first">
                                                         <i data-lucide="trash-2"></i> Remove applications first

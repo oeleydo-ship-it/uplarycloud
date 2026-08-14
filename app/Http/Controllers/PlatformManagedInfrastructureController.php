@@ -98,7 +98,7 @@ class PlatformManagedInfrastructureController extends Controller
                 'server_type' => 'managed',
                 'status' => ServerStatus::Pending,
                 'authentication_method' => 'ssh_key',
-                'ssh_username' => 'root',
+                'ssh_username' => \App\Services\Infrastructure\ManagedInfrastructureService::PROVISIONING_SSH_USER,
                 'cpu_cores' => $plan->cpu_cores,
                 'memory_mb' => $plan->memory_mb,
                 'disk_gb' => $plan->disk_gb,

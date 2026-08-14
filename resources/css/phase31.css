@@ -35,9 +35,18 @@
     isolation: isolate;
 }
 
+.add-server-dropdown--empty {
+    flex-direction: column;
+    align-items: center;
+}
+
 .add-server-dropdown--empty .add-server-dropdown__menu {
-    left: 0;
+    position: relative;
+    top: auto;
     right: auto;
+    left: auto;
+    margin-top: 8px;
+    text-align: left;
 }
 
 .add-server-dropdown__item {
