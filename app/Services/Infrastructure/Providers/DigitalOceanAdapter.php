@@ -7,6 +7,7 @@ use App\Models\ManagedServerPlan;
 use App\Models\ProviderConnection;
 use App\Models\Server;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -187,17 +188,44 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
         $connection = $this->connection($server);
         $path = '/droplets/'.$server->provider_resource_id.'/destroy_with_associated_resources';
 
-        $this->client($connection)
-            ->withHeaders(['X-Dangerous' => 'true'])
-            ->delete($path.'/dangerous')
-            ->throw();
+        try {
+            $destroyResponse = $this->client($connection)
+                ->withHeaders(['X-Dangerous' => 'true'])
+                ->delete($path.'/dangerous');
+        } catch (RequestException $exception) {
+            if ($exception->response->notFound()) {
+                return $this->alreadyDeletedResult($server);
+            }
+
+            throw $exception;
+        }
+
+        if ($destroyResponse->notFound()) {
+            return $this->alreadyDeletedResult($server);
+        }
+
+        $destroyResponse->throw();
 
         for ($attempt = 0; $attempt < 20; $attempt++) {
             if ($attempt > 0) {
                 usleep(500000);
             }
 
-            $status = $this->client($connection)->get($path.'/status')->throw()->json();
+            try {
+                $statusResponse = $this->client($connection)->get($path.'/status');
+            } catch (RequestException $exception) {
+                if ($exception->response->notFound()) {
+                    return $this->alreadyDeletedResult($server);
+                }
+
+                throw $exception;
+            }
+
+            if ($statusResponse->notFound()) {
+                return $this->alreadyDeletedResult($server);
+            }
+
+            $status = $statusResponse->throw()->json();
             if (blank($status['completed_at'] ?? null)) {
                 continue;
             }
@@ -215,6 +243,15 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
         }
 
         throw new RuntimeException('DigitalOcean accepted the destroy request but did not confirm completion in time.');
+    }
+
+    private function alreadyDeletedResult(Server $server): array
+    {
+        return [
+            'resource_id' => $server->provider_resource_id,
+            'status' => 'already_deleted_at_provider',
+            'associated_resources' => [],
+        ];
     }
 
     private function image(string $image): string

@@ -251,6 +251,7 @@ class ServerController extends Controller
 
                 try {
                     $providerResult = $infrastructure->destroyByoCloud($server);
+                    $remoteAlreadyDeleted = ($providerResult['status'] ?? null) === 'already_deleted_at_provider';
                 } catch (Throwable $exception) {
                     report($exception);
 

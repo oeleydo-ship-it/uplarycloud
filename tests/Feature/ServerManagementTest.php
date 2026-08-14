@@ -536,6 +536,50 @@ class ServerManagementTest extends TestCase
         $this->assertDatabaseHas('servers', ['id' => $server->id, 'deleted_at' => null]);
     }
 
+    public function test_byo_cloud_destroy_removes_stale_local_record_when_provider_returns_not_found(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $connection = ProviderConnection::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Customer DigitalOcean',
+            'provider' => 'digitalocean',
+            'api_token' => 'customer-token',
+            'active' => true,
+            'platform_managed' => false,
+            'last_verified_at' => now(),
+        ]);
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'name' => 'Missing Cloud Box',
+            'provider' => 'digitalocean',
+            'server_type' => 'byos',
+            'provider_connection_id' => $connection->id,
+            'provider_resource_id' => 'missing-592366994',
+        ]));
+
+        Http::fake([
+            'api.digitalocean.com/v2/droplets/missing-592366994/destroy_with_associated_resources/dangerous' => Http::response([
+                'id' => 'not_found',
+                'message' => 'The resource you were accessing could not be found.',
+            ], 404),
+        ]);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->delete(route('servers.destroy', $server), [
+                'destroy_remote' => '1',
+                'confirmation' => '203.0.113.40',
+            ])
+            ->assertRedirect(route('servers.index'))
+            ->assertSessionHas('success', 'Missing Cloud Box was already deleted at the provider. Its stale Uplary record and local inventory were removed.');
+
+        $this->assertSoftDeleted($server);
+        $this->assertDatabaseHas('activity_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'server.deleted',
+            'description' => 'Missing Cloud Box stale control-plane record removed after provider deletion',
+        ]);
+    }
+
     public function test_byo_cloud_server_already_deleted_at_provider_can_remove_local_record_only(): void
     {
         [$user, $tenant] = $this->member('owner');
