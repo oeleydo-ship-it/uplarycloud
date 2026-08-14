@@ -1,3 +1,9 @@
+@php
+    $headerTenantId = app(\App\Support\TenantContext::class)->id();
+    $headerNotificationQuery = auth()->user()->notifications()->where('data->tenant_id', $headerTenantId);
+    $headerNotifications = (clone $headerNotificationQuery)->latest()->limit(8)->get();
+    $headerUnreadCount = (clone $headerNotificationQuery)->whereNull('read_at')->count();
+@endphp
 <header class="topbar">
     <div class="topbar-left">
         <button
@@ -32,7 +38,39 @@
             <span class="system-status"><span></span> Platform online</span>
             <button class="icon-button"><i data-lucide="search"></i></button>
         @endif
-        <button class="icon-button notification-button"><i data-lucide="bell"></i><span></span></button>
+        <div class="notification-menu" x-data="{ open: false }">
+            <button class="icon-button notification-button" @click="open = !open" :aria-expanded="open" aria-label="Notifications">
+                <i data-lucide="bell"></i>
+                @if($headerUnreadCount > 0)<span>{{ $headerUnreadCount > 99 ? '99+' : $headerUnreadCount }}</span>@endif
+            </button>
+            <div class="notification-dropdown" x-cloak x-show="open" @click.outside="open = false" x-transition>
+                <div class="notification-dropdown__head">
+                    <div><strong>Notifications</strong><small>{{ $headerUnreadCount }} unread</small></div>
+                    @if($headerUnreadCount > 0)
+                        <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button type="submit">Mark all read</button></form>
+                    @endif
+                </div>
+                <div class="notification-dropdown__list">
+                    @forelse($headerNotifications as $notification)
+                        @php($severity = $notification->data['severity'] ?? 'info')
+                        <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
+                            @csrf
+                            <button type="submit" class="notification-item {{ $notification->read_at ? '' : 'is-unread' }}">
+                                <span class="notification-item__icon is-{{ $severity }}"><i data-lucide="{{ $severity === 'error' ? 'triangle-alert' : ($severity === 'success' ? 'circle-check' : 'bell') }}"></i></span>
+                                <span class="notification-item__copy">
+                                    <strong>{{ $notification->data['title'] ?? 'Platform update' }}</strong>
+                                    <small>{{ $notification->data['message'] ?? '' }}</small>
+                                    <time>{{ $notification->created_at->diffForHumans() }}</time>
+                                </span>
+                                @unless($notification->read_at)<i class="notification-item__dot"></i>@endunless
+                            </button>
+                        </form>
+                    @empty
+                        <div class="notification-empty"><i data-lucide="bell-off"></i><strong>No notifications yet</strong><small>Deployment and server updates will appear here.</small></div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
         <div class="profile-menu">
             <button class="profile-trigger" @click="profileOpen=!profileOpen">
                 <span class="avatar avatar--small">{{ str(auth()->user()->name)->substr(0, 2)->upper() }}</span>

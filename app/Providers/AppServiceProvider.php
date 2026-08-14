@@ -6,6 +6,10 @@ use App\Contracts\Billing\BillingGatewayInterface;
 use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Contracts\Networking\DnsResolverInterface;
 use App\Models\PersonalAccessToken;
+use App\Models\ApplicationDeployment;
+use App\Models\Server;
+use App\Observers\ApplicationDeploymentObserver;
+use App\Observers\ServerObserver;
 use App\Services\Billing\FakeBillingGateway;
 use App\Services\Billing\StripeBillingGateway;
 use App\Services\Infrastructure\FakeServerExecutor;
@@ -49,6 +53,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        ApplicationDeployment::observe(ApplicationDeploymentObserver::class);
+        Server::observe(ServerObserver::class);
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('contact', fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
         View::composer('*', function ($view): void {

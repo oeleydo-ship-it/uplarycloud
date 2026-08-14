@@ -30,6 +30,7 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ManagedInfrastructureController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperationalLogController;
 use App\Http\Controllers\PlatformManagedInfrastructureController;
 use App\Http\Controllers\ServerConnectionController;
@@ -122,6 +123,8 @@ Route::middleware(['auth', 'tenant', 'platform.access'])->group(function (): voi
     })->middleware('throttle:6,1')->name('verification.send');
     Route::get('/dashboard', DashboardController::class)->middleware('verified')->name('dashboard');
     Route::get('/system-health', SystemHealthController::class)->name('system-health');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::get('/support', [SupportController::class, 'index'])->middleware('platform.feature:support')->name('support.index');
     Route::post('/support', [SupportController::class, 'store'])->middleware('platform.feature:support')->name('support.store');
     Route::get('/support/{ticket}', [SupportController::class, 'show'])->middleware('platform.feature:support')->name('support.show');

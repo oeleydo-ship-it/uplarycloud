@@ -163,6 +163,64 @@
 .app-body .dashboard-server-switcher span { @apply text-[10px] font-semibold text-emerald-600; }
 .app-body .icon-button { @apply rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900; }
 .app-body .notification-button { @apply relative border border-slate-200 bg-white shadow-sm; }
+.app-body .notification-button > span {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: auto;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border: 2px solid white;
+    border-radius: 999px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 15px;
+    text-align: center;
+}
+.app-body .notification-menu { position: relative; }
+.app-body .notification-dropdown {
+    position: absolute;
+    z-index: 80;
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(390px, calc(100vw - 32px));
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+.app-body .notification-dropdown__head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #f1f5f9; }
+.app-body .notification-dropdown__head strong,
+.app-body .notification-dropdown__head small { display: block; }
+.app-body .notification-dropdown__head strong { color: #0f172a; font-size: 14px; }
+.app-body .notification-dropdown__head small { margin-top: 2px; color: #94a3b8; font-size: 11px; }
+.app-body .notification-dropdown__head button { border: 0; background: transparent; color: #7c3aed; font-size: 12px; font-weight: 650; cursor: pointer; }
+.app-body .notification-dropdown__list { max-height: 430px; overflow-y: auto; }
+.app-body .notification-dropdown__list form { margin: 0; }
+.app-body .notification-item { display: grid; grid-template-columns: 36px 1fr 8px; gap: 11px; width: 100%; padding: 13px 16px; border: 0; border-bottom: 1px solid #f1f5f9; background: white; text-align: left; cursor: pointer; }
+.app-body .notification-item:hover { background: #f8fafc; }
+.app-body .notification-item.is-unread { background: #faf8ff; }
+.app-body .notification-item__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #eef2ff; color: #6366f1; }
+.app-body .notification-item__icon.is-success { background: #ecfdf5; color: #059669; }
+.app-body .notification-item__icon.is-error { background: #fef2f2; color: #dc2626; }
+.app-body .notification-item__icon svg { width: 16px; }
+.app-body .notification-item__copy strong,
+.app-body .notification-item__copy small,
+.app-body .notification-item__copy time { display: block; }
+.app-body .notification-item__copy strong { color: #1e293b; font-size: 13px; }
+.app-body .notification-item__copy small { margin-top: 3px; color: #64748b; font-size: 12px; line-height: 1.4; }
+.app-body .notification-item__copy time { margin-top: 5px; color: #94a3b8; font-size: 10px; }
+.app-body .notification-item__dot { align-self: center; width: 7px; height: 7px; border-radius: 999px; background: #7c3aed; }
+.app-body .notification-empty { padding: 34px 20px; color: #94a3b8; text-align: center; }
+.app-body .notification-empty svg { width: 24px; margin: 0 auto 8px; }
+.app-body .notification-empty strong,
+.app-body .notification-empty small { display: block; }
+.app-body .notification-empty strong { color: #475569; font-size: 13px; }
+.app-body .notification-empty small { margin-top: 4px; font-size: 11px; }
 .app-body .profile-trigger { @apply rounded-xl px-2 py-1.5 hover:bg-slate-100; }
 .app-body .avatar { @apply bg-gradient-to-br from-violet-500 to-indigo-600 font-bold text-white shadow-sm; }
 .app-body .profile-dropdown { z-index: 50; @apply rounded-xl border-slate-200 shadow-2xl shadow-slate-900/10; }
@@ -182,6 +240,24 @@
 .app-body .stat-card,
 .app-body .server-help-banner { @apply rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.025]; }
 .app-body .card { @apply overflow-hidden; }
+.app-body .deployment-show-page .deployment-reference-logs {
+    background: #0f172a;
+    border-color: #1e293b;
+}
+.app-body .deployment-show-page .deployment-reference-logs .live-log-head {
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.2);
+}
+.app-body .deployment-show-page .deployment-reference-terminal {
+    background: #0f172a;
+}
+.app-body .deployment-show-page .deployment-reference-terminal p,
+.app-body .deployment-show-page .deployment-reference-terminal em {
+    color: #e2e8f0;
+}
+.app-body .deployment-show-page .deployment-reference-terminal span {
+    color: #94a3b8;
+}
 .app-body .servers-page .server-reference-table-card { overflow: visible !important; }
 .app-body .servers-page .server-reference-table,
 .app-body .servers-page .server-reference-row,
