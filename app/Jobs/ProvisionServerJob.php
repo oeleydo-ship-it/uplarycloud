@@ -20,10 +20,10 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
 
-    public int $tries = 8;
+    public int $tries = 20;
     public int $timeout = 900;
-    public array $backoff = [5, 10, 15, 20, 30, 45, 60, 90];
-    public int $uniqueFor = 960;
+    public array $backoff = [10, 15, 20, 30, 45, 60, 90, 120, 120];
+    public int $uniqueFor = 2400;
 
     public function __construct(public Server $server, public bool $force = false)
     {
@@ -98,7 +98,11 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
                 }
 
                 if ($this->shouldRetryWithoutFailing($exception) && $this->attempts() < $this->tries) {
-                    $this->running($server, $step, 'Waiting for SSH on the new instance to become ready…');
+                    $this->running(
+                        $server,
+                        $step,
+                        "Cloud initialization or SSH is not ready yet. Automatic retry {$this->attempts()} of {$this->tries} is scheduled…",
+                    );
                     $server->update(['status' => ServerStatus::Provisioning, 'failure_reason' => null]);
                     throw $exception;
                 }
@@ -195,7 +199,7 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
             .'if command -v cloud-init >/dev/null 2>&1; then cloud-init status --wait >/dev/null 2>&1 || true; fi';
 
         try {
-            $executor->execute($server, $this->sudo($server, $command), 360);
+            $executor->execute($server, $this->sudo($server, $command), 420);
         } catch (Throwable) {
             throw new RuntimeException('The cloud instance is still finishing first-boot package setup.');
         }
@@ -401,6 +405,10 @@ SH;
 
     private function safeError(Throwable $e): string
     {
+        if ($this->shouldRetryWithoutFailing($e)) {
+            return 'The server did not become SSH-ready before the provisioning timeout. Verify that port 22 is open, the SSH credentials are valid, and cloud-init has completed, then retry provisioning.';
+        }
+
         return app()->hasDebugModeEnabled()
             ? str($e->getMessage())->limit(300)->toString()
             : 'This provisioning step failed. Check the SSH access and server requirements, then retry.';

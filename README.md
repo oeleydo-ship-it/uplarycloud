@@ -59,6 +59,26 @@ The Superadmin **Platform Services** page can show status and start, stop, or re
 
 Provisioning has a dedicated Horizon supervisor so infrastructure jobs cannot starve it. After deploying queue configuration changes, run `php artisan optimize:clear` and `php artisan horizon:terminate`; Supervisor will restart Horizon and pending `provisioning` jobs will be consumed. The wildcard Horizon environment also keeps workers active when `APP_ENV` is named `prod`, `live`, or another deployment-specific value.
 
+For local development, run `composer dev`. It verifies Redis first (and starts its Docker service when needed), then runs the Laravel development server, queue manager, Reverb, scheduler, and Vite together. Linux uses Horizon. Native Windows PHP cannot run Horizon because `pcntl` and `posix` are unavailable, so the local command transparently uses one Redis `queue:work` process there; production remains Horizon-only.
+
+For a bare-metal production deployment, do not use `php artisan serve`. Serve PHP through Nginx and PHP-FPM, and install the Supervisor example so Horizon, Reverb, and the scheduler restart automatically. After every release, run:
+
+```bash
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan optimize:clear
+php artisan optimize
+sudo supervisorctl reread
+sudo supervisorctl update
+php artisan horizon:terminate
+php artisan reverb:restart
+sudo supervisorctl restart upentra-scheduler
+sudo supervisorctl status upentra-horizon upentra-reverb upentra-scheduler
+php artisan horizon:status
+```
+
+`horizon:status` must report `running`. Existing delayed or pending Redis jobs do not need to be submitted again; Horizon will claim them when their delay expires. If Horizon is stopped, use `sudo supervisorctl start upentra-horizon` once rather than repeatedly pressing **Start provisioning**.
+
 ```bash
 docker compose up --build -d
 docker compose exec app php artisan migrate --force

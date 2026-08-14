@@ -14,6 +14,7 @@
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.0",
         "phpseclib/phpseclib": "3.*",
+        "predis/predis": "^3.0",
         "stripe/stripe-php": "^21.2"
     },
     "require-dev": {
@@ -53,9 +54,11 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
+        "dev:redis": "@php artisan platform:ensure-redis",
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#86efac,#fb7185,#fdba74,#fde68a\" \"php artisan serve --host=localhost --port=8000 --no-reload\" \"php artisan queue:work redis --queue=deployments,infrastructure,provisioning,networking,backups,notifications,monitoring,default --sleep=1 --tries=3 --backoff=10 --timeout=900\" \"php artisan reverb:start\" \"php artisan schedule:work\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,reverb,scheduler,logs,vite"
+            "@dev:redis",
+            "npx concurrently --kill-others-on-fail -c \"#93c5fd,#c4b5fd,#86efac,#fb7185\" \"php artisan serve --host=localhost --port=8000 --no-reload\" \"php artisan platform:queue\" \"php artisan reverb:start\" \"php artisan schedule:work\" \"npm run dev\" --names=server,queue,reverb,scheduler,vite"
         ]
     },
     "extra": {

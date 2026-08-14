@@ -99,6 +99,10 @@ class ServerManagementTest extends TestCase
         $this->assertSame('provisioning', $server->status->value);
         $this->assertNull($server->failure_reason);
         $this->assertSame('running', $server->provisioningSteps()->where('key', 'connect')->value('status'));
+        $this->assertStringContainsString(
+            'Automatic retry',
+            $server->provisioningSteps()->where('key', 'connect')->value('message'),
+        );
     }
 
     public function test_advertised_2gb_cloud_size_passes_when_ssh_meminfo_is_undercounted(): void

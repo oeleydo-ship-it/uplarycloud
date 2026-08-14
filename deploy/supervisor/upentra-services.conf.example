@@ -1,25 +1,50 @@
 [program:upentra-horizon]
 process_name=%(program_name)s
-command=php /var/www/upentra/artisan horizon
+command=/usr/bin/php /var/www/upentra/artisan horizon
 directory=/var/www/upentra
 autostart=true
 autorestart=true
+startsecs=5
+startretries=10
 stopasgroup=true
 killasgroup=true
 user=www-data
 redirect_stderr=true
 stdout_logfile=/var/www/upentra/storage/logs/horizon.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
 stopwaitsecs=1300
 
 [program:upentra-reverb]
 process_name=%(program_name)s
-command=php /var/www/upentra/artisan reverb:start --host=0.0.0.0 --port=8080
+command=/usr/bin/php /var/www/upentra/artisan reverb:start --host=0.0.0.0 --port=8080
 directory=/var/www/upentra
 autostart=true
 autorestart=true
+startsecs=5
+startretries=10
 stopasgroup=true
 killasgroup=true
 user=www-data
 redirect_stderr=true
 stdout_logfile=/var/www/upentra/storage/logs/reverb.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
+stopwaitsecs=30
+
+[program:upentra-scheduler]
+process_name=%(program_name)s
+command=/usr/bin/php /var/www/upentra/artisan schedule:work
+directory=/var/www/upentra
+autostart=true
+autorestart=true
+startsecs=5
+startretries=10
+stopasgroup=true
+killasgroup=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/upentra/storage/logs/scheduler.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
 stopwaitsecs=30
