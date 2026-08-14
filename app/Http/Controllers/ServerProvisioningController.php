@@ -60,6 +60,22 @@ class ServerProvisioningController extends Controller
         $this->guard($server, $context);
         abort_unless($this->needsAttention($server, $verifier), 409);
 
+        $failedCreate = $this->failedCreateOperation($server);
+        if ($failedCreate && $this->cloudInstanceMissing($server)) {
+            $failedCreate->update([
+                'status' => 'pending',
+                'last_error' => null,
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+            $server->update(['status' => ServerStatus::Pending, 'failure_reason' => null]);
+            CreateManagedServerJob::dispatch($failedCreate->id);
+
+            return redirect()
+                ->route('servers.provisioning', $server)
+                ->with('success', 'Cloud instance creation queued again. No duplicate is created if the provider already accepted the first request.');
+        }
+
         if ($this->cloudCreatePending($server)) {
             CreateManagedServerJob::dispatch($this->pendingCreateOperation($server)->id);
 
@@ -170,6 +186,22 @@ class ServerProvisioningController extends Controller
         }
 
         return $server->ip_address === '0.0.0.0' || $server->ip_address === '' || blank($server->provider_resource_id);
+    }
+
+    private function cloudInstanceMissing(Server $server): bool
+    {
+        return $server->ip_address === '0.0.0.0'
+            || $server->ip_address === ''
+            || blank($server->provider_resource_id);
+    }
+
+    private function failedCreateOperation(Server $server): ?InfrastructureOperation
+    {
+        return $server->infrastructureOperations()
+            ->where('action', 'create')
+            ->where('status', 'failed')
+            ->latest('id')
+            ->first();
     }
 
     private function pendingCreateOperation(Server $server): ?InfrastructureOperation

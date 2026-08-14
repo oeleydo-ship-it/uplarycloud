@@ -505,6 +505,41 @@ class ManagedInfrastructureTest extends TestCase
             ->assertJsonPath('needs_attention', false);
     }
 
+    public function test_failed_cloud_create_can_be_safely_requeued_before_provisioning(): void
+    {
+        Queue::fake();
+        [$owner, $tenant] = $this->workspace();
+        $server = $this->managedServer($tenant);
+        $server->update([
+            'ip_address' => '0.0.0.0',
+            'provider_resource_id' => null,
+            'status' => 'failed',
+            'failure_reason' => 'Managed infrastructure operation failed.',
+        ]);
+        $operation = $this->operation($server, $owner, 'create', ['plan' => 's-1vcpu-2gb']);
+        $operation->update([
+            'status' => 'failed',
+            'last_error' => 'Temporary provider connection failure.',
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('servers.provisioning.retry', $server))
+            ->assertRedirect(route('servers.provisioning', $server))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('infrastructure_operations', [
+            'id' => $operation->id,
+            'status' => 'pending',
+            'last_error' => null,
+        ]);
+        $server->refresh();
+        $this->assertSame('pending', $server->status->value);
+        $this->assertNull($server->failure_reason);
+        Queue::assertPushedOn('infrastructure', CreateManagedServerJob::class);
+        Queue::assertNotPushed(\App\Jobs\ProvisionServerJob::class);
+    }
+
     public function test_cloud_create_retry_polls_existing_provider_resource_instead_of_creating_another(): void
     {
         Http::fake(['api.digitalocean.com/v2/droplets/592366992' => Http::response(['droplet' => [
