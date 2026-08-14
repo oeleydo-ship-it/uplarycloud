@@ -158,4 +158,9 @@ class FakeCloudProviderAdapter implements CloudProviderAdapterInterface
     {
         return ['resource_id' => $server->provider_resource_id, 'status' => 'deleted'];
     }
+
+    public function destroyWithAssociatedResources(Server $server): array
+    {
+        return ['resource_id' => $server->provider_resource_id, 'status' => 'deleted', 'associated_resources' => 'deleted'];
+    }
 }

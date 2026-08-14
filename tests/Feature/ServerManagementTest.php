@@ -12,13 +12,16 @@ use App\Models\DockerImage;
 use App\Models\DockerNetwork;
 use App\Models\DockerVolume;
 use App\Models\Domain;
+use App\Models\ProviderConnection;
 use App\Models\Server;
 use App\Models\ServerMetric;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ServerManagementTest extends TestCase
@@ -399,6 +402,134 @@ class ServerManagementTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertSoftDeleted($server);
+    }
+
+    public function test_byo_cloud_destroy_requires_exact_ip_confirmation(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $connection = ProviderConnection::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Customer DigitalOcean',
+            'provider' => 'digitalocean',
+            'api_token' => 'customer-token',
+            'active' => true,
+            'platform_managed' => false,
+            'last_verified_at' => now(),
+        ]);
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'name' => 'BYO Cloud Box',
+            'provider' => 'digitalocean',
+            'server_type' => 'byos',
+            'provider_connection_id' => $connection->id,
+            'provider_resource_id' => '592366992',
+        ]));
+
+        Http::fake();
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->delete(route('servers.destroy', $server), [
+                'destroy_remote' => '1',
+                'confirmation' => '203.0.113.99',
+            ])
+            ->assertSessionHasErrors('confirmation');
+
+        $this->assertDatabaseHas('servers', ['id' => $server->id, 'deleted_at' => null]);
+        Http::assertNothingSent();
+    }
+
+    public function test_byo_cloud_destroy_removes_digitalocean_associated_resources_and_local_inventory(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $connection = ProviderConnection::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Customer DigitalOcean',
+            'provider' => 'digitalocean',
+            'api_token' => 'customer-token',
+            'active' => true,
+            'platform_managed' => false,
+            'last_verified_at' => now(),
+        ]);
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'name' => 'Disposable Cloud Box',
+            'provider' => 'digitalocean',
+            'server_type' => 'byos',
+            'provider_connection_id' => $connection->id,
+            'provider_resource_id' => '592366992',
+        ]));
+        DockerVolume::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'docker_name' => 'database-data',
+            'name' => 'database-data',
+            'driver' => 'local',
+            'mountpoint' => '/var/lib/docker/volumes/database-data',
+        ]);
+
+        Http::fake([
+            'api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/dangerous' => Http::response([], 202),
+            'api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/status' => Http::response([
+                'completed_at' => now()->toIso8601String(),
+                'failures' => 0,
+                'resources' => ['volumes' => [['id' => 'volume-1']]],
+            ]),
+        ]);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->delete(route('servers.destroy', $server), [
+                'destroy_remote' => '1',
+                'confirmation' => '203.0.113.40',
+            ])
+            ->assertRedirect(route('servers.index'))
+            ->assertSessionHas('success');
+
+        Http::assertSent(fn (HttpRequest $request) => $request->method() === 'DELETE'
+            && $request->url() === 'https://api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/dangerous'
+            && $request->hasHeader('X-Dangerous', 'true')
+            && $request->hasHeader('Authorization', 'Bearer customer-token'));
+        $this->assertSoftDeleted($server);
+        $this->assertDatabaseMissing('docker_volumes', ['server_id' => $server->id]);
+        $this->assertDatabaseHas('activity_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'server.deleted',
+            'description' => 'Disposable Cloud Box and its associated remote cloud resources permanently destroyed',
+        ]);
+    }
+
+    public function test_byo_cloud_destroy_keeps_local_record_when_provider_rejects_request(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $connection = ProviderConnection::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Customer DigitalOcean',
+            'provider' => 'digitalocean',
+            'api_token' => 'limited-token',
+            'active' => true,
+            'platform_managed' => false,
+            'last_verified_at' => now(),
+        ]);
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'provider' => 'digitalocean',
+            'server_type' => 'byos',
+            'provider_connection_id' => $connection->id,
+            'provider_resource_id' => '592366993',
+        ]));
+
+        Http::fake([
+            'api.digitalocean.com/v2/droplets/592366993/destroy_with_associated_resources/dangerous' => Http::response(['message' => 'forbidden'], 403),
+        ]);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->delete(route('servers.destroy', $server), [
+                'destroy_remote' => '1',
+                'confirmation' => '203.0.113.40',
+            ])
+            ->assertRedirect(route('servers.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('servers', ['id' => $server->id, 'deleted_at' => null]);
     }
 
     public function test_destroying_a_server_removes_its_containers_from_the_index(): void

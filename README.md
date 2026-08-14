@@ -53,7 +53,7 @@ If a deployment stays **Queued** with empty logs, use **Retry queue** on the dep
 
 ## Production services
 
-`docker-compose.yml` provides PHP 8.5 FPM, Nginx, MySQL 8, Redis 7, a dedicated Redis queue worker, the Laravel scheduler, and a Reverb WebSocket server.
+`docker-compose.yml` provides PHP 8.5 FPM, Nginx, MySQL 8, Redis 7, Laravel Horizon, the Laravel scheduler, and a Reverb WebSocket server. In production, keep `php artisan horizon` running under Supervisor or the hosting platform's process manager. Do not also run `queue:work`: Horizon owns all application queues, including the dedicated `infrastructure` and `provisioning` workers. Run `php artisan horizon:terminate` after each deployment so the process manager restarts Horizon with the latest code and configuration.
 
 ```bash
 docker compose up --build -d

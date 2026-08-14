@@ -16,6 +16,7 @@ use App\Models\Server;
 use App\Models\ServerMetric;
 use App\Services\Billing\PlanLimitService;
 use App\Services\Billing\PaidSubscriptionService;
+use App\Services\Infrastructure\ManagedInfrastructureService;
 use App\Services\Servers\ControlPlaneKeyService;
 use App\Services\Servers\ServerInventoryCleanupService;
 use App\Services\Servers\ServerProvisionVerifier;
@@ -26,7 +27,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class ServerController extends Controller
 {
@@ -212,7 +215,7 @@ class ServerController extends Controller
             ->with('error', 'Metrics can only be collected while the server is online.');
     }
 
-    public function destroy(Request $request, Server $server, TenantContext $context, ServerInventoryCleanupService $cleanup): RedirectResponse
+    public function destroy(Request $request, Server $server, TenantContext $context, ServerInventoryCleanupService $cleanup, ManagedInfrastructureService $infrastructure): RedirectResponse
     {
         $server = $this->tenantServer($server, $context);
         $this->authorize('delete', $server);
@@ -224,23 +227,57 @@ class ServerController extends Controller
         }
 
         $name = $server->name;
+        $ipAddress = $server->ip_address;
+        $destroysRemoteResources = $server->isByoCloud();
+        $providerResult = null;
 
-        DB::transaction(function () use ($server, $request, $context, $cleanup): void {
+        if ($destroysRemoteResources) {
+            $request->validate([
+                'destroy_remote' => ['required', 'accepted'],
+                'confirmation' => ['required', 'string', Rule::in([$ipAddress])],
+            ], [
+                'confirmation.in' => 'Type the server IP address exactly to confirm permanent destruction.',
+            ]);
+
+            try {
+                $providerResult = $infrastructure->destroyByoCloud($server);
+            } catch (Throwable $exception) {
+                report($exception);
+
+                return redirect()
+                    ->route('servers.index')
+                    ->with('error', 'The cloud provider did not confirm destruction of '.$name.'. Nothing was removed from Uplary. '.$exception->getMessage());
+            }
+        }
+
+        DB::transaction(function () use ($server, $request, $context, $cleanup, $destroysRemoteResources, $providerResult): void {
             ActivityLog::create([
                 'tenant_id' => $context->id(),
                 'user_id' => $request->user()->id,
                 'action' => 'server.deleted',
-                'description' => $server->name.' removed from the control plane',
+                'description' => $destroysRemoteResources
+                    ? $server->name.' and its associated remote cloud resources permanently destroyed'
+                    : $server->name.' removed from the control plane',
                 'subject_type' => Server::class,
                 'subject_id' => $server->id,
                 'ip_address' => $request->ip(),
+                'metadata' => $destroysRemoteResources ? [
+                    'provider' => $server->provider->value,
+                    'provider_resource_id' => $server->provider_resource_id,
+                    'server_ip_address' => $server->ip_address,
+                    'provider_result' => $providerResult,
+                ] : null,
             ]);
 
             $server->delete();
             $cleanup->purge($server);
         });
 
-        return redirect()->route('servers.index')->with('success', $name.' was removed from the control plane. Persistent remote data was not deleted.');
+        $message = $destroysRemoteResources
+            ? $name.' ('.$ipAddress.') and its associated remote data were permanently destroyed. Its provider IP addresses were released.'
+            : $name.' was removed from the control plane. Persistent remote data was not deleted.';
+
+        return redirect()->route('servers.index')->with('success', $message);
     }
 
     private function tenantServer(Server $server, TenantContext $context): Server

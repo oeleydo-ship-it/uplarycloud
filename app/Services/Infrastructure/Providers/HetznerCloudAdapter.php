@@ -156,6 +156,42 @@ class HetznerCloudAdapter implements CloudProviderAdapterInterface
         return ['resource_id' => $server->provider_resource_id, 'status' => 'deleted'];
     }
 
+    public function destroyWithAssociatedResources(Server $server): array
+    {
+        $client = $this->client($this->connection($server));
+        $remote = $client->get('/servers/'.$server->provider_resource_id)->throw()->json('server');
+        $volumeIds = collect($remote['volumes'] ?? [])->map(fn ($id) => (string) $id)->filter()->values();
+        $primaryIpIds = collect([
+            $remote['public_net']['ipv4']['id'] ?? null,
+            $remote['public_net']['ipv6']['id'] ?? null,
+        ])->map(fn ($id) => (string) $id)->filter()->unique()->values();
+
+        $client->delete('/servers/'.$server->provider_resource_id)->throw();
+
+        foreach ($volumeIds as $volumeId) {
+            $response = $client->delete('/volumes/'.$volumeId);
+            if (! $response->successful() && $response->status() !== 404) {
+                $response->throw();
+            }
+        }
+
+        foreach ($primaryIpIds as $primaryIpId) {
+            $response = $client->delete('/primary_ips/'.$primaryIpId);
+            if (! $response->successful() && $response->status() !== 404) {
+                $response->throw();
+            }
+        }
+
+        return [
+            'resource_id' => $server->provider_resource_id,
+            'status' => 'deleted',
+            'associated_resources' => [
+                'volumes' => $volumeIds->all(),
+                'primary_ips' => $primaryIpIds->all(),
+            ],
+        ];
+    }
+
     /**
      * @return list<string>
      */

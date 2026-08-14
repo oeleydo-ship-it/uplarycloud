@@ -64,11 +64,7 @@
                             @if($server->applicationDeployments()->exists())
                                 <a href="{{ route('applications.installed', $serverFilter) }}"><i data-lucide="blocks"></i> Remove applications first</a>
                             @else
-                                <form method="POST" action="{{ route('servers.destroy', $server) }}" onsubmit="return confirm('Remove {{ $server->name }} from the control plane? Remote data is not deleted.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="is-danger"><i data-lucide="trash-2"></i> Destroy server</button>
-                                </form>
+                                <x-server-destroy-form :server="$server" />
                             @endif
                         @endcan
                     </div>

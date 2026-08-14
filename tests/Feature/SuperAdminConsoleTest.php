@@ -132,6 +132,63 @@ class SuperAdminConsoleTest extends TestCase
             ->assertOk()->assertSee('Plan control')->assertSee('Growth');
     }
 
+    public function test_superadmin_can_upgrade_a_users_workspace_from_user_management(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $customer = User::factory()->create(['name' => 'Upgrade Customer']);
+        $tenant = Tenant::create(['name' => 'Upgrade Workspace']);
+        $tenant->users()->attach($customer, ['role' => 'owner', 'is_active' => true]);
+        $free = Plan::create([
+            'name' => 'Starter', 'slug' => 'starter-admin-upgrade', 'monthly_price' => 0, 'yearly_price' => 0,
+            'currency' => 'USD', 'limits' => ['servers' => 1], 'gates' => [], 'features' => [], 'active' => true,
+        ]);
+        $pro = Plan::create([
+            'name' => 'Unlimited Pro', 'slug' => 'unlimited-pro-admin-upgrade', 'monthly_price' => 9900, 'yearly_price' => 99900,
+            'currency' => 'USD', 'limits' => ['servers' => 'unlimited'], 'gates' => ['managed_servers' => true], 'features' => [], 'active' => false,
+        ]);
+        $tenant->subscriptions()->create(['plan_id' => $free->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+
+        $this->actingAs($admin)->get(route('admin.users'))
+            ->assertOk()
+            ->assertSee('Workspace plans')
+            ->assertSee('Save User & Plans', false)
+            ->assertSee('Unlimited Pro (hidden)');
+
+        $this->actingAs($admin)->put(route('admin.users.update', $customer), [
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'email_verified' => 1,
+            'subscriptions' => [
+                $tenant->id => ['plan_id' => $pro->id, 'status' => 'active', 'billing_cycle' => 'yearly'],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('success');
+
+        $subscription = $tenant->subscriptions()->latest('id')->firstOrFail();
+        $this->assertSame($pro->id, $subscription->plan_id);
+        $this->assertSame('yearly', $subscription->billing_cycle);
+        $this->assertSame('superadmin', $subscription->metadata['source']);
+        $this->assertSame($admin->id, $subscription->metadata['assigned_by']);
+    }
+
+    public function test_superadmin_has_unrestricted_plan_features_and_quotas(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $tenant = Tenant::create(['name' => 'Restricted Workspace']);
+        $plan = Plan::create([
+            'name' => 'Restricted', 'slug' => 'restricted-superadmin-test', 'monthly_price' => 0, 'yearly_price' => 0,
+            'currency' => 'USD', 'limits' => ['servers' => 0], 'gates' => ['managed_servers' => false], 'features' => [], 'active' => true,
+        ]);
+        $tenant->subscriptions()->create(['plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+
+        $this->actingAs($admin);
+        $limits = app(PlanLimitService::class);
+
+        $this->assertTrue($limits->allows($tenant, 'servers'));
+        $this->assertTrue($limits->allowsFeature($tenant, 'managed_servers'));
+        $limits->enforce($tenant, 'servers');
+        $limits->enforceFeature($tenant, 'managed_servers');
+    }
+
     public function test_superadmin_can_impersonate_a_customer_workspace_and_return_safely(): void
     {
         $admin = User::factory()->create(['name' => 'Support Admin', 'is_super_admin' => true]);

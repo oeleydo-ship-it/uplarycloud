@@ -44,7 +44,10 @@ class AdminController extends Controller
     {
         $users = User::query()->with(['tenants.latestSubscription.plan'])->withCount('tenants')->when($request->search, fn ($q, $v) => $q->where(fn ($q) => $q->where('name', 'like', "%$v%")->orWhere('email', 'like', "%$v%")))->latest()->paginate(15)->withQueryString();
 
-        return view('admin.users', compact('users'));
+        return view('admin.users', [
+            'users' => $users,
+            'plans' => Plan::orderBy('position')->get(),
+        ]);
     }
 
     public function storeUser(Request $request): RedirectResponse
@@ -58,11 +61,46 @@ class AdminController extends Controller
 
     public function updateUser(Request $request, User $user): RedirectResponse
     {
-        $data = $request->validate(['name' => 'required|string|max:100', 'email' => ['required', 'email', Rule::unique('users')->ignore($user)], 'is_super_admin' => 'nullable|boolean', 'email_verified' => 'nullable|boolean']);
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => ['required', 'email', Rule::unique('users')->ignore($user)],
+            'is_super_admin' => 'nullable|boolean',
+            'email_verified' => 'nullable|boolean',
+            'subscriptions' => 'nullable|array',
+            'subscriptions.*.plan_id' => ['required', Rule::exists('plans', 'id')],
+            'subscriptions.*.status' => ['required', Rule::in(['active', 'trialing', 'past_due', 'canceled'])],
+            'subscriptions.*.billing_cycle' => ['required', Rule::in(['monthly', 'yearly'])],
+        ]);
         abort_if($user->is($request->user()) && ! $request->boolean('is_super_admin'), 422, 'You cannot remove your own superadmin access.');
-        $user->update(['name' => $data['name'], 'email' => $data['email'], 'is_super_admin' => $request->boolean('is_super_admin'), 'email_verified_at' => $request->boolean('email_verified') ? ($user->email_verified_at ?? now()) : null]);
 
-        return back()->with('success', 'User updated.');
+        $subscriptions = $data['subscriptions'] ?? [];
+        $tenantIds = collect(array_keys($subscriptions))->map(fn ($id) => (int) $id)->filter()->values();
+        $userTenants = $user->tenants()->whereIn('tenants.id', $tenantIds)->get()->keyBy('id');
+        abort_unless($tenantIds->count() === $userTenants->count(), 422, 'A selected workspace does not belong to this user.');
+
+        DB::transaction(function () use ($user, $request, $data, $subscriptions, $userTenants): void {
+            $user->update([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'is_super_admin' => $request->boolean('is_super_admin'),
+                'email_verified_at' => $request->boolean('email_verified') ? ($user->email_verified_at ?? now()) : null,
+            ]);
+
+            foreach ($subscriptions as $tenantId => $subscriptionData) {
+                $tenant = $userTenants->get((int) $tenantId);
+                $current = $tenant->latestSubscription()->first();
+                $unchanged = $current
+                    && (int) $current->plan_id === (int) $subscriptionData['plan_id']
+                    && $current->status === $subscriptionData['status']
+                    && $current->billing_cycle === $subscriptionData['billing_cycle'];
+
+                if (! $unchanged) {
+                    $this->assignSubscription($tenant, $subscriptionData, $request->user()->id);
+                }
+            }
+        });
+
+        return back()->with('success', $subscriptions === [] ? 'User updated.' : 'User and workspace plans updated. New privileges and quotas are effective immediately.');
     }
 
     public function tenants(Request $request): View
@@ -80,25 +118,7 @@ class AdminController extends Controller
             'billing_cycle' => ['required', Rule::in(['monthly', 'yearly'])],
         ]);
 
-        DB::transaction(function () use ($tenant, $data, $request): void {
-            $now = now();
-            $tenant->subscriptions()->whereIn('status', ['active', 'trialing', 'past_due'])->update([
-                'status' => 'canceled',
-                'ended_at' => $now,
-            ]);
-
-            $periodEnd = $data['billing_cycle'] === 'yearly' ? $now->copy()->addYear() : $now->copy()->addMonth();
-            $tenant->subscriptions()->create([
-                'plan_id' => $data['plan_id'],
-                'status' => $data['status'],
-                'billing_cycle' => $data['billing_cycle'],
-                'trial_ends_at' => $data['status'] === 'trialing' ? $now->copy()->addDays(14) : null,
-                'current_period_starts_at' => $now,
-                'current_period_ends_at' => in_array($data['status'], ['active', 'trialing'], true) ? $periodEnd : null,
-                'ended_at' => $data['status'] === 'canceled' ? $now : null,
-                'metadata' => ['source' => 'superadmin', 'assigned_by' => $request->user()->id],
-            ]);
-        });
+        DB::transaction(fn () => $this->assignSubscription($tenant, $data, $request->user()->id));
 
         return back()->with('success', 'Workspace subscription updated. Quotas and feature gates are effective immediately.');
     }
@@ -163,6 +183,28 @@ class AdminController extends Controller
             'monthly_price' => (int) round($data['monthly_price'] * 100),
             'yearly_price' => (int) round($data['yearly_price'] * 100),
             'position' => $plan?->position ?? (Plan::max('position') + 1),
+        ]);
+    }
+
+    /** @param array{plan_id: mixed, status: string, billing_cycle: string} $data */
+    private function assignSubscription(Tenant $tenant, array $data, int $adminId): void
+    {
+        $now = now();
+        $tenant->subscriptions()->whereIn('status', ['active', 'trialing', 'past_due'])->update([
+            'status' => 'canceled',
+            'ended_at' => $now,
+        ]);
+
+        $periodEnd = $data['billing_cycle'] === 'yearly' ? $now->copy()->addYear() : $now->copy()->addMonth();
+        $tenant->subscriptions()->create([
+            'plan_id' => $data['plan_id'],
+            'status' => $data['status'],
+            'billing_cycle' => $data['billing_cycle'],
+            'trial_ends_at' => $data['status'] === 'trialing' ? $now->copy()->addDays(14) : null,
+            'current_period_starts_at' => $now,
+            'current_period_ends_at' => in_array($data['status'], ['active', 'trialing'], true) ? $periodEnd : null,
+            'ended_at' => $data['status'] === 'canceled' ? $now : null,
+            'metadata' => ['source' => 'superadmin', 'assigned_by' => $adminId],
         ]);
     }
 

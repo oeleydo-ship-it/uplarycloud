@@ -51,7 +51,6 @@
                                 ? route('servers.provisioning', $server)
                                 : route('servers.show', $server);
                             $hasAttachedApps = $server->application_deployments_count > 0;
-                            $destroyMessage = 'Remove '.$server->name.' from Uplary Cloud? Remote Docker data will not be deleted.';
                         @endphp
                         <div class="server-reference-row">
                             <a class="server-reference-primary" href="{{ route('servers.details', $server) }}">
@@ -144,11 +143,7 @@
                                                         <i data-lucide="trash-2"></i> Remove applications first
                                                     </span>
                                                 @else
-                                                    <form method="POST" action="{{ route('servers.destroy', $server) }}" onsubmit="return confirm(@js($destroyMessage))">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="is-danger"><i data-lucide="trash-2"></i> Destroy server</button>
-                                                    </form>
+                                                    <x-server-destroy-form :server="$server" />
                                                 @endif
                                             @endcan
                                         </div>

@@ -61,6 +61,12 @@ class Server extends Model
     public function infrastructureOperations(): HasMany { return $this->hasMany(InfrastructureOperation::class); }
     public function infrastructureCharges(): HasMany { return $this->hasMany(InfrastructureCharge::class); }
     public function isManaged(): bool { return $this->server_type === 'managed'; }
+    public function isByoCloud(): bool
+    {
+        return $this->server_type === 'byos'
+            && filled($this->provider_connection_id)
+            && filled($this->provider_resource_id);
+    }
 
     public static function liveIdQuery(int $tenantId): Builder
     {

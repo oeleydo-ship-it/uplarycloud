@@ -182,6 +182,41 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
         return ['resource_id' => $server->provider_resource_id, 'status' => 'deleted'];
     }
 
+    public function destroyWithAssociatedResources(Server $server): array
+    {
+        $connection = $this->connection($server);
+        $path = '/droplets/'.$server->provider_resource_id.'/destroy_with_associated_resources';
+
+        $this->client($connection)
+            ->withHeaders(['X-Dangerous' => 'true'])
+            ->delete($path.'/dangerous')
+            ->throw();
+
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            if ($attempt > 0) {
+                usleep(500000);
+            }
+
+            $status = $this->client($connection)->get($path.'/status')->throw()->json();
+            if (blank($status['completed_at'] ?? null)) {
+                continue;
+            }
+
+            if ((int) ($status['failures'] ?? 0) > 0) {
+                throw new RuntimeException('DigitalOcean could not destroy one or more associated resources. Check the provider account and retry.');
+            }
+
+            return [
+                'resource_id' => $server->provider_resource_id,
+                'status' => 'deleted',
+                'associated_resources' => $status['resources'] ?? [],
+                'completed_at' => $status['completed_at'],
+            ];
+        }
+
+        throw new RuntimeException('DigitalOcean accepted the destroy request but did not confirm completion in time.');
+    }
+
     private function image(string $image): string
     {
         return match ($image) {

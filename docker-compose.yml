@@ -56,7 +56,7 @@ services:
 
   queue:
     <<: *app
-    command: php artisan queue:work redis --queue=deployments,infrastructure,provisioning,networking,backups,notifications,monitoring,default --sleep=1 --tries=3 --backoff=10 --timeout=900
+    command: php artisan horizon
     stop_grace_period: 30s
 
   scheduler:

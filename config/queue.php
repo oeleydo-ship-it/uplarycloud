@@ -67,8 +67,8 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            // Must exceed the longest job timeout (deployments up to 900–1200s) or Redis will release mid-run jobs.
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 960),
+            // Must exceed the longest Horizon worker timeout or Redis may release a job mid-run.
+            'retry_after' => max(1320, (int) env('REDIS_QUEUE_RETRY_AFTER', 1320)),
             'block_for' => null,
             'after_commit' => false,
         ],

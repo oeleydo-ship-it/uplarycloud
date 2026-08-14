@@ -28,4 +28,10 @@ interface CloudProviderAdapterInterface
     public function rebuild(Server $server, string $image): array;
 
     public function destroy(Server $server): array;
+
+    /**
+     * Permanently destroy the instance and provider resources attached to it.
+     * This is reserved for an explicitly confirmed destructive user action.
+     */
+    public function destroyWithAssociatedResources(Server $server): array;
 }

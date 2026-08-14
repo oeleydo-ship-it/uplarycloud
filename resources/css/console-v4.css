@@ -31,6 +31,59 @@
 .admin-impersonate-form select { max-width: 180px; height: 32px; padding: 0 26px 0 8px; border: 1px solid var(--admin-border); border-radius: 6px; background: #fff; font-size: 12px; }
 .admin-support-button { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: #312e81; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 .admin-support-button svg { width: 13px; }
+.admin-dialog.admin-dialog--user { width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: 0 28px 90px rgb(15 23 42 / .24); }
+.admin-dialog.admin-dialog--user > form { padding: 0; gap: 0; }
+.admin-user-modal-head { min-height: 86px; padding: 20px 24px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #eef2f7; background: linear-gradient(135deg, #fff, #faf9ff); }
+.admin-user-modal-head > span { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #6c4cf5, #5134d6); box-shadow: 0 8px 20px rgb(108 76 245 / .22); }
+.admin-user-modal-head > span svg { width: 19px; }
+.admin-user-modal-head > div { min-width: 0; flex: 1; }
+.admin-user-modal-head h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
+.admin-user-modal-head p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+.admin-user-modal-head > button { width: 34px; height: 34px; border: 0; border-radius: 9px; display: grid; place-items: center; background: #f1f5f9; color: #64748b; cursor: pointer; }
+.admin-user-modal-head > button:hover { background: #e2e8f0; color: #0f172a; }
+.admin-user-modal-head > button svg { width: 16px; }
+.admin-user-modal-section { padding: 22px 24px; border-bottom: 1px solid #eef2f7; }
+.admin-user-section-title { margin-bottom: 15px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.admin-user-section-title h3 { margin: 0; font-size: 14px; }
+.admin-user-section-title p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
+.admin-user-section-title a { display: inline-flex; align-items: center; gap: 4px; color: #5b3ee4; font-size: 12px; font-weight: 700; text-decoration: none; }
+.admin-user-section-title a svg { width: 13px; }
+.admin-user-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.admin-user-form-grid label { gap: 7px; }
+.admin-user-form-grid label.is-wide { grid-column: 1 / -1; }
+.admin-user-form-grid input { min-height: 43px; }
+.admin-user-permissions { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-permission-card { min-height: 70px; padding: 13px; flex-direction: row !important; align-items: flex-start; gap: 10px !important; border: 1px solid #e2e8f0; border-radius: 11px; background: #f8fafc; cursor: pointer; }
+.admin-permission-card:has(input:checked) { border-color: #c4b5fd; background: #f5f3ff; }
+.admin-permission-card input { width: 16px !important; height: 16px !important; margin: 2px 0 0; flex: 0 0 auto; accent-color: #6c4cf5; }
+.admin-permission-card strong,.admin-permission-card small { display: block; }
+.admin-permission-card strong { font-size: 13px; }
+.admin-permission-card small { margin-top: 4px; color: #64748b; font-size: 11px; line-height: 1.45; }
+.admin-user-plan-section { background: #fbfcfe; }
+.admin-user-workspaces { display: grid; gap: 10px; }
+.admin-user-workspace { padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.admin-user-workspace-name { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.admin-user-workspace-name > span { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: #ede9fe; color: #6d4cf5; }
+.admin-user-workspace-name > span svg { width: 16px; }
+.admin-user-workspace-name strong,.admin-user-workspace-name small { display: block; }
+.admin-user-workspace-name strong { font-size: 13px; }
+.admin-user-workspace-name small { margin-top: 2px; color: #64748b; font-size: 11px; }
+.admin-user-plan-controls { display: grid; grid-template-columns: minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(120px, .8fr); gap: 10px; }
+.admin-user-plan-controls label { gap: 5px; }
+.admin-user-plan-controls label > span { color: #64748b; font-size: 11px; font-weight: 700; }
+.admin-user-plan-controls select { min-height: 39px; }
+.admin-user-modal-actions { min-height: 74px; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; }
+.admin-user-modal-actions > span { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 11px; }
+.admin-user-modal-actions > span svg { width: 14px; color: #6c4cf5; }
+.admin-user-modal-actions > div { display: flex; gap: 8px; }
+.admin-dialog.admin-dialog--new-user { width: min(650px, calc(100vw - 32px)); }
+@media (max-width: 700px) {
+    .admin-user-form-grid,.admin-user-permissions,.admin-user-plan-controls { grid-template-columns: 1fr; }
+    .admin-user-form-grid label.is-wide { grid-column: auto; }
+    .admin-user-modal-head,.admin-user-modal-section,.admin-user-modal-actions { padding-left: 16px; padding-right: 16px; }
+    .admin-user-modal-actions { align-items: stretch; flex-direction: column; }
+    .admin-user-modal-actions > div { display: grid; grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 1100px) {
     .admin-table-card { overflow-x: auto; }
     .admin-table-card table { min-width: 1050px; }

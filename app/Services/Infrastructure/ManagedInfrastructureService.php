@@ -87,6 +87,21 @@ class ManagedInfrastructureService
         ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.'.$operation->action, 'description' => $server->name.' '.$operation->action.' completed', 'subject_type' => Server::class, 'subject_id' => $server->id]);
     }
 
+    public function destroyByoCloud(Server $server): array
+    {
+        if (! $server->isByoCloud()) {
+            throw new RuntimeException('This server is not linked to a customer cloud API resource.');
+        }
+
+        $server->loadMissing('providerConnection');
+        $connection = $server->providerConnection;
+        if (! $connection || $connection->tenant_id !== $server->tenant_id || $connection->platform_managed) {
+            throw new RuntimeException('The customer cloud API connection is missing or invalid.');
+        }
+
+        return $this->providers->make($connection)->destroyWithAssociatedResources($server);
+    }
+
     public function fail(InfrastructureOperation $operation, \Throwable $exception): void
     {
         $server = $operation->server()->first();

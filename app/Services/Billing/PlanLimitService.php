@@ -7,7 +7,9 @@ use App\Models\DockerVolume;
 use App\Models\PersonalAccessToken;
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Support\PlanCatalog;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class PlanLimitService
@@ -61,6 +63,10 @@ class PlanLimitService
 
     public function allows(Tenant $tenant, string $metric, float $additional = 1): bool
     {
+        if ($this->hasSuperadminPrivilege()) {
+            return true;
+        }
+
         $limit = $this->plan($tenant)->limit($metric);
 
         return $limit === null || $this->usage($tenant, $metric) + $additional <= $limit;
@@ -83,6 +89,10 @@ class PlanLimitService
 
     public function allowsFeature(Tenant $tenant, string $feature): bool
     {
+        if ($this->hasSuperadminPrivilege()) {
+            return true;
+        }
+
         return $this->plan($tenant)->allowsFeature($feature);
     }
 
@@ -120,5 +130,17 @@ class PlanLimitService
         }
 
         return fmod($value, 1.0) === 0.0 ? (string) (int) $value : number_format($value, 1);
+    }
+
+    private function hasSuperadminPrivilege(): bool
+    {
+        if (Auth::user()?->is_super_admin) {
+            return true;
+        }
+
+        $impersonatorId = session()->get('impersonator_id');
+
+        return filled($impersonatorId)
+            && User::query()->whereKey($impersonatorId)->where('is_super_admin', true)->exists();
     }
 }
