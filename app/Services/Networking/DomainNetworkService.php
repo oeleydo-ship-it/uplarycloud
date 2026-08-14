@@ -7,6 +7,7 @@ use App\Contracts\Networking\DnsResolverInterface;
 use App\Events\DomainStatusChanged;
 use App\Exceptions\RemoteCommandException;
 use App\Models\Domain;
+use App\Models\Server;
 use App\Support\RemoteShell;
 use RuntimeException;
 use Throwable;
@@ -173,7 +174,10 @@ class DomainNetworkService
 
         // Best-effort: missing Traefik files / already-absent routes must not block DB delete.
         try {
-            $this->executor->execute($domain->server, 'rm -f '.RemoteShell::quote($this->remoteRoutePath($domain)));
+            $this->executor->execute($domain->server, $this->sudo(
+                $domain->server,
+                'rm -f '.RemoteShell::quote($this->remoteRoutePath($domain))
+            ));
             $this->purgeStaleHostnameRoutes($domain);
         } catch (RemoteCommandException $exception) {
             report($exception);
@@ -280,15 +284,21 @@ class DomainNetworkService
             $dynamic = rtrim((string) config('networking.proxy_dynamic_path'), '/');
             $certificates = config('networking.proxy_certificates_volume');
 
-            $this->executor->execute($server, 'docker network inspect '.RemoteShell::quote($network).' >/dev/null 2>&1 || docker network create '.RemoteShell::quote($network));
-            $this->executor->execute($server, 'mkdir -p '.RemoteShell::quote($dynamic).' && (docker volume inspect '.RemoteShell::quote($certificates).' >/dev/null 2>&1 || docker volume create '.RemoteShell::quote($certificates).')');
+            $this->executor->execute($server, $this->sudo(
+                $server,
+                'docker network inspect '.RemoteShell::quote($network).' >/dev/null 2>&1 || docker network create '.RemoteShell::quote($network)
+            ));
+            $this->executor->execute($server, $this->sudo(
+                $server,
+                'install -d -m 0750 '.RemoteShell::quote($dynamic).' && (docker volume inspect '.RemoteShell::quote($certificates).' >/dev/null 2>&1 || docker volume create '.RemoteShell::quote($certificates).')'
+            ));
 
             // A proxy installed during provisioning has no file provider, so adopt it
             // by recreating it with the routing and ACME flags this service depends on.
             $run = $this->proxyRunCommand($name, $network, $dynamic, $certificates);
             $this->executor->execute(
                 $server,
-                'if docker inspect --format '.RemoteShell::quote('{{json .Args}}').' '.RemoteShell::quote($name).' 2>/dev/null | grep -q providers.file.directory && docker inspect --format '.RemoteShell::quote('{{json .Args}}').' '.RemoteShell::quote($name).' 2>/dev/null | grep -qF '.RemoteShell::quote('acme.email='.$this->acmeEmail()).'; then :; else docker rm -f '.RemoteShell::quote($name).' >/dev/null 2>&1 || true; '.$run.'; fi',
+                $this->sudo($server, 'if docker inspect --format '.RemoteShell::quote('{{json .Args}}').' '.RemoteShell::quote($name).' 2>/dev/null | grep -q providers.file.directory && docker inspect --format '.RemoteShell::quote('{{json .Args}}').' '.RemoteShell::quote($name).' 2>/dev/null | grep -qF '.RemoteShell::quote('acme.email='.$this->acmeEmail()).'; then :; else docker rm -f '.RemoteShell::quote($name).' >/dev/null 2>&1 || true; '.$run.'; fi'),
                 180
             );
         }
@@ -405,7 +415,16 @@ class DomainNetworkService
         }
         file_put_contents($local, $this->routeConfiguration($domain), LOCK_EX);
         try {
-            $this->executor->upload($domain->server, $local, $this->remoteRoutePath($domain));
+            $temporary = '/tmp/uplary-route-'.$domain->uuid.'.yml';
+            $destination = $this->remoteRoutePath($domain);
+            $this->executor->upload($domain->server, $local, $temporary);
+            $this->executor->execute(
+                $domain->server,
+                $this->sudo(
+                    $domain->server,
+                    'install -m 0640 '.RemoteShell::quote($temporary).' '.RemoteShell::quote($destination).' && rm -f '.RemoteShell::quote($temporary)
+                )
+            );
             $network = config('networking.proxy_network');
             $this->executor->execute(
                 $domain->server,
@@ -428,12 +447,19 @@ class DomainNetworkService
         // grep exits 1 when the hostname is absent from a file; that is not a failure for purge.
         $this->executor->execute(
             $domain->server,
-            'for f in '.RemoteShell::quote($dynamic).'/*.yml; do '
+            $this->sudo($domain->server, 'for f in '.RemoteShell::quote($dynamic).'/*.yml; do '
             .'[ -f "$f" ] || continue; '
             .'[ "$f" = '.RemoteShell::quote($keep).' ] && continue; '
             .'grep -Fq '.RemoteShell::quote($needle).' "$f" && rm -f "$f"; '
-            .'done; true'
+            .'done; true')
         );
+    }
+
+    private function sudo(Server $server, string $command): string
+    {
+        return strcasecmp((string) $server->ssh_username, 'root') === 0
+            ? $command
+            : 'sudo -n sh -c '.RemoteShell::quote($command);
     }
 
     private function routeConfiguration(Domain $domain): string

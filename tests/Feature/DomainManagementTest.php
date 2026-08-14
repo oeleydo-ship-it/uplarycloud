@@ -14,6 +14,7 @@ use App\Models\Server;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Infrastructure\FakeServerExecutor;
+use App\Services\Networking\AcmeEmailResolver;
 use App\Services\Networking\DomainNetworkService;
 use App\Services\Networking\FakeDnsResolver;
 use App\Services\Networking\SystemDnsResolver;
@@ -80,6 +81,62 @@ class DomainManagementTest extends TestCase
         $this->assertTrue($domain->certificate_expires_at->isFuture());
         $this->assertTrue($domain->hasValidSsl());
         $this->assertSame('running', $server->refresh()->proxy_status);
+    }
+
+    public function test_real_domain_setup_uses_sudo_and_stages_route_upload_for_non_root_user(): void
+    {
+        config([
+            'infrastructure.driver' => 'ssh',
+            'networking.acme_email' => 'certificates@uplary.com',
+        ]);
+        [$user, $tenant, $server, $deployment] = $this->owner();
+        $server->update(['ssh_username' => 'ubuntu']);
+        $domain = $this->domain($tenant, $server->refresh(), $deployment, $user);
+        $domain->update(['dns_status' => 'verified']);
+
+        $executor = new class implements ServerExecutorInterface
+        {
+            public array $commands = [];
+            public array $uploads = [];
+
+            public function test(Server $server): array
+            {
+                return ['success' => true, 'message' => 'ok', 'system' => []];
+            }
+
+            public function execute(Server $server, string $command, ?int $timeoutSeconds = null): string
+            {
+                $this->commands[] = $command;
+
+                return '';
+            }
+
+            public function upload(Server $server, string $localPath, string $remotePath): void
+            {
+                $this->uploads[] = $remotePath;
+            }
+
+            public function download(Server $server, string $remotePath, string $localPath): void {}
+        };
+
+        $service = new DomainNetworkService(
+            app(DnsResolverInterface::class),
+            $executor,
+            app(AcmeEmailResolver::class),
+        );
+        $service->configure($domain->refresh());
+
+        $this->assertCount(1, $executor->uploads);
+        $this->assertStringStartsWith('/tmp/uplary-route-', $executor->uploads[0]);
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_starts_with($command, 'sudo -n sh -c ')
+                && str_contains($command, 'install -d -m 0750')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_starts_with($command, 'sudo -n sh -c ')
+                && str_contains($command, 'install -m 0640')
+                && str_contains($command, '/opt/uplary/traefik/dynamic')
+        ));
     }
 
     public function test_dns_mismatch_remains_pending_and_exposes_observed_values(): void
