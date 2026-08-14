@@ -29,3 +29,17 @@
         {{ $destroysRemoteResources ? 'Destroy server & remote data' : 'Destroy server' }}
     </button>
 </form>
+
+@if($destroysRemoteResources)
+    <form method="POST" action="{{ route('servers.destroy', $server) }}"
+        onsubmit="const expected = @js($server->name); const entered = window.prompt(@js('Use this only if the cloud server was already deleted directly at the provider. This removes the stale Uplary record without calling the provider. Type the server name exactly to confirm: '.$server->name), ''); if (entered !== expected) { if (entered !== null) window.alert('The server name did not match. Nothing was removed.'); return false; } this.elements.confirmation.value = entered; return true;">
+        @csrf
+        @method('DELETE')
+        <input type="hidden" name="remote_already_deleted" value="1">
+        <input type="hidden" name="confirmation" value="">
+        <button type="submit">
+            <i data-lucide="unlink"></i>
+            Remove local record only
+        </button>
+    </form>
+@endif

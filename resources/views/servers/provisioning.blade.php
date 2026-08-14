@@ -145,12 +145,13 @@
                         method="post"
                         action="{{ route('servers.provisioning.retry', $server) }}"
                         :action="retryUrl"
+                        @submit="if (submitting) { $event.preventDefault(); return; } submitting = true; canStart = false"
                         @if(! $canStart) style="display:none" @endif
                         x-show="canStart"
                         x-cloak
                     >
                         @csrf
-                        <button type="submit" class="button button--primary" x-text="actionLabel">{{ $actionLabel }}</button>
+                        <button type="submit" class="button button--primary" :disabled="submitting || !canStart" x-text="submitting ? 'Queueingâ€¦' : actionLabel">{{ $actionLabel }}</button>
                     </form>
                 </article>
             </aside>
@@ -166,6 +167,7 @@
                 completedCount: 0,
                 activeStepLabel: '',
                 timer: null,
+                submitting: false,
                 status: config.status,
                 canStart: config.canStart,
                 actionLabel: config.actionLabel,

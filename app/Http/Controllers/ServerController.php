@@ -229,34 +229,47 @@ class ServerController extends Controller
         $name = $server->name;
         $ipAddress = $server->ip_address;
         $destroysRemoteResources = $server->isByoCloud();
+        $remoteAlreadyDeleted = $destroysRemoteResources && $request->boolean('remote_already_deleted');
         $providerResult = null;
 
         if ($destroysRemoteResources) {
-            $request->validate([
-                'destroy_remote' => ['required', 'accepted'],
-                'confirmation' => ['required', 'string', Rule::in([$ipAddress])],
-            ], [
-                'confirmation.in' => 'Type the server IP address exactly to confirm permanent destruction.',
-            ]);
+            if ($remoteAlreadyDeleted) {
+                $request->validate([
+                    'remote_already_deleted' => ['required', 'accepted'],
+                    'confirmation' => ['required', 'string', Rule::in([$name])],
+                ], [
+                    'confirmation.in' => 'Type the server name exactly to remove its stale local record.',
+                ]);
+                $providerResult = ['status' => 'already_deleted_at_provider'];
+            } else {
+                $request->validate([
+                    'destroy_remote' => ['required', 'accepted'],
+                    'confirmation' => ['required', 'string', Rule::in([$ipAddress])],
+                ], [
+                    'confirmation.in' => 'Type the server IP address exactly to confirm permanent destruction.',
+                ]);
 
-            try {
-                $providerResult = $infrastructure->destroyByoCloud($server);
-            } catch (Throwable $exception) {
-                report($exception);
+                try {
+                    $providerResult = $infrastructure->destroyByoCloud($server);
+                } catch (Throwable $exception) {
+                    report($exception);
 
-                return redirect()
-                    ->route('servers.index')
-                    ->with('error', 'The cloud provider did not confirm destruction of '.$name.'. Nothing was removed from Uplary. '.$exception->getMessage());
+                    return redirect()
+                        ->route('servers.index')
+                        ->with('error', 'The cloud provider did not confirm destruction of '.$name.'. Nothing was removed from Uplary. If it was already deleted at the provider, use "Remove local record only". '.$exception->getMessage());
+                }
             }
         }
 
-        DB::transaction(function () use ($server, $request, $context, $cleanup, $destroysRemoteResources, $providerResult): void {
+        DB::transaction(function () use ($server, $request, $context, $cleanup, $destroysRemoteResources, $remoteAlreadyDeleted, $providerResult): void {
             ActivityLog::create([
                 'tenant_id' => $context->id(),
                 'user_id' => $request->user()->id,
                 'action' => 'server.deleted',
                 'description' => $destroysRemoteResources
-                    ? $server->name.' and its associated remote cloud resources permanently destroyed'
+                    ? ($remoteAlreadyDeleted
+                        ? $server->name.' stale control-plane record removed after provider deletion'
+                        : $server->name.' and its associated remote cloud resources permanently destroyed')
                     : $server->name.' removed from the control plane',
                 'subject_type' => Server::class,
                 'subject_id' => $server->id,
@@ -265,6 +278,7 @@ class ServerController extends Controller
                     'provider' => $server->provider->value,
                     'provider_resource_id' => $server->provider_resource_id,
                     'server_ip_address' => $server->ip_address,
+                    'remote_already_deleted' => $remoteAlreadyDeleted,
                     'provider_result' => $providerResult,
                 ] : null,
             ]);
@@ -274,7 +288,9 @@ class ServerController extends Controller
         });
 
         $message = $destroysRemoteResources
-            ? $name.' ('.$ipAddress.') and its associated remote data were permanently destroyed. Its provider IP addresses were released.'
+            ? ($remoteAlreadyDeleted
+                ? $name.' was already deleted at the provider. Its stale Uplary record and local inventory were removed.'
+                : $name.' ('.$ipAddress.') and its associated remote data were permanently destroyed. Its provider IP addresses were released.')
             : $name.' was removed from the control plane. Persistent remote data was not deleted.';
 
         return redirect()->route('servers.index')->with('success', $message);

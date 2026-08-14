@@ -55,6 +55,8 @@ If a deployment stays **Queued** with empty logs, use **Retry queue** on the dep
 
 `docker-compose.yml` provides PHP 8.5 FPM, Nginx, MySQL 8, Redis 7, Laravel Horizon, the Laravel scheduler, and a Reverb WebSocket server. In production, keep `php artisan horizon` running under Supervisor or the hosting platform's process manager. Do not also run `queue:work`: Horizon owns all application queues, including the dedicated `infrastructure` and `provisioning` workers. Run `php artisan horizon:terminate` after each deployment so the process manager restarts Horizon with the latest code and configuration.
 
+The Superadmin **Platform Services** page can show status and start, stop, or restart Horizon and Reverb through Supervisor. Start with [`deploy/supervisor/upentra-services.conf.example`](deploy/supervisor/upentra-services.conf.example), adjust its paths, and configure the programs as `upentra-horizon` and `upentra-reverb` (or override `PLATFORM_HORIZON_PROGRAM` and `PLATFORM_REVERB_PROGRAM`). Grant the PHP user access to those exact `supervisorctl` status/start/stop/restart commands. If that access uses passwordless sudo, set `PLATFORM_SUPERVISORCTL_USE_SUDO=true`; commands run non-interactively with `sudo -n`. Set `PLATFORM_SERVICE_CONTROL_ENABLED=false` when web-based service control is not desired.
+
 ```bash
 docker compose up --build -d
 docker compose exec app php artisan migrate --force

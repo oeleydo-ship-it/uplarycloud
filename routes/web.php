@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\CloudInfrastructureController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\MarketingPageController;
+use App\Http\Controllers\Admin\PlatformServiceController;
 use App\Http\Controllers\Admin\SeoController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\ApiTokenController;
@@ -228,6 +229,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'superadmin'])->grou
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::put('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+    Route::get('/services', [PlatformServiceController::class, 'index'])->name('services');
+    Route::post('/services/{service}/{action}', [PlatformServiceController::class, 'control'])->middleware('throttle:12,1')->name('services.control');
     Route::get('/branding', [BrandingController::class, 'edit'])->name('branding');
     Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
     Route::get('/public-pages', [MarketingPageController::class, 'index'])->name('marketing-pages.index');

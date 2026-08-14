@@ -468,10 +468,10 @@ class ManagedInfrastructureTest extends TestCase
         $server->refresh();
         $this->assertNotSame('0.0.0.0', $server->ip_address);
         $this->assertNotNull($server->provider_resource_id);
-        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\ProvisionServerJob::class, fn ($job) => $job->server->is($server));
+        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\ProvisionServerJob::class, fn ($job) => $job->server->is($server) && $job->delay === null);
     }
 
-    public function test_start_provisioning_queues_cloud_create_when_droplet_has_no_ip(): void
+    public function test_pending_cloud_create_disables_manual_retry_and_does_not_queue_a_duplicate_job(): void
     {
         \Illuminate\Support\Facades\Bus::fake();
         [$owner, $tenant] = $this->workspace();
@@ -493,10 +493,57 @@ class ManagedInfrastructureTest extends TestCase
 
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
             ->post(route('servers.provisioning.retry', $server))
-            ->assertRedirect(route('servers.provisioning', $server));
+            ->assertStatus(409);
 
-        \Illuminate\Support\Facades\Bus::assertDispatched(CreateManagedServerJob::class, fn ($job) => $job->operationId === $operation->id);
+        \Illuminate\Support\Facades\Bus::assertNotDispatched(CreateManagedServerJob::class);
         \Illuminate\Support\Facades\Bus::assertNotDispatched(\App\Jobs\ProvisionServerJob::class);
+
+        config()->set('queue.default', 'sync');
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->getJson(route('servers.provisioning.status', $server))
+            ->assertOk()
+            ->assertJsonPath('needs_attention', false);
+    }
+
+    public function test_cloud_create_retry_polls_existing_provider_resource_instead_of_creating_another(): void
+    {
+        Http::fake(['api.digitalocean.com/v2/droplets/592366992' => Http::response(['droplet' => [
+            'id' => 592366992,
+            'status' => 'active',
+            'networks' => ['v4' => [['type' => 'public', 'ip_address' => '203.0.113.91']]],
+        ]], 200)]);
+        [$owner, $tenant] = $this->workspace();
+        $connection = $this->tenantConnection($tenant);
+        $server = Server::create([
+            'tenant_id' => $tenant->id,
+            'provider_connection_id' => $connection->id,
+            'name' => 'Existing Pending Droplet',
+            'provider' => 'digitalocean',
+            'provider_resource_id' => '592366992',
+            'provider_region' => 'fra1',
+            'provider_image' => 'ubuntu-24.04',
+            'ip_address' => '0.0.0.0',
+            'operating_system' => 'ubuntu-24.04',
+            'server_type' => 'byos',
+            'status' => 'pending',
+            'authentication_method' => 'ssh_key',
+            'cpu_cores' => 1,
+            'memory_mb' => 1024,
+            'disk_gb' => 25,
+        ]);
+        $operation = $this->operation($server, $owner, 'create', [
+            'billing' => false,
+            'plan' => 's-1vcpu-1gb',
+        ]);
+
+        app(ManagedInfrastructureService::class)->create($operation);
+
+        $this->assertSame('592366992', $server->fresh()->provider_resource_id);
+        $this->assertSame('203.0.113.91', $server->fresh()->ip_address);
+        $this->assertSame('completed', $operation->fresh()->status);
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request) => $request->method() === 'GET'
+            && $request->url() === 'https://api.digitalocean.com/v2/droplets/592366992');
     }
 
     private function enableManagedServers(): void

@@ -42,8 +42,9 @@ class CreateManagedServerJob implements ShouldQueue, ShouldBeUnique
 
         try {
             $service->create($operation);
-            ProvisionServerJob::dispatch($operation->server->fresh())
-                ->delay(now()->addSeconds(45));
+            // Queue immediately. ProvisionServerJob reports SSH/cloud-init readiness in
+            // the live log and uses backoff retries until the new host is reachable.
+            ProvisionServerJob::dispatch($operation->server->fresh());
         } catch (Throwable $e) {
             $service->fail($operation, $e);
             throw $e;

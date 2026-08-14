@@ -183,6 +183,12 @@ class ServerProvisioningController extends Controller
 
     private function needsAttention(Server $server, ServerProvisionVerifier $verifier): bool
     {
+        // Recovery keeps this job queued automatically. Do not expose a manual retry
+        // while the remote cloud instance is still pending or being created.
+        if ($this->cloudCreatePending($server)) {
+            return false;
+        }
+
         // Action needed only when the user must start/retry — not while provisioning is actively running.
         if (in_array($server->status, [ServerStatus::Failed, ServerStatus::Pending], true)) {
             return true;

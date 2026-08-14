@@ -1,0 +1,25 @@
+[program:upentra-horizon]
+process_name=%(program_name)s
+command=php /var/www/upentra/artisan horizon
+directory=/var/www/upentra
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/upentra/storage/logs/horizon.log
+stopwaitsecs=1300
+
+[program:upentra-reverb]
+process_name=%(program_name)s
+command=php /var/www/upentra/artisan reverb:start --host=0.0.0.0 --port=8080
+directory=/var/www/upentra
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/upentra/storage/logs/reverb.log
+stopwaitsecs=30

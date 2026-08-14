@@ -32,7 +32,7 @@
         </section>
 
         <section x-show="mode === 'cloud'" x-cloak class="cloud-server-layout">
-            <form method="POST" action="{{ route('servers.cloud.store') }}" class="card cloud-server-form" @submit="cloudSubmitting=true">
+            <form method="POST" action="{{ route('servers.cloud.store') }}" class="card cloud-server-form" @submit="if (cloudSubmitting) { $event.preventDefault(); return; } cloudSubmitting=true">
                 @csrf
                 <div class="add-server-card-head add-server-card-head--icon">
                     <span class="section-icon"><i data-lucide="cloud"></i></span>

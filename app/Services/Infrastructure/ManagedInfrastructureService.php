@@ -26,20 +26,34 @@ class ManagedInfrastructureService
             return;
         }
 
-        if (filled($server->provider_resource_id) && $server->ip_address !== '0.0.0.0') {
-            $this->complete($operation, [
-                'resource_id' => $server->provider_resource_id,
-                'ip_address' => $server->ip_address,
-            ], 'Managed server created. SSH and Docker provisioning are queued.');
-
-            return;
-        }
-
         $plan = $this->planFor($server, $parameters);
         $adapter = $this->providers->make($server->providerConnection);
         $this->start($operation, 'Requesting a new '.$plan->name.' managed server.');
-        $result = $adapter->create($server, $plan, ['region' => $server->provider_region, 'image' => $server->provider_image, 'user_data' => $this->cloudInit($parameters['public_key'] ?? null)]);
-        $server->update(['provider_resource_id' => $result['resource_id'], 'ip_address' => $result['ip_address'], 'status' => ServerStatus::Provisioning, 'provider_created_at' => now(), 'failure_reason' => null]);
+
+        // A provider ID means the remote server already exists. A previous attempt may
+        // have timed out while waiting for its public IP; retrying must poll that same
+        // resource instead of charging the customer for another cloud server.
+        if (filled($server->provider_resource_id)) {
+            $result = $adapter->status($server);
+            $server->update([
+                'ip_address' => $result['ip_address'] ?? $server->ip_address,
+                'status' => ServerStatus::Provisioning,
+                'failure_reason' => null,
+            ]);
+        } else {
+            $result = $adapter->create($server, $plan, [
+                'region' => $server->provider_region,
+                'image' => $server->provider_image,
+                'user_data' => $this->cloudInit($parameters['public_key'] ?? null),
+            ]);
+            $server->update([
+                'provider_resource_id' => $result['resource_id'],
+                'ip_address' => $result['ip_address'],
+                'status' => ServerStatus::Provisioning,
+                'provider_created_at' => now(),
+                'failure_reason' => null,
+            ]);
+        }
         if ($server->ip_address === '0.0.0.0') {
             for ($attempt = 0; $attempt < 15; $attempt++) {
                 sleep(2);

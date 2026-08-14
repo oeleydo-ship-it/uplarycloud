@@ -19,7 +19,7 @@
         </div>
 
         <section class="cloud-server-layout">
-            <form method="POST" action="{{ route('managed.servers.store') }}" class="card cloud-server-form" @submit="cloudSubmitting=true">
+            <form method="POST" action="{{ route('managed.servers.store') }}" class="card cloud-server-form" @submit="if (cloudSubmitting) { $event.preventDefault(); return; } cloudSubmitting=true">
                 @csrf
                 <div class="add-server-card-head add-server-card-head--icon">
                     <span class="section-icon"><i data-lucide="cloud-cog"></i></span>
