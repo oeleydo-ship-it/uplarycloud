@@ -71,7 +71,6 @@ class ApplicationCatalogExpansionSeeder extends Seeder
 
             // Other useful free OSS
             ['MinIO','minio','storage','S3-compatible high-performance object storage.','hard-drive','#c72e49','minio/minio','latest',9001,1024,20,true,'open_source','AGPL-3.0','free',null,false,'https://min.io/','https://min.io/docs/minio/container/index.html',['/data']],
-            ['NocoDB','nocodb','databases','Open-source Airtable alternative on top of your SQL databases.','table','#249fca','nocodb/nocodb','latest',8080,1024,5,false,'open_source','AGPL-3.0','free',null,false,'https://nocodb.com/','https://docs.nocodb.com/',['/usr/app/data']],
             ['FreshRSS','freshrss','communication','Self-hosted RSS aggregator for following publishers and blogs.','rss','#0062be','freshrss/freshrss','latest',80,256,1,false,'open_source','AGPL-3.0','free',null,false,'https://freshrss.org/','https://freshrss.github.io/FreshRSS/en/admins/02_Installation.html',['/var/www/FreshRSS/data']],
             ['Keycloak','keycloak','security','Open-source identity and access management.','key-round','#4d4d4d','quay.io/keycloak/keycloak','26.0',8080,1024,2,false,'open_source','Apache-2.0','free',null,false,'https://www.keycloak.org/','https://www.keycloak.org/server/containers',['/opt/keycloak/data']],
         ];

@@ -205,13 +205,56 @@ class DockerService
 
     public function removeVolume(DockerVolume $volume): void
     {
-        if ($volume->containers()->exists()) {
-            throw new RuntimeException('Detach all containers before removing this persistent volume.');
-        }
+        $volume->loadMissing('server');
+
         if (config('infrastructure.driver') !== 'fake') {
+            $this->removeHostContainersUsingVolume($volume);
             $this->executor->execute($volume->server, 'docker volume rm '.RemoteShell::quote($volume->docker_name));
         }
+
+        $volume->containers()->detach();
         $volume->delete();
+    }
+
+    /**
+     * Docker may still have containers referencing a volume after the control-plane
+     * inventory dropped the pivot link (failed deploy, manual docker rm, etc.).
+     */
+    private function removeHostContainersUsingVolume(DockerVolume $volume): void
+    {
+        $filterName = RemoteShell::quote($volume->docker_name);
+        $raw = trim($this->executor->execute(
+            $volume->server,
+            'docker ps -a --filter volume='.$filterName.' --format '.RemoteShell::quote('{{.ID}}'),
+            $this->commandTimeout()
+        ));
+
+        foreach (preg_split("/\r\n|\n|\r/", $raw) ?: [] as $dockerId) {
+            $dockerId = trim($dockerId);
+            if ($dockerId === '' || str_starts_with($dockerId, '[fake]')) {
+                continue;
+            }
+
+            $this->executor->execute(
+                $volume->server,
+                'docker rm -f '.RemoteShell::quote($dockerId),
+                $this->commandTimeout()
+            );
+
+            $shortId = substr($dockerId, 0, 12);
+            DockerContainer::query()
+                ->where('tenant_id', $volume->tenant_id)
+                ->where('server_id', $volume->server_id)
+                ->where(function ($query) use ($dockerId, $shortId): void {
+                    $query->where('docker_id', $dockerId)
+                        ->orWhere('docker_id', $shortId);
+                })
+                ->get()
+                ->each(function (DockerContainer $container) use ($volume): void {
+                    $volume->containers()->detach($container->id);
+                    $container->delete();
+                });
+        }
     }
 
     public function removeNetwork(DockerNetwork $network): void

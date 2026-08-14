@@ -422,6 +422,57 @@ class DockerManagementTest extends TestCase
         $this->assertDatabaseHas('docker_volumes',['id'=>$volume->id,'deleted_at'=>null]);$this->assertDatabaseHas('docker_images',['id'=>$image->id,'deleted_at'=>null]);
     }
 
+    public function test_volume_removal_stops_orphan_containers_still_using_the_volume_on_the_host(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [$user, $tenant, $server] = $this->setupOwner();
+        $volume = DockerVolume::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'docker_name' => 'nocodb-fvbx0-data',
+            'name' => 'NocoDB Data',
+        ]);
+
+        $executor = new class extends \App\Services\Infrastructure\FakeServerExecutor
+        {
+            /** @var list<string> */
+            public array $commands = [];
+
+            public function execute(\App\Models\Server $server, string $command, ?int $timeoutSeconds = null): string
+            {
+                $this->commands[] = $command;
+
+                if (str_contains($command, 'docker ps -a --filter volume=')) {
+                    return "ef16c3db5ce5154de8f4570aa7a84904b6b48a388b303db18d5f5fca2e55d507\n";
+                }
+
+                if (str_starts_with($command, 'docker rm -f ')) {
+                    return '';
+                }
+
+                if (str_starts_with($command, 'docker volume rm ')) {
+                    return '';
+                }
+
+                return parent::execute($server, $command, $timeoutSeconds);
+            }
+        };
+        $this->app->instance(\App\Contracts\Infrastructure\ServerExecutorInterface::class, $executor);
+
+        app(DockerService::class)->removeVolume($volume);
+
+        $this->assertSoftDeleted($volume);
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, "docker ps -a --filter volume='nocodb-fvbx0-data'")
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_starts_with($command, 'docker rm -f ')
+        ));
+        $this->assertTrue(collect($executor->commands)->contains(
+            fn (string $command) => str_contains($command, "docker volume rm 'nocodb-fvbx0-data'")
+        ));
+    }
+
     public function test_image_inventory_links_applications_containers_and_volumes(): void
     {
         [$user,$tenant,$server]=$this->setupOwner();
