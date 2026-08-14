@@ -19,7 +19,13 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
             ->withToken($connection->api_token)
             ->acceptJson()
             ->timeout(45)
-            ->retry(2, 500);
+            ->retry(2, 500, function ($exception): bool {
+                if ($exception instanceof RequestException && $exception->response->status() === 404) {
+                    return false;
+                }
+
+                return true;
+            }, throw: false);
     }
 
     private function connection(Server $server): ProviderConnection
@@ -178,7 +184,12 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
 
     public function destroy(Server $server): array
     {
-        $this->client($this->connection($server))->delete('/droplets/'.$server->provider_resource_id)->throw();
+        $response = $this->client($this->connection($server))->delete('/droplets/'.$server->provider_resource_id);
+        if ($response->notFound()) {
+            return $this->alreadyDeletedResult($server);
+        }
+
+        $response->throw();
 
         return ['resource_id' => $server->provider_resource_id, 'status' => 'deleted'];
     }
@@ -187,6 +198,10 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
     {
         $connection = $this->connection($server);
         $path = '/droplets/'.$server->provider_resource_id.'/destroy_with_associated_resources';
+
+        if (! $this->dropletExists($connection, $server)) {
+            return $this->alreadyDeletedResult($server);
+        }
 
         try {
             $destroyResponse = $this->client($connection)
@@ -206,9 +221,19 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
 
         $destroyResponse->throw();
 
-        for ($attempt = 0; $attempt < 20; $attempt++) {
+        for ($attempt = 0; $attempt < 30; $attempt++) {
             if ($attempt > 0) {
-                usleep(500000);
+                sleep(1);
+            }
+
+            if (! $this->dropletExists($connection, $server)) {
+                return [
+                    'resource_id' => $server->provider_resource_id,
+                    'status' => 'deleted',
+                    'associated_resources' => [],
+                    'completed_at' => now()->toIso8601String(),
+                    'confirmed_by' => 'droplet_absence',
+                ];
             }
 
             try {
@@ -242,7 +267,29 @@ class DigitalOceanAdapter implements CloudProviderAdapterInterface
             ];
         }
 
-        throw new RuntimeException('DigitalOcean accepted the destroy request but did not confirm completion in time.');
+        if (! $this->dropletExists($connection, $server)) {
+            return [
+                'resource_id' => $server->provider_resource_id,
+                'status' => 'deleted',
+                'associated_resources' => [],
+                'completed_at' => now()->toIso8601String(),
+                'confirmed_by' => 'droplet_absence_after_wait',
+            ];
+        }
+
+        return $this->destroy($server);
+    }
+
+    private function dropletExists(ProviderConnection $connection, Server $server): bool
+    {
+        $response = $this->client($connection)->get('/droplets/'.$server->provider_resource_id);
+        if ($response->notFound()) {
+            return false;
+        }
+
+        $response->throw();
+
+        return true;
     }
 
     private function alreadyDeletedResult(Server $server): array

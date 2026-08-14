@@ -101,7 +101,7 @@ class ManagedInfrastructureService
         ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.'.$operation->action, 'description' => $server->name.' '.$operation->action.' completed', 'subject_type' => Server::class, 'subject_id' => $server->id]);
     }
 
-    public function destroyByoCloud(Server $server): array
+    public function destroyByoCloud(Server $server, bool $force = false): array
     {
         if (! $server->isByoCloud()) {
             throw new RuntimeException('This server is not linked to a customer cloud API resource.');
@@ -113,7 +113,36 @@ class ManagedInfrastructureService
             throw new RuntimeException('The customer cloud API connection is missing or invalid.');
         }
 
-        return $this->providers->make($connection)->destroyWithAssociatedResources($server);
+        $adapter = $this->providers->make($connection);
+
+        return $force
+            ? $adapter->destroy($server)
+            : $adapter->destroyWithAssociatedResources($server);
+    }
+
+    public function byoCloudResourceDeleted(Server $server): bool
+    {
+        if (! $server->isByoCloud() || blank($server->provider_resource_id)) {
+            return false;
+        }
+
+        $server->loadMissing('providerConnection');
+        $connection = $server->providerConnection;
+        if (! $connection || $connection->tenant_id !== $server->tenant_id || $connection->platform_managed) {
+            return false;
+        }
+
+        try {
+            $result = $this->providers->make($connection)->status($server);
+
+            return in_array($result['status'] ?? '', ['deleted', 'not_found', 'missing'], true);
+        } catch (\Throwable $exception) {
+            $message = strtolower($exception->getMessage());
+
+            return str_contains($message, 'not found')
+                || str_contains($message, '404')
+                || str_contains($message, 'does not exist');
+        }
     }
 
     public function fail(InfrastructureOperation $operation, \Throwable $exception): void

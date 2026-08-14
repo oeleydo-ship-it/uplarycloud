@@ -472,8 +472,11 @@ class ServerManagementTest extends TestCase
         ]);
 
         Http::fake([
-            'api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/dangerous' => Http::response([], 202),
-            'api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/status' => Http::response([
+            'https://api.digitalocean.com/v2/droplets/592366992' => Http::response([
+                'droplet' => ['id' => 592366992, 'status' => 'active', 'networks' => ['v4' => []]],
+            ], 200),
+            'https://api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/dangerous' => Http::response([], 202),
+            'https://api.digitalocean.com/v2/droplets/592366992/destroy_with_associated_resources/status' => Http::response([
                 'completed_at' => now()->toIso8601String(),
                 'failures' => 0,
                 'resources' => ['volumes' => [['id' => 'volume-1']]],
@@ -522,7 +525,10 @@ class ServerManagementTest extends TestCase
         ]));
 
         Http::fake([
-            'api.digitalocean.com/v2/droplets/592366993/destroy_with_associated_resources/dangerous' => Http::response(['message' => 'forbidden'], 403),
+            'https://api.digitalocean.com/v2/droplets/592366993' => Http::response([
+                'droplet' => ['id' => 592366993, 'status' => 'active', 'networks' => ['v4' => []]],
+            ], 200),
+            'https://api.digitalocean.com/v2/droplets/592366993/destroy_with_associated_resources/dangerous' => Http::response(['message' => 'forbidden'], 403),
         ]);
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
@@ -558,7 +564,7 @@ class ServerManagementTest extends TestCase
         ]));
 
         Http::fake([
-            'api.digitalocean.com/v2/droplets/missing-592366994/destroy_with_associated_resources/dangerous' => Http::response([
+            'https://api.digitalocean.com/v2/droplets/missing-592366994' => Http::response([
                 'id' => 'not_found',
                 'message' => 'The resource you were accessing could not be found.',
             ], 404),

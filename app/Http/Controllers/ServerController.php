@@ -230,6 +230,7 @@ class ServerController extends Controller
         $ipAddress = $server->ip_address;
         $destroysRemoteResources = $server->isByoCloud();
         $remoteAlreadyDeleted = $destroysRemoteResources && $request->boolean('remote_already_deleted');
+        $forceDestroy = $destroysRemoteResources && $request->boolean('force_destroy');
         $providerResult = null;
 
         if ($destroysRemoteResources) {
@@ -242,22 +243,31 @@ class ServerController extends Controller
                 ]);
                 $providerResult = ['status' => 'already_deleted_at_provider'];
             } else {
+                $destroyRules = $forceDestroy
+                    ? ['force_destroy' => ['required', 'accepted']]
+                    : ['destroy_remote' => ['required', 'accepted']];
+
                 $request->validate([
-                    'destroy_remote' => ['required', 'accepted'],
+                    ...$destroyRules,
                     'confirmation' => ['required', 'string', Rule::in([$ipAddress])],
                 ], [
                     'confirmation.in' => 'Type the server IP address exactly to confirm permanent destruction.',
                 ]);
 
                 try {
-                    $providerResult = $infrastructure->destroyByoCloud($server);
+                    $providerResult = $infrastructure->destroyByoCloud($server, $forceDestroy);
                     $remoteAlreadyDeleted = ($providerResult['status'] ?? null) === 'already_deleted_at_provider';
                 } catch (Throwable $exception) {
                     report($exception);
 
-                    return redirect()
-                        ->route('servers.index')
-                        ->with('error', 'The cloud provider did not confirm destruction of '.$name.'. Nothing was removed from Uplary. If it was already deleted at the provider, use "Remove local record only". '.$exception->getMessage());
+                    if ($infrastructure->byoCloudResourceDeleted($server)) {
+                        $providerResult = ['status' => 'already_deleted_at_provider'];
+                        $remoteAlreadyDeleted = true;
+                    } else {
+                        return redirect()
+                            ->route('servers.index')
+                            ->with('error', 'The cloud provider did not confirm destruction of '.$name.'. Nothing was removed from Uplary. Try "Force destroy droplet now" or, if it was already deleted at DigitalOcean, use "Remove local record only". '.$exception->getMessage());
+                    }
                 }
             }
         }

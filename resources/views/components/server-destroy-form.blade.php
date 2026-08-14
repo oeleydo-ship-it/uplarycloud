@@ -32,6 +32,17 @@
 
 @if($destroysRemoteResources)
     <form method="POST" action="{{ route('servers.destroy', $server) }}"
+        onsubmit="const expected = @js($confirmationToken); const entered = window.prompt(@js('FORCE DESTROY: Delete the droplet immediately at DigitalOcean without waiting for associated-resource cleanup status. Type the server IP to confirm: '.$confirmationToken), ''); if (entered !== expected) { if (entered !== null) window.alert('The IP address did not match. The server was not destroyed.'); return false; } this.elements.confirmation.value = entered; return true;">
+        @csrf
+        @method('DELETE')
+        <input type="hidden" name="force_destroy" value="1">
+        <input type="hidden" name="confirmation" value="">
+        <button type="submit" class="is-danger">
+            <i data-lucide="zap"></i>
+            Force destroy droplet now
+        </button>
+    </form>
+    <form method="POST" action="{{ route('servers.destroy', $server) }}"
         onsubmit="const expected = @js($server->name); const entered = window.prompt(@js('Use this only if the cloud server was already deleted directly at the provider. This removes the stale Uplary record without calling the provider. Type the server name exactly to confirm: '.$server->name), ''); if (entered !== expected) { if (entered !== null) window.alert('The server name did not match. Nothing was removed.'); return false; } this.elements.confirmation.value = entered; return true;">
         @csrf
         @method('DELETE')
