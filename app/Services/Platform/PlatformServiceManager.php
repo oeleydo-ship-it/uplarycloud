@@ -98,8 +98,26 @@ class PlatformServiceManager
         ];
 
         if (config('platform_services.use_sudo')) {
-            array_unshift($arguments, (string) config('platform_services.sudo', 'sudo'), '-n');
+            return $this->runWithSudo($arguments);
         }
+
+        $result = Process::timeout((int) config('platform_services.timeout', 10))->run($arguments);
+
+        if (
+            ! $result->successful()
+            && config('platform_services.sudo_fallback', true)
+            && Str::contains(strtolower($result->output().' '.$result->errorOutput()), ['permission denied', 'eacces'])
+        ) {
+            return $this->runWithSudo($arguments);
+        }
+
+        return $result;
+    }
+
+    /** @param list<string> $arguments */
+    private function runWithSudo(array $arguments): ProcessResult
+    {
+        array_unshift($arguments, (string) config('platform_services.sudo', 'sudo'), '-n');
 
         return Process::timeout((int) config('platform_services.timeout', 10))->run($arguments);
     }
@@ -112,6 +130,10 @@ class PlatformServiceManager
 
     private function cleanOutput(string $output): string
     {
+        if (Str::contains(strtolower($output), ['permission denied', 'a password is required', 'no tty present'])) {
+            return 'The PHP user cannot control Supervisor. Install the restricted sudoers rule and enable non-interactive supervisorctl access.';
+        }
+
         return Str::limit(preg_replace('/\s+/', ' ', strip_tags($output)) ?: '', 220);
     }
 }

@@ -19,6 +19,8 @@ class PlatformServiceControlTest extends TestCase
         config()->set('platform_services.enabled', true);
         config()->set('platform_services.supervisorctl', '/usr/bin/supervisorctl');
         config()->set('platform_services.use_sudo', false);
+        config()->set('platform_services.sudo_fallback', true);
+        config()->set('platform_services.sudo', '/usr/bin/sudo');
         config()->set('platform_services.services.horizon.program', 'upentra-horizon');
         config()->set('platform_services.services.reverb.program', 'upentra-reverb');
     }
@@ -104,5 +106,35 @@ class PlatformServiceControlTest extends TestCase
         Process::assertRan(fn (PendingProcess $process) => $process->command === [
             '/usr/bin/sudo', '-n', '/usr/bin/supervisorctl', 'start', 'upentra-reverb',
         ]);
+    }
+
+    public function test_permission_denied_retries_through_restricted_non_interactive_sudo(): void
+    {
+        Process::fake(function (PendingProcess $process) {
+            return $process->command[0] === '/usr/bin/sudo'
+                ? Process::result('upentra-horizon RUNNING pid 123')
+                : Process::result(errorOutput: 'Permission denied: supervisor/xmlrpc.py', exitCode: 1);
+        });
+        $admin = User::factory()->create(['is_super_admin' => true]);
+
+        $this->actingAs($admin)->get(route('admin.services'))
+            ->assertOk()
+            ->assertSee('Running');
+
+        Process::assertRan(fn (PendingProcess $process) => $process->command === [
+            '/usr/bin/sudo', '-n', '/usr/bin/supervisorctl', 'status', 'upentra-horizon',
+        ]);
+    }
+
+    public function test_permission_error_is_replaced_with_actionable_message(): void
+    {
+        Process::fake(['*' => Process::result(errorOutput: 'sudo: a password is required', exitCode: 1)]);
+        config()->set('platform_services.use_sudo', true);
+        $admin = User::factory()->create(['is_super_admin' => true]);
+
+        $this->actingAs($admin)->post(route('admin.services.control', ['horizon', 'restart']))
+            ->assertSessionHasErrors([
+                'service' => 'The PHP user cannot control Supervisor. Install the restricted sudoers rule and enable non-interactive supervisorctl access.',
+            ]);
     }
 }

@@ -22,7 +22,7 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 
     public int $tries = 8;
     public int $timeout = 900;
-    public array $backoff = [20, 30, 45, 60, 90, 120, 180, 180];
+    public array $backoff = [5, 10, 15, 20, 30, 45, 60, 90];
     public int $uniqueFor = 960;
 
     public function __construct(public Server $server, public bool $force = false)

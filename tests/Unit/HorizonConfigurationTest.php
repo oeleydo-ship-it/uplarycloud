@@ -30,6 +30,13 @@ class HorizonConfigurationTest extends TestCase
             config('horizon.defaults.supervisor-infrastructure.queue'),
         );
 
+        $this->assertSame(
+            [config('infrastructure.queues.provisioning')],
+            config('horizon.defaults.supervisor-provisioning.queue'),
+        );
+        $this->assertGreaterThanOrEqual(1, config('horizon.defaults.supervisor-provisioning.minProcesses'));
+        $this->assertArrayHasKey('*', config('horizon.environments'));
+
         $longestWorkerTimeout = collect(config('horizon.defaults'))->max('timeout');
 
         $this->assertGreaterThan(

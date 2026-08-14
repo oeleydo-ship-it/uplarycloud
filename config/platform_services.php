@@ -5,6 +5,7 @@ return [
     'enabled' => env('PLATFORM_SERVICE_CONTROL_ENABLED', true),
     'supervisorctl' => env('PLATFORM_SUPERVISORCTL_PATH', 'supervisorctl'),
     'use_sudo' => env('PLATFORM_SUPERVISORCTL_USE_SUDO', false),
+    'sudo_fallback' => env('PLATFORM_SUPERVISORCTL_SUDO_FALLBACK', true),
     'sudo' => env('PLATFORM_SUDO_PATH', 'sudo'),
     'timeout' => (int) env('PLATFORM_SERVICE_CONTROL_TIMEOUT', 10),
 

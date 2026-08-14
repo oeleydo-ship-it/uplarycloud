@@ -1,0 +1,15 @@
+# Install as /etc/sudoers.d/upentra-platform-services with mode 0440.
+# Verify the paths with: command -v supervisorctl
+# Replace www-data if PHP-FPM runs as a different operating-system user.
+
+Cmnd_Alias UPENTRA_PLATFORM_SERVICES = \
+    /usr/bin/supervisorctl status upentra-horizon, \
+    /usr/bin/supervisorctl start upentra-horizon, \
+    /usr/bin/supervisorctl stop upentra-horizon, \
+    /usr/bin/supervisorctl restart upentra-horizon, \
+    /usr/bin/supervisorctl status upentra-reverb, \
+    /usr/bin/supervisorctl start upentra-reverb, \
+    /usr/bin/supervisorctl stop upentra-reverb, \
+    /usr/bin/supervisorctl restart upentra-reverb
+
+www-data ALL=(root) NOPASSWD: UPENTRA_PLATFORM_SERVICES

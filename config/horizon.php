@@ -220,9 +220,22 @@ return [
         ],
         'supervisor-infrastructure' => [
             'connection' => 'redis',
-            'queue' => ['infrastructure', 'provisioning'],
+            'queue' => ['infrastructure'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 8,
+            'timeout' => 960,
+            'nice' => 0,
+        ],
+        'supervisor-provisioning' => [
+            'connection' => 'redis',
+            'queue' => ['provisioning'],
+            'balance' => 'simple',
             'minProcesses' => 1,
             'maxProcesses' => 1,
             'maxTime' => 0,
@@ -252,12 +265,23 @@ return [
         'production' => [
             'supervisor-deployments' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-infrastructure' => ['maxProcesses' => 3, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-provisioning' => ['maxProcesses' => 3],
             'supervisor-background' => ['maxProcesses' => 3, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
 
         'local' => [
             'supervisor-deployments' => ['maxProcesses' => 1],
             'supervisor-infrastructure' => ['maxProcesses' => 1],
+            'supervisor-provisioning' => ['maxProcesses' => 1],
+            'supervisor-background' => ['maxProcesses' => 1],
+        ],
+
+        // Keep every queue supervised when APP_ENV uses a deployment-specific
+        // value such as staging, live, or prod instead of "production".
+        '*' => [
+            'supervisor-deployments' => ['maxProcesses' => 1],
+            'supervisor-infrastructure' => ['maxProcesses' => 1],
+            'supervisor-provisioning' => ['maxProcesses' => 1],
             'supervisor-background' => ['maxProcesses' => 1],
         ],
     ],
