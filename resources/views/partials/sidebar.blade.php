@@ -37,32 +37,28 @@
     <div class="sidebar-scroll">
         <nav class="nav-list">
             @foreach($navigation as [$label, $icon, $route])
+                @if($label === 'Dashboard')<span class="nav-section-label">Workspace</span>@endif
+                @if($label === 'Monitoring')<span class="nav-section-label">Operations</span>@endif
+                @if($label === 'Users')<span class="nav-section-label">Manage</span>@endif
                 @if($route)
                     @if(isset($navGates[$route]) && ! $planAccess->can($navGates[$route]))
                         {{-- Gated features stay off the sidebar; create actions still show an upgrade prompt. --}}
-                    @elseif($route === 'servers.index' && $canManageCloud && ($planAccess->can('cloud_api') || $managedServersEnabled))
-                        <div class="server-nav-group" x-data="{ cloudNavOpen: {{ request()->routeIs('managed.*', 'cloud-api.*', 'servers.create*') ? 'true' : 'false' }} }">
-                            <div class="server-nav-parent {{ request()->routeIs('servers.*', 'managed.*', 'cloud-api.*') ? 'is-active' : '' }}">
-                                <a href="{{ route('servers.index') }}"><i data-lucide="server"></i><span>Servers</span></a>
-                                <button type="button" @click="cloudNavOpen=!cloudNavOpen" :aria-expanded="cloudNavOpen" aria-label="Toggle server menu">
-                                    <i data-lucide="chevron-down" :class="cloudNavOpen && 'is-open'"></i>
-                                </button>
-                            </div>
-                            <div class="server-nav-dropdown" x-cloak x-show="cloudNavOpen" x-transition>
-                                @if($planAccess->can('cloud_api'))
-                                <a href="{{ route('cloud-api.index') }}" class="nav-item nav-item--nested {{ request()->routeIs('cloud-api.*') ? 'is-active' : '' }}">
-                                    <i data-lucide="key-round"></i><span>My Cloud API</span>
-                                </a>
-                                @endif
-                                @if($managedServersEnabled)
-                                    <a href="{{ route('managed.index') }}" class="nav-item nav-item--nested {{ request()->routeIs('managed.*') ? 'is-active' : '' }}">
-                                        <i data-lucide="cloud-cog"></i><span>Managed Cloud</span>
-                                    </a>
-                                @endif
-                            </div>
-                        </div>
+                    @elseif($route === 'servers.index')
+                        <a href="{{ route('servers.index') }}" class="nav-item {{ request()->routeIs('servers.*') ? 'is-active' : '' }}" title="Servers" aria-label="Servers">
+                            <i data-lucide="server"></i><span>Servers</span>
+                        </a>
+                        @if($canManageCloud && $planAccess->can('cloud_api'))
+                            <a href="{{ route('cloud-api.index') }}" class="nav-item {{ request()->routeIs('cloud-api.*') ? 'is-active' : '' }}" title="My Cloud API" aria-label="My Cloud API">
+                                <i data-lucide="key-round"></i><span>My Cloud API</span>
+                            </a>
+                        @endif
+                        @if($canManageCloud && $managedServersEnabled)
+                            <a href="{{ route('managed.index') }}" class="nav-item {{ request()->routeIs('managed.*') ? 'is-active' : '' }}" title="Managed Cloud" aria-label="Managed Cloud">
+                                <i data-lucide="cloud-cog"></i><span>Managed Cloud</span>
+                            </a>
+                        @endif
                     @else
-                        <a href="{{ route($route) }}" class="nav-item {{ request()->routeIs(str_replace('.index', '.*', $route)) ? 'is-active' : '' }}">
+                        <a href="{{ route($route) }}" class="nav-item {{ request()->routeIs(str_replace('.index', '.*', $route)) ? 'is-active' : '' }}" title="{{ $label }}" aria-label="{{ $label }}">
                             <i data-lucide="{{ $icon }}"></i><span>{{ $label }}</span>
                         </a>
                     @endif
@@ -74,7 +70,7 @@
     </div>
     <div class="sidebar-footer">
         <div class="plan-menu" x-data="{ planOpen: false }">
-            <button type="button" class="plan-trigger" @click="planOpen=!planOpen" :aria-expanded="planOpen">
+            <button type="button" class="plan-trigger" @click="planOpen=!planOpen" :aria-expanded="planOpen" title="Current plan: {{ ucfirst($sidebarPlan?->name ?? 'Free') }}" aria-label="Current plan: {{ ucfirst($sidebarPlan?->name ?? 'Free') }}">
                 <span class="plan-trigger-icon"><i data-lucide="sparkles"></i></span>
                 <span class="plan-trigger-copy">
                     <small>Current Plan</small>

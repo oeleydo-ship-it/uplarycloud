@@ -54,7 +54,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#86efac,#fb7185,#fdba74,#fde68a\" \"php artisan serve --host=localhost --port=8000 --no-reload\" \"php artisan queue:work redis --queue=deployments,provisioning,infrastructure,networking,backups,notifications,monitoring,default --sleep=1 --tries=3 --backoff=10 --timeout=900\" \"php artisan reverb:start\" \"php artisan schedule:work\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,reverb,scheduler,logs,vite"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#86efac,#fb7185,#fdba74,#fde68a\" \"php artisan serve --host=localhost --port=8000 --no-reload\" \"php artisan queue:work redis --queue=deployments,infrastructure,provisioning,networking,backups,notifications,monitoring,default --sleep=1 --tries=3 --backoff=10 --timeout=900\" \"php artisan reverb:start\" \"php artisan schedule:work\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,reverb,scheduler,logs,vite"
         ]
     },
     "extra": {

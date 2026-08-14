@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Crypt;
 
 class PlatformSettings
 {
-    public const SECRET_KEYS = ['smtp_password', 'stripe_secret', 'stripe_webhook_secret', 'paypal_client_secret'];
+    public const SECRET_KEYS = ['smtp_password', 'stripe_secret', 'stripe_webhook_secret', 'paypal_client_secret', 'blog_ai_api_key'];
 
     public function group(string $group): array
     {

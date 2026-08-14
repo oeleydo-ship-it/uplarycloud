@@ -12,6 +12,7 @@ class IssueCertificateJob implements ShouldQueue
 {
     use Queueable;
     public int $tries=6;
+    public int $timeout=600;
     public array $backoff=[10,20,40,80,120];
     public function __construct(public int $domainId,public int $tenantId){$this->onQueue(config('infrastructure.queues.networking'));}
     public function handle(DomainNetworkService $network): void{$domain=Domain::where('tenant_id',$this->tenantId)->findOrFail($this->domainId);$network->issueCertificate($domain);}

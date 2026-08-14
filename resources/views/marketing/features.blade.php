@@ -1,13 +1,16 @@
-<x-marketing-layout title="Features" description="Servers, marketplace apps, Git deploys, domains, SSL, and monitoring in one control plane.">
+<x-marketing-layout :page="$page">
     <div class="mkt-wrap mkt-page">
-        <span class="mkt-kicker">Product</span>
-        <h1 class="mkt-title">Everything the console is for.</h1>
+        <span class="mkt-kicker">{{ $page->hero_kicker }}</span>
+        <h1 class="mkt-title">{{ $page->hero_title }}</h1>
         <p class="mkt-lead">Uplary Cloud covers the path from a connected host to a live, observed application. Each capability is a first-class object — not a script you have to remember.</p>
 
+        @if($page->body_html)
+            <section class="mkt-managed-content">{!! $page->body_html !!}</section>
+        @else
         <section class="mkt-feature">
             <h2>Servers</h2>
             <div>
-                <p>Bring your own VPS over SSH or provision managed DigitalOcean and Hetzner hosts from the platform. Provisioning installs Docker, the reverse proxy, and a metrics collector, then keeps connection health visible.</p>
+                <p>Bring your own VPS over SSH or provision a managed server from the platform. Provisioning installs Docker, the reverse proxy, and a metrics collector, then keeps connection health visible.</p>
                 <ul>
                     <li><i data-lucide="check"></i> Existing servers and managed cloud instances</li>
                     <li><i data-lucide="check"></i> Connection tests before you commit a host</li>
@@ -83,5 +86,6 @@
             </div>
             <a class="button button--primary" href="{{ route('marketing.pricing') }}">Compare pricing</a>
         </section>
+        @endif
     </div>
 </x-marketing-layout>

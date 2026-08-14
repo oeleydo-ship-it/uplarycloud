@@ -7,6 +7,8 @@ use App\Models\Plan;
 use App\Models\ProviderConnection;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Tenant;
+use App\Services\Billing\PlanLimitService;
 use App\Support\PlatformSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -95,6 +97,84 @@ class SuperAdminConsoleTest extends TestCase
         $this->assertFalse($plan->allowsFeature('git_deploy'));
         $this->assertSame(40.0, $plan->limit('applications'));
         $this->assertNull($plan->limit('domains'));
+    }
+
+    public function test_superadmin_can_assign_a_plan_and_status_to_a_workspace(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $tenant = Tenant::create(['name' => 'Customer Workspace']);
+        $plan = Plan::create([
+            'name' => 'Growth', 'slug' => 'growth', 'monthly_price' => 2900, 'yearly_price' => 29000,
+            'currency' => 'USD', 'limits' => ['servers' => 8], 'gates' => ['backups' => true],
+            'features' => [], 'active' => true,
+        ]);
+
+        $this->actingAs($admin)->put(route('admin.tenants.subscription.update', $tenant), [
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'billing_cycle' => 'monthly',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $subscription = $tenant->subscriptions()->latest()->firstOrFail();
+        $this->assertSame('active', $subscription->status);
+        $this->assertSame('superadmin', $subscription->metadata['source']);
+        $this->assertSame('growth', app(PlanLimitService::class)->plan($tenant)->slug);
+        $this->assertSame(8.0, app(PlanLimitService::class)->plan($tenant)->limit('servers'));
+
+        $this->actingAs($admin)->put(route('admin.tenants.subscription.update', $tenant), [
+            'plan_id' => $plan->id,
+            'status' => 'past_due',
+            'billing_cycle' => 'monthly',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('free', app(PlanLimitService::class)->plan($tenant)->slug);
+
+        $this->actingAs($admin)->get(route('admin.tenants'))
+            ->assertOk()->assertSee('Plan control')->assertSee('Growth');
+    }
+
+    public function test_superadmin_can_impersonate_a_customer_workspace_and_return_safely(): void
+    {
+        $admin = User::factory()->create(['name' => 'Support Admin', 'is_super_admin' => true]);
+        $customer = User::factory()->create(['name' => 'Customer Owner', 'is_super_admin' => false, 'email_verified_at' => null]);
+        $tenant = Tenant::create(['name' => 'Customer Workspace']);
+        $tenant->users()->attach($customer, ['role' => 'owner', 'is_active' => true]);
+        $plan = Plan::create([
+            'name' => 'Support Pro', 'slug' => 'support-pro', 'monthly_price' => 2900, 'yearly_price' => 29000,
+            'currency' => 'USD', 'limits' => ['servers' => 10], 'gates' => [], 'features' => [], 'active' => true,
+        ]);
+        $tenant->subscriptions()->create(['plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+
+        $this->actingAs($admin)->get(route('admin.users'))
+            ->assertOk()->assertSee('Support access')->assertSee('Support Pro plan');
+
+        $this->actingAs($admin)->post(route('admin.users.impersonate', $customer), ['tenant_id' => $tenant->id])
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('impersonator_id', $admin->id)
+            ->assertSessionHas('tenant_id', $tenant->id);
+        $this->assertAuthenticatedAs($customer);
+
+        $this->get(route('dashboard'))
+            ->assertOk()->assertSee('Support session')->assertSee('Support Pro plan')->assertSee('Return to Platform Console');
+        $this->assertDatabaseHas('activity_logs', ['tenant_id' => $tenant->id, 'user_id' => $admin->id, 'action' => 'support.impersonation.started']);
+
+        $this->post(route('impersonation.leave'))->assertRedirect(route('admin.users'));
+        $this->assertAuthenticatedAs($admin);
+        $this->assertFalse(session()->has('impersonator_id'));
+        $this->assertDatabaseHas('activity_logs', ['tenant_id' => $tenant->id, 'user_id' => $admin->id, 'action' => 'support.impersonation.ended']);
+    }
+
+    public function test_impersonation_rejects_superadmins_and_foreign_workspaces(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $otherAdmin = User::factory()->create(['is_super_admin' => true]);
+        $customer = User::factory()->create();
+        $tenant = Tenant::create(['name' => 'Foreign Workspace']);
+
+        $this->actingAs($admin)->post(route('admin.users.impersonate', $otherAdmin), ['tenant_id' => $tenant->id])
+            ->assertSessionHasErrors('user');
+        $this->actingAs($admin)->post(route('admin.users.impersonate', $customer), ['tenant_id' => $tenant->id])
+            ->assertSessionHasErrors('tenant_id');
+        $this->assertAuthenticatedAs($admin);
     }
 
     public function test_connecting_provider_api_syncs_catalog_with_global_markup(): void

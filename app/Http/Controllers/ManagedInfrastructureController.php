@@ -14,6 +14,8 @@ use App\Services\Billing\PlanLimitService;
 use App\Services\Infrastructure\CloudProviderFactory;
 use App\Services\Servers\ControlPlaneKeyService;
 use App\Support\TenantContext;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -83,7 +85,63 @@ class ManagedInfrastructureController extends Controller
         }
     }
 
-    public function store(Request $request, TenantContext $context, PlanLimitService $limits, ControlPlaneKeyService $keys): RedirectResponse
+    public function catalog(Request $request, ProviderConnection $connection, TenantContext $context, CloudProviderFactory $factory): JsonResponse
+    {
+        $this->manage($request);
+        $this->guardConnection($connection, $context);
+        abort_unless($connection->active && $connection->last_verified_at, 404);
+        app(PlanLimitService::class)->enforceFeature($context->current(), 'cloud_api');
+
+        try {
+            $plans = array_values($factory->make($connection)->catalog($connection)['plans'] ?? []);
+            if ($plans === []) {
+                return response()->json([
+                    'success' => false,
+                    'plans' => [],
+                    'error' => $this->catalogError($connection, isEmpty: true),
+                ], 422);
+            }
+
+            $connection->update(['last_error' => null]);
+
+            return response()->json([
+                'success' => true,
+                'provider' => $connection->provider,
+                'plans' => $plans,
+            ]);
+        } catch (Throwable $e) {
+            $connection->update(['last_error' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'plans' => [],
+                'error' => $this->catalogError($connection, $e),
+            ], 422);
+        }
+    }
+
+    public function destroyConnection(Request $request, ProviderConnection $connection, TenantContext $context): RedirectResponse
+    {
+        $this->manage($request);
+        $this->guardConnection($connection, $context);
+
+        if ($connection->servers()->exists()) {
+            return back()->withErrors(['provider' => 'Remove servers connected to this provider account before deleting its API credentials.']);
+        }
+
+        $name = $connection->name;
+        $connection->delete();
+        ActivityLog::create([
+            'tenant_id' => $context->id(),
+            'user_id' => $request->user()->id,
+            'action' => 'provider.deleted',
+            'description' => $name.' provider credentials deleted',
+        ]);
+
+        return back()->with('success', $name.' credentials were deleted securely.');
+    }
+
+    public function store(Request $request, TenantContext $context, PlanLimitService $limits, ControlPlaneKeyService $keys, CloudProviderFactory $factory): RedirectResponse
     {
         $this->manage($request);
         $limits->enforceFeature($context->current(), 'cloud_api');
@@ -92,7 +150,7 @@ class ManagedInfrastructureController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('servers')->where('tenant_id', $context->id())],
             'provider_connection_id' => ['required', 'integer'],
-            'managed_server_plan_id' => ['required', 'integer'],
+            'provider_plan_id' => ['required', 'string', 'max:100'],
             'region' => ['required', 'string', 'max:60'],
             'image' => ['required', 'string', 'max:100'],
         ]);
@@ -103,12 +161,10 @@ class ManagedInfrastructureController extends Controller
             ->whereNotNull('last_verified_at')
             ->findOrFail($data['provider_connection_id']);
 
-        $plan = ManagedServerPlan::where('active', true)
-            ->where('provider', $connection->provider)
-            ->findOrFail($data['managed_server_plan_id']);
+        $plan = $this->tenantCatalogPlan($connection, $data['provider_plan_id'], $factory);
 
-        if (! in_array($data['region'], $plan->regions, true) || ! in_array($data['image'], $plan->images ?? [], true)) {
-            throw ValidationException::withMessages(['region' => 'The selected region or image is unavailable for this plan.']);
+        if (! in_array($data['region'], $plan['regions'] ?? [], true) || ! in_array($data['image'], $plan['images'] ?? [], true)) {
+            throw ValidationException::withMessages(['region' => 'The selected region or image is unavailable for this size.']);
         }
 
         $keyPair = $keys->generate();
@@ -117,7 +173,7 @@ class ManagedInfrastructureController extends Controller
             $server = Server::create([
                 'tenant_id' => $context->id(),
                 'provider_connection_id' => $connection->id,
-                'managed_server_plan_id' => $plan->id,
+                'managed_server_plan_id' => null,
                 'name' => $data['name'],
                 'provider' => $connection->provider,
                 'ip_address' => '0.0.0.0',
@@ -129,9 +185,9 @@ class ManagedInfrastructureController extends Controller
                 'status' => ServerStatus::Pending,
                 'authentication_method' => 'ssh_key',
                 'ssh_username' => 'root',
-                'cpu_cores' => $plan->cpu_cores,
-                'memory_mb' => $plan->memory_mb,
-                'disk_gb' => $plan->disk_gb,
+                'cpu_cores' => max(1, (int) ($plan['cpu_cores'] ?? 1)),
+                'memory_mb' => max(512, (int) ($plan['memory_mb'] ?? 1024)),
+                'disk_gb' => max(10, (int) ($plan['disk_gb'] ?? 10)),
                 'install_docker' => true,
                 'install_proxy' => true,
                 'install_monitoring' => true,
@@ -159,7 +215,7 @@ class ManagedInfrastructureController extends Controller
                 'action' => 'create',
                 'status' => 'pending',
                 'parameters' => [
-                    'plan' => $plan->provider_plan_id,
+                    'plan' => $plan['provider_plan_id'],
                     'region' => $data['region'],
                     'image' => $data['image'],
                     'public_key' => $keyPair['public_key'],
@@ -233,5 +289,56 @@ class ManagedInfrastructureController extends Controller
             $connection->tenant_id === $context->id() && ! $connection->platform_managed,
             404
         );
+    }
+
+    /**
+     * @return array{provider_plan_id: string, name?: string, cpu_cores?: int, memory_mb?: int, disk_gb?: int, regions?: list<string>, images?: list<string>}
+     */
+    private function tenantCatalogPlan(ProviderConnection $connection, string $providerPlanId, CloudProviderFactory $factory): array
+    {
+        try {
+            $plans = collect($factory->make($connection)->catalog($connection)['plans'] ?? []);
+        } catch (Throwable $e) {
+            throw ValidationException::withMessages([
+                'provider_connection_id' => $this->catalogError($connection, $e),
+            ]);
+        }
+
+        if ($plans->isEmpty()) {
+            throw ValidationException::withMessages([
+                'provider_connection_id' => $this->catalogError($connection, isEmpty: true),
+            ]);
+        }
+
+        $plan = $plans->firstWhere('provider_plan_id', $providerPlanId);
+        if (! is_array($plan)) {
+            throw ValidationException::withMessages([
+                'provider_plan_id' => 'The selected size is not available on this Cloud API account.',
+            ]);
+        }
+
+        return $plan;
+    }
+
+    private function catalogError(ProviderConnection $connection, ?Throwable $exception = null, bool $isEmpty = false): string
+    {
+        $provider = $connection->provider === 'hetzner' ? 'Hetzner' : 'DigitalOcean';
+
+        if ($exception instanceof RequestException && $exception->response) {
+            $status = $exception->response->status();
+            if (in_array($status, [401, 403], true)) {
+                return $provider.' rejected this API token. Re-verify the connection under My Cloud API.';
+            }
+        }
+
+        if ($exception) {
+            return 'Could not load '.$provider.' sizes for '.$connection->name.': '.$exception->getMessage();
+        }
+
+        if ($isEmpty) {
+            return 'No provisionable sizes were returned for this '.$provider.' account. Confirm the token can list sizes, regions, and images.';
+        }
+
+        return 'Could not load sizes from '.$connection->name.'.';
     }
 }

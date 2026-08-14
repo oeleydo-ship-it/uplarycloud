@@ -16,7 +16,9 @@ class DockerVolumeController extends Controller
     public function index(Request $request, TenantContext $context): View
     {
         $tenantId = $context->id();
-        $base = DockerVolume::query()->where('tenant_id', $tenantId);
+        $base = DockerVolume::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('server_id', Server::liveIdQuery($tenantId));
 
         $mountedIds = (clone $base)->whereHas('containers')->pluck('id');
         $totalBytes = (clone $base)->sum('size_bytes');

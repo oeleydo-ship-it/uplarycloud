@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Support\PlatformSettings;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,11 +14,14 @@ class EnsurePlatformAccess
 
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->is_super_admin || $request->routeIs('logout')) {
+        if ($request->user()?->is_super_admin || $request->routeIs('logout', 'impersonation.leave')) {
             return $next($request);
         }
 
-        if ((bool) ((int) $this->settings->get('general', 'maintenance_mode', 0))) {
+        $supportSession = $request->session()->has('impersonator_id')
+            && User::query()->whereKey($request->session()->get('impersonator_id'))->where('is_super_admin', true)->exists();
+
+        if (! $supportSession && (bool) ((int) $this->settings->get('general', 'maintenance_mode', 0))) {
             return response()->view('commercial.platform-maintenance', [
                 'message' => $this->settings->get('general', 'maintenance_message', 'We are completing scheduled maintenance. Please check back shortly.'),
             ], 503);

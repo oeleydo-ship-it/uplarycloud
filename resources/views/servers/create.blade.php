@@ -42,14 +42,43 @@
                     <div class="cloud-empty-state"><span class="section-icon"><i data-lucide="key-round"></i></span><h3>Connect your provider API first</h3><p>Add and verify a DigitalOcean or Hetzner API token that belongs to your account before creating a server.</p><a href="{{ route('cloud-api.index') }}" class="button button--primary"><i data-lucide="plug-zap"></i> Connect my Cloud API</a></div>
                 @else
                     <div class="add-server-fields add-server-fields--two">
-                        <label class="field field--wide"><span>Server name *</span><input name="name" x-model="cloud.name" required placeholder="Production Cloud Server"></label>
-                        <label class="field"><span>My API account *</span><select name="provider_connection_id" x-model="cloud.connection" @change="selectCloudConnection()" required><option value="">Select an account</option>@foreach($cloudConnections as $connection)<option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}">{{ $connection->name }} · {{ $connection->provider === 'digitalocean' ? 'DigitalOcean' : 'Hetzner' }}</option>@endforeach</select></label>
-                        <label class="field"><span>Server size *</span><select name="managed_server_plan_id" x-model="cloud.plan" @change="selectCloudPlan()" required><option value="">Select a size</option>@foreach($cloudPlans as $plan)<option value="{{ $plan->id }}" data-provider="{{ $plan->provider }}" x-show="!cloud.provider || cloud.provider === '{{ $plan->provider }}'">{{ $plan->name }} · {{ $plan->cpu_cores }} vCPU · {{ round($plan->memory_mb / 1024, 1) }} GB · {{ $plan->disk_gb }} GB disk</option>@endforeach</select></label>
-                        <label class="field"><span>Region *</span><select name="region" x-model="cloud.region" required><option value="">Select a region</option><template x-for="region in cloud.regions" :key="region"><option :value="region" x-text="region.toUpperCase()"></option></template></select></label>
-                        <label class="field"><span>Operating system *</span><select name="image" x-model="cloud.image" required><option value="">Select an image</option><template x-for="image in cloud.images" :key="image"><option :value="image" x-text="image.replaceAll('-', ' ').replace('ubuntu','Ubuntu').replace('debian','Debian')"></option></template></select></label>
+                        <label class="field field--wide"><span>Server name *</span><input name="name" x-model="cloud.name" required placeholder="Production Cloud Server">@error('name')<small class="field-error">{{ $message }}</small>@enderror</label>
+                        <label class="field">
+                            <span>My API account *</span>
+                            <select name="provider_connection_id" x-model="cloud.connection" @change="selectCloudConnection()" required>
+                                <option value="">Select an account</option>
+                                @foreach($cloudConnections as $connection)
+                                    <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}" data-catalog-url="{{ route('managed.connections.catalog', $connection) }}">{{ $connection->name }} · {{ $connection->provider === 'digitalocean' ? 'DigitalOcean' : 'Hetzner' }}</option>
+                                @endforeach
+                            </select>
+                            @error('provider_connection_id')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Server size *</span>
+                            <select name="provider_plan_id" x-model="cloud.plan" @change="selectCloudPlan()" required :disabled="cloud.loading || !cloud.plans.length">
+                                <option value="">Select a size</option>
+                            </select>
+                            <small x-show="cloud.loading" x-cloak>Loading sizes from your Cloud API…</small>
+                            @error('provider_plan_id')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Region *</span>
+                            <select name="region" x-model="cloud.region" required :disabled="!cloud.regions.length">
+                                <option value="">Select a region</option>
+                            </select>
+                            @error('region')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
+                        <label class="field">
+                            <span>Operating system *</span>
+                            <select name="image" x-model="cloud.image" required :disabled="!cloud.images.length">
+                                <option value="">Select an image</option>
+                            </select>
+                            @error('image')<small class="field-error">{{ $message }}</small>@enderror
+                        </label>
                     </div>
+                    <p class="field-error" x-show="cloud.error" x-cloak x-text="cloud.error" style="margin:12px 0 0"></p>
                     <div class="cloud-provision-summary"><i data-lucide="shield-check"></i><span><strong>Your provider account</strong><small>Charges appear on your DigitalOcean or Hetzner bill. Platform-managed APIs are never used for this flow.</small></span></div>
-                    <div class="add-server-footer"><a href="{{ route('cloud-api.index') }}" class="button button--secondary"><i data-lucide="settings-2"></i> Manage my API accounts</a><span></span><button class="button button--primary" :disabled="cloudSubmitting"><i data-lucide="rocket"></i><span x-text="cloudSubmitting ? 'Creating server…' : 'Create & provision server'"></span></button></div>
+                    <div class="add-server-footer"><a href="{{ route('cloud-api.index') }}" class="button button--secondary"><i data-lucide="settings-2"></i> Manage my API accounts</a><span></span><button class="button button--primary" :disabled="cloudSubmitting || cloud.loading || !cloud.plans.length || !!cloud.error"><i data-lucide="rocket"></i><span x-text="cloudSubmitting ? 'Creating server…' : 'Create & provision server'"></span></button></div>
                 @endif
             </form>
             <aside class="add-server-aside">
@@ -408,8 +437,7 @@
                 platformAuthorizeCommand: @js($platformAuthorizeCommand),
                 copied: null,
                 precheck: { testing: false, passed: false, message: '', driver: null, checks: [] },
-                cloud: { name: @js(old('name', '')), connection: @js((string) old('provider_connection_id', '')), provider: '', plan: @js((string) old('managed_server_plan_id', '')), region: @js(old('region', '')), image: @js(old('image', 'ubuntu-24.04')), regions: [], images: [] },
-                plans: @js($cloudPlans->mapWithKeys(fn($plan) => [(string) $plan->id => ['provider' => $plan->provider, 'regions' => $plan->regions, 'images' => $plan->images]])),
+                cloud: { name: @js(old('name', '')), connection: @js((string) old('provider_connection_id', $cloudConnections->count() === 1 ? (string) $cloudConnections->first()->id : '')), provider: '', plan: @js(old('provider_plan_id', '')), region: @js(old('region', '')), image: @js(old('image', '')), regions: [], images: [], plans: [], loading: false, error: '' },
                 form: {
                     name: @js(old('name', '')),
                     provider: @js(old('provider', 'custom')),
@@ -564,19 +592,74 @@
                         this.refreshIcons();
                     }
                 },
-                selectCloudConnection() {
-                    const option = this.$root.querySelector('[name=provider_connection_id] option:checked');
+                async selectCloudConnection() {
+                    const option = this.$root.querySelector(`[name=provider_connection_id] option[value="${this.cloud.connection}"]`)
+                        || this.$root.querySelector('[name=provider_connection_id] option:checked');
                     this.cloud.provider = option?.dataset.provider || '';
-                    const selectedPlan = this.plans[this.cloud.plan];
-                    if (!selectedPlan || selectedPlan.provider !== this.cloud.provider) this.cloud.plan = '';
-                    this.selectCloudPlan();
+                    this.cloud.plans = [];
+                    this.cloud.regions = [];
+                    this.cloud.images = [];
+                    this.cloud.error = '';
+                    this.syncSelect('provider_plan_id', [], this.cloud.plan, (item) => item.label, 'Select a size');
+                    this.syncSelect('region', [], '', (item) => item.label, 'Select a region');
+                    this.syncSelect('image', [], '', (item) => item.label, 'Select an image');
+                    const catalogUrl = option?.dataset.catalogUrl;
+                    if (!this.cloud.connection || !catalogUrl) return;
+                    this.cloud.loading = true;
+                    try {
+                        const response = await fetch(catalogUrl, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || !data.success) {
+                            this.cloud.error = data.error || 'Could not load sizes from this Cloud API account.';
+                            this.cloud.plan = '';
+                            return;
+                        }
+                        this.cloud.plans = Array.isArray(data.plans) ? data.plans : [];
+                        if (!this.cloud.plans.length) {
+                            this.cloud.error = data.error || 'No provisionable sizes were returned for this Cloud API account.';
+                            this.cloud.plan = '';
+                            return;
+                        }
+                        const sizeOptions = this.cloud.plans.map((plan) => ({
+                            value: plan.provider_plan_id,
+                            label: plan.name + ' · ' + plan.disk_gb + ' GB disk',
+                            plan,
+                        }));
+                        if (!sizeOptions.some((item) => item.value === this.cloud.plan)) this.cloud.plan = sizeOptions[0].value;
+                        this.syncSelect('provider_plan_id', sizeOptions, this.cloud.plan, (item) => item.label, 'Select a size');
+                        this.selectCloudPlan();
+                    } catch (error) {
+                        this.cloud.error = 'Could not reach the Cloud API catalog endpoint.';
+                        this.cloud.plan = '';
+                    } finally {
+                        this.cloud.loading = false;
+                    }
                 },
                 selectCloudPlan() {
-                    const plan = this.plans[this.cloud.plan];
+                    const plan = this.cloud.plans.find((item) => item.provider_plan_id === this.cloud.plan);
                     this.cloud.regions = plan?.regions || [];
                     this.cloud.images = plan?.images || [];
-                    if (!this.cloud.regions.includes(this.cloud.region)) this.cloud.region = this.cloud.regions[0] || '';
-                    if (!this.cloud.images.includes(this.cloud.image)) this.cloud.image = this.cloud.images[0] || '';
+                    this.cloud.region = this.cloud.regions.includes(this.cloud.region) ? this.cloud.region : (this.cloud.regions[0] || '');
+                    this.cloud.image = this.cloud.images.includes(this.cloud.image) ? this.cloud.image : (this.cloud.images[0] || '');
+                    this.syncSelect('region', this.cloud.regions.map((region) => ({ value: region, label: region.toUpperCase() })), this.cloud.region, (item) => item.label, 'Select a region');
+                    this.syncSelect('image', this.cloud.images.map((image) => ({
+                        value: image,
+                        label: image.replaceAll('-', ' ').replace('ubuntu', 'Ubuntu').replace('debian', 'Debian'),
+                    })), this.cloud.image, (item) => item.label, 'Select an image');
+                },
+                syncSelect(name, items, selected, labelFn, placeholder) {
+                    const select = this.$root.querySelector(`select[name="${name}"]`);
+                    if (!select) return;
+                    const current = items.some((item) => item.value === selected) ? selected : (items[0]?.value || '');
+                    select.replaceChildren(new Option(placeholder, '', false, current === ''));
+                    items.forEach((item) => select.add(new Option(labelFn(item), item.value, false, item.value === current)));
+                    if (name === 'provider_plan_id') this.cloud.plan = current;
+                    if (name === 'region') this.cloud.region = current;
+                    if (name === 'image') this.cloud.image = current;
+                    select.value = current;
                 },
                 init() { this.selectCloudConnection(); },
             };

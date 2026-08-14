@@ -1,8 +1,12 @@
-<x-marketing-layout title="Use cases" description="Uplary Cloud for agencies, independent developers, and product teams.">
+<x-marketing-layout :page="$page">
     <div class="mkt-wrap mkt-page">
-        <span class="mkt-kicker">Use cases</span>
-        <h1 class="mkt-title">Same console. Different kinds of work.</h1>
-        <p class="mkt-lead">Whether you run client stacks, a handful of side projects, or a production team, the objects stay the same: servers, apps, domains, and operations.</p>
+        <span class="mkt-kicker">{{ $page->hero_kicker }}</span>
+        <h1 class="mkt-title">{{ $page->hero_title }}</h1>
+        <p class="mkt-lead">{{ $page->hero_description }}</p>
+
+        @if($page->body_html)
+            <section class="mkt-managed-content">{!! $page->body_html !!}</section>
+        @else
 
         <div class="mkt-use" style="margin-top:36px">
             <article class="mkt-card">
@@ -54,5 +58,6 @@
             </div>
             <a class="button button--primary" href="{{ route('marketing.pricing') }}">View pricing</a>
         </section>
+        @endif
     </div>
 </x-marketing-layout>

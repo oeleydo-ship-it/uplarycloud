@@ -1,8 +1,9 @@
-<x-marketing-layout title="Contact" description="Talk to the Uplary Cloud team about plans, onboarding, or support.">
+<x-marketing-layout :page="$page">
     <div class="mkt-wrap mkt-page">
-        <span class="mkt-kicker">Contact</span>
-        <h1 class="mkt-title">Tell us what you need.</h1>
-        <p class="mkt-lead">Sales, onboarding, and general questions land here. If you already have a workspace, the in-app support inbox is faster for production issues.</p>
+        <span class="mkt-kicker">{{ $page->hero_kicker }}</span>
+        <h1 class="mkt-title">{{ $page->hero_title }}</h1>
+        <p class="mkt-lead">{{ $page->hero_description }}</p>
+        @if($page->body_html)<section class="mkt-managed-content">{!! $page->body_html !!}</section>@endif
 
         @if(session('success'))
             <div class="mkt-success" style="margin-top:24px"><i data-lucide="circle-check"></i>{{ session('success') }}</div>

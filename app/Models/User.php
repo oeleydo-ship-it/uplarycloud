@@ -60,6 +60,11 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasVerifiedEmail(): bool
     {
+        if (app()->bound('session') && session()->has('impersonator_id')
+            && static::query()->whereKey(session('impersonator_id'))->where('is_super_admin', true)->exists()) {
+            return true;
+        }
+
         if (! app(PlatformSettings::class)->emailVerificationRequired()) {
             return true;
         }

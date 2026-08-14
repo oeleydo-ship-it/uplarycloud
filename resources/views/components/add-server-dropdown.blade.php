@@ -1,5 +1,6 @@
 @props([
     'managedServersEnabled' => false,
+    'managedServersPaid' => false,
     'empty' => false,
     'quotaReached' => false,
 ])
@@ -42,12 +43,13 @@
                 </span>
             </a>
             @if($managedServersEnabled)
-                <a href="{{ route('servers.create.managed') }}" class="add-server-dropdown__item" role="menuitem" @click="open = false">
+                <a href="{{ $managedServersPaid ? route('servers.create.managed') : route('billing.index') }}" class="add-server-dropdown__item" role="menuitem" @click="open = false">
                     <span class="add-server-dropdown__icon add-server-dropdown__icon--managed" aria-hidden="true"><i data-lucide="cloud-cog"></i></span>
                     <span class="add-server-dropdown__copy">
                         <strong>Add managed server</strong>
-                        <small>Order from platform-managed DigitalOcean or Hetzner</small>
+                        <small>{{ $managedServersPaid ? 'Provision a fully managed server from the platform catalog' : 'Payment required · Choose a paid plan to continue' }}</small>
                     </span>
+                    @unless($managedServersPaid)<i data-lucide="lock-keyhole" aria-hidden="true"></i>@endunless
                 </a>
             @endif
         </div>

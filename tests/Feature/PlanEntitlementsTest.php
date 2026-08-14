@@ -10,6 +10,7 @@ use App\Models\Server;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\PlanCatalog;
+use App\Services\Billing\PlanLimitService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -125,7 +126,50 @@ class PlanEntitlementsTest extends TestCase
             ->assertOk()
             ->assertSee('Gated features')
             ->assertSee('Quotas')
+            ->assertSee('name="gate_marketplace"', false)
+            ->assertSee('name="volume_storage_gb"', false)
             ->assertSee('Growth');
+    }
+
+    public function test_past_due_or_expired_subscription_falls_back_to_free_entitlements(): void
+    {
+        [$owner, $tenant] = $this->workspace(['backups' => true], ['servers' => 25, 'backups' => 100]);
+        $subscription = $tenant->subscriptions()->latest()->firstOrFail();
+        $subscription->update(['status' => 'past_due']);
+
+        $limits = app(PlanLimitService::class);
+        $this->assertSame('free', $limits->plan($tenant)->slug);
+        $this->assertFalse($limits->allowsFeature($tenant, 'backups'));
+        $this->assertSame(1.0, $limits->plan($tenant)->limit('servers'));
+
+        $subscription->update(['status' => 'active', 'current_period_ends_at' => now()->subMinute()]);
+        $this->assertSame('free', $limits->plan($tenant)->slug);
+    }
+
+    public function test_missing_known_gate_fails_closed_and_direct_mutation_is_blocked(): void
+    {
+        [$owner, $tenant] = $this->workspace([], ['servers' => 5, 'backups' => 5]);
+        $this->assertFalse(app(PlanLimitService::class)->allowsFeature($tenant, 'backups'));
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('backups.store'), [])
+            ->assertSessionHasErrors('backups');
+    }
+
+    public function test_billing_console_displays_every_live_plan_quota(): void
+    {
+        [$owner, $tenant] = $this->workspace([], [
+            'servers' => 5,
+            'volume_storage_gb' => 50,
+            'monitoring_retention_days' => 30,
+        ]);
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('billing.index'))
+            ->assertOk()
+            ->assertSee('Volume storage (GB)')
+            ->assertSee('Monitoring retention (days)')
+            ->assertSee('0 / 50');
     }
 
     private function workspace(array $gates, array $limits): array

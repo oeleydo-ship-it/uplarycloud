@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ServerAuthenticationMethod;
 use App\Enums\ServerProvider;
 use App\Enums\ServerStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,6 +61,11 @@ class Server extends Model
     public function infrastructureOperations(): HasMany { return $this->hasMany(InfrastructureOperation::class); }
     public function infrastructureCharges(): HasMany { return $this->hasMany(InfrastructureCharge::class); }
     public function isManaged(): bool { return $this->server_type === 'managed'; }
+
+    public static function liveIdQuery(int $tenantId): Builder
+    {
+        return static::query()->where('tenant_id', $tenantId)->select('id');
+    }
 
     public function isFullyProvisioned(): bool
     {

@@ -4,6 +4,17 @@
         $memoryPercent = $memoryLimitMb > 0 ? min(100, round(($memoryUsedMb / $memoryLimitMb) * 100)) : 0;
     @endphp
 
+    <div class="page-heading dashboard-welcome">
+        <div>
+            <p class="dashboard-welcome__eyebrow">Workspace overview</p>
+            <h1>Infrastructure at a glance</h1>
+            <p>Monitor capacity, deploy applications, and keep your services healthy.</p>
+        </div>
+        <div class="heading-actions">
+            <a href="{{ route('applications.index') }}" class="button button--secondary"><i data-lucide="blocks"></i> Browse apps</a>
+        </div>
+    </div>
+
     <section class="stats-grid dashboard-stats">
         @foreach($stats as $stat)
             <x-stat-card :label="$stat['label']" :value="$stat['value']" :detail="$stat['detail']" :icon="$stat['icon']" :tone="$stat['tone']" :href="$stat['href']" />

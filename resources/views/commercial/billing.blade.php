@@ -196,17 +196,26 @@
         @endforelse
     </section>
 
-    <section class="usage-grid billing-panel" x-show="tab==='usage'">
-        @foreach(['servers'=>['Servers','server'],'team_members'=>['Team members','users'],'backup_storage_gb'=>['Backup storage','archive'],'bandwidth_gb'=>['Bandwidth','activity'],'managed_servers'=>['Managed servers','cloud']] as $metric=>[$label,$icon])
-            <article class="card usage-card">
-                <span class="stat-icon stat-icon--purple"><i data-lucide="{{ $icon }}"></i></span>
-                <div>
-                    <small>{{ $label }}</small>
-                    <strong>{{ number_format($usage[$metric]??0, $metric==='servers'||$metric==='team_members'?0:2) }}</strong>
-                    <span>{{ str_contains($metric,'gb')?'GB this period':'Current usage' }}</span>
-                </div>
-            </article>
+    <div class="billing-panel" x-show="tab==='usage'">
+        @foreach(\App\Support\PlanCatalog::groupedQuotas() as $group => $quotas)
+            <div class="usage-section-head"><h2>{{ $group }}</h2><p>Live usage against the quotas configured for your {{ $planAccess->plan()->name }} plan.</p></div>
+            <section class="usage-grid">
+                @foreach($quotas as $metric => $quota)
+                    @php($limit = $planAccess->quota($metric))
+                    <article class="card usage-card {{ $planAccess->atCapacity($metric, 0) ? 'usage-card--limit' : '' }}">
+                        <span class="stat-icon stat-icon--purple"><i data-lucide="{{ match($metric) { 'servers' => 'server', 'managed_servers' => 'cloud', 'applications' => 'blocks', 'containers' => 'box', 'domains' => 'globe-2', 'volumes', 'volume_storage_gb' => 'database', 'team_members' => 'users', 'backups', 'backup_storage_gb' => 'archive', 'api_tokens' => 'key-round', default => 'activity' } }}"></i></span>
+                        <div>
+                            <small>{{ $quota['label'] }}</small>
+                            @if($metric === 'monitoring_retention_days')
+                                <strong>{{ $limit === null ? 'Unlimited' : $limit.' days' }}</strong><span>Metrics data retention</span>
+                            @else
+                                <strong>{{ $planAccess->usageLabel($metric) }}</strong><span>{{ $limit === null ? 'Unlimited quota' : ($planAccess->atCapacity($metric, 0) ? 'Limit reached' : $planAccess->remaining($metric).' remaining') }}</span>
+                            @endif
+                        </div>
+                    </article>
+                @endforeach
+            </section>
         @endforeach
-    </section>
+    </div>
 </div>
 </x-dashboard-layout>

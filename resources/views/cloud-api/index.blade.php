@@ -37,10 +37,16 @@
                                 <em class="cloud-api-error">{{ str($connection->last_error)->limit(90) }}</em>
                             @endif
                         </div>
-                        <form method="POST" action="{{ route('managed.connections.verify', $connection) }}">
-                            @csrf
-                            <button class="button button--secondary" type="submit"><i data-lucide="badge-check"></i> Verify</button>
-                        </form>
+                        <div class="cloud-api-actions">
+                            <form method="POST" action="{{ route('managed.connections.verify', $connection) }}">
+                                @csrf
+                                <button class="button button--secondary" type="submit"><i data-lucide="badge-check"></i> Verify</button>
+                            </form>
+                            <form method="POST" action="{{ route('managed.connections.destroy', $connection) }}" onsubmit="return confirm('Delete these provider API credentials?')">
+                                @csrf @method('DELETE')
+                                <button class="button button--danger" type="submit" title="Delete provider API"><i data-lucide="trash-2"></i> Remove</button>
+                            </form>
+                        </div>
                     </article>
                 @empty
                     <div class="cloud-empty-state">

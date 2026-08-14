@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\ProcessWebApplicationDeploymentJob;
 use App\Models\ApplicationDeployment;
 use App\Models\BuildPack;
+use App\Models\Plan;
 use App\Models\Server;
 use App\Models\Tenant;
 use App\Models\User;
@@ -335,6 +336,8 @@ class WebApplicationDeploymentTest extends TestCase
         $user = User::factory()->create();
         $tenant = Tenant::create(['name' => fake()->unique()->company()]);
         $tenant->users()->attach($user, ['role' => 'owner']);
+        $plan = Plan::create(['name' => 'Git Test', 'slug' => 'git-test-'.fake()->unique()->numerify('###'), 'monthly_price' => 1000, 'yearly_price' => 10000, 'currency' => 'USD', 'limits' => ['applications' => 100, 'containers' => 500, 'volumes' => 500], 'gates' => ['git_deploy' => true], 'features' => [], 'active' => true]);
+        $tenant->subscriptions()->create(['plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
         $server = Server::create(['tenant_id' => $tenant->id, 'name' => 'Production', 'provider' => 'custom', 'ip_address' => '203.0.113.'.fake()->unique()->numberBetween(1, 254), 'operating_system' => 'ubuntu-24.04', 'status' => 'online', 'authentication_method' => 'ssh_key', 'cpu_cores' => 4, 'memory_mb' => 8192, 'disk_gb' => 160]);
         return [$user, $tenant, $server];
     }

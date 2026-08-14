@@ -12,6 +12,7 @@ class ConfigureDomainJob implements ShouldQueue
 {
     use Queueable;
     public int $tries=2;
+    public int $timeout=600;
     public function __construct(public int $domainId,public int $tenantId){$this->onQueue(config('infrastructure.queues.networking'));}
     public function handle(DomainNetworkService $network): void
     {
@@ -19,7 +20,7 @@ class ConfigureDomainJob implements ShouldQueue
         try {
             $network->configure($domain);
             if ($domain->refresh()->ssl_enabled) {
-                IssueCertificateJob::dispatchSync($domain->id, $domain->tenant_id);
+                IssueCertificateJob::dispatch($domain->id, $domain->tenant_id);
             }
         } catch (Throwable $e) {
             $domain->update(['status' => 'failed', 'proxy_status' => 'failed', 'failure_reason' => $e->getMessage()]);

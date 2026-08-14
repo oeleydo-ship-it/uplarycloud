@@ -33,7 +33,7 @@
                     <div class="cloud-empty-state">
                         <span class="section-icon"><i data-lucide="cloud-off"></i></span>
                         <h3>Managed cloud is unavailable</h3>
-                        <p>The platform administrator has not published a verified DigitalOcean or Hetzner connection yet.</p>
+                        <p>The platform administrator has not published managed-server capacity yet.</p>
                     </div>
                 @else
                     <div class="add-server-fields add-server-fields--two">
@@ -42,12 +42,12 @@
                             <input name="name" x-model="cloud.name" required placeholder="Production Managed Server">
                         </label>
                         <label class="field">
-                            <span>Platform provider *</span>
+                            <span>Managed service *</span>
                             <select name="provider_connection_id" x-model="cloud.connection" @change="selectCloudConnection()" required>
-                                <option value="">Select a provider</option>
+                                <option value="">Select managed capacity</option>
                                 @foreach($cloudConnections as $connection)
                                     <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}">
-                                        {{ $connection->provider === 'digitalocean' ? 'DigitalOcean' : 'Hetzner Cloud' }}
+                                        Managed infrastructure {{ $loop->iteration }}
                                     </option>
                                 @endforeach
                             </select>
@@ -108,7 +108,7 @@
                     <span class="section-icon"><i data-lucide="cloud"></i></span>
                     <h3>What you choose</h3>
                     <ul>
-                        <li><i data-lucide="check"></i> Provider and plan</li>
+                        <li><i data-lucide="check"></i> Managed service and plan</li>
                         <li><i data-lucide="check"></i> Region and OS image</li>
                         <li><i data-lucide="check"></i> Server display name</li>
                     </ul>
@@ -117,7 +117,7 @@
                     <i data-lucide="lock-keyhole" class="aside-help-icon"></i>
                     <div>
                         <h3>Tokens stay on the platform</h3>
-                        <p>Managed servers use superadmin-configured DigitalOcean or Hetzner accounts. Use <a href="{{ route('servers.create') }}">custom own server</a> to bring your own Cloud API.</p>
+                        <p>Infrastructure credentials and maintenance stay with the platform. Use <a href="{{ route('servers.create') }}">custom own server</a> to bring your own Cloud API.</p>
                     </div>
                 </article>
             </aside>

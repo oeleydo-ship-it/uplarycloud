@@ -10,10 +10,21 @@
     <style>:root{--primary:{{ $brand['primary_color'] }};--secondary:{{ $brand['secondary_color'] }};}</style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="app-body" x-data="{ sidebarOpen: false, profileOpen: false }">
-    <div class="app-shell">
+<body
+    class="app-body {{ session()->has('impersonator_id') ? 'is-impersonating' : '' }}"
+    x-data="{ sidebarOpen: false, profileOpen: false, sidebarCollapsed: false }"
+    x-init="sidebarCollapsed = localStorage.getItem('uplary-sidebar-collapsed') === 'true'; $watch('sidebarCollapsed', value => localStorage.setItem('uplary-sidebar-collapsed', value ? 'true' : 'false'))"
+>
+    <div class="app-shell" :class="sidebarCollapsed && 'sidebar-collapsed'">
         @include('partials.sidebar', ['brand' => $brand])
         <div class="app-main">
+            @if(session()->has('impersonator_id'))
+                <div class="impersonation-banner" role="status">
+                    <span><i data-lucide="life-buoy"></i><strong>Support session</strong> {{ session('impersonator_name') }} is viewing as {{ auth()->user()->name }}</span>
+                    <span class="impersonation-banner__context">{{ app(\App\Support\TenantContext::class)->current()->name }} · {{ $planAccess->plan()->name }} plan</span>
+                    <form method="post" action="{{ route('impersonation.leave') }}">@csrf<button><i data-lucide="log-out"></i>Return to Platform Console</button></form>
+                </div>
+            @endif
             @include('partials.header', ['brand' => $brand])
             <main class="page-content">
                 @if(session('success'))

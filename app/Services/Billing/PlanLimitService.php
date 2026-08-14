@@ -14,7 +14,15 @@ class PlanLimitService
 {
     public function plan(Tenant $tenant): Plan
     {
-        return $tenant->currentSubscription()?->plan ?? Plan::firstOrCreate(
+        $subscription = $tenant->entitledSubscription();
+
+        if ($subscription?->plan) {
+            return $subscription->plan;
+        }
+
+        $defaults = PlanCatalog::defaultsFor('free');
+
+        return Plan::firstOrCreate(
             ['slug' => 'free'],
             [
                 'name' => 'Free',
@@ -22,13 +30,8 @@ class PlanLimitService
                 'monthly_price' => 0,
                 'yearly_price' => 0,
                 'currency' => 'USD',
-                'limits' => [
-                    'servers' => 1,
-                    'team_members' => 1,
-                    'backup_storage_gb' => 1,
-                    'managed_servers' => 0,
-                ],
-                'gates' => array_fill_keys(PlanCatalog::gateKeys(), true),
+                'limits' => $defaults['limits'],
+                'gates' => $defaults['gates'],
                 'features' => ['Core Docker management'],
                 'active' => true,
             ]

@@ -9,22 +9,29 @@ use App\Models\ActivityLog;
 use App\Models\Server;
 use App\Services\Servers\ServerProvisionVerifier;
 use App\Support\RemoteShell;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
 use Throwable;
 
-class ProvisionServerJob implements ShouldQueue
+class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries = 8;
     public int $timeout = 900;
-    public array $backoff = [15, 60, 180];
+    public array $backoff = [20, 30, 45, 60, 90, 120, 180, 180];
+    public int $uniqueFor = 960;
 
     public function __construct(public Server $server, public bool $force = false)
     {
         $this->onQueue(config('infrastructure.queues.provisioning'));
+    }
+
+    public function uniqueId(): string
+    {
+        return 'provision-server-'.$this->server->getKey();
     }
 
     private const PROVISION_TIMEOUT = 900;
@@ -65,7 +72,7 @@ class ProvisionServerJob implements ShouldQueue
             try {
                 $message = match ($step->key) {
                     'connect' => $this->connect($executor, $server, $system),
-                    'system' => $this->system($system),
+                    'system' => $this->system($system, $server),
                     'docker' => $server->install_docker ? $this->docker($executor, $server) : 'Docker installation skipped by request',
                     'configure' => $this->configure($executor, $server),
                     'proxy' => $server->install_proxy ? $this->proxy($executor, $server) : 'Reverse proxy installation skipped',
@@ -75,6 +82,12 @@ class ProvisionServerJob implements ShouldQueue
                 };
                 $this->completed($server, $step, $message);
             } catch (Throwable $exception) {
+                if ($this->shouldRetryWithoutFailing($exception) && $this->attempts() < $this->tries) {
+                    $this->running($server, $step, 'Waiting for SSH on the new instance to become ready…');
+                    $server->update(['status' => ServerStatus::Provisioning, 'failure_reason' => null]);
+                    throw $exception;
+                }
+
                 $step->update(['status' => 'failed', 'completed_at' => now(), 'message' => $this->safeError($exception)]);
                 $server->update(['status' => ServerStatus::Failed, 'failure_reason' => $this->safeError($exception)]);
                 ActivityLog::create([
@@ -135,22 +148,74 @@ class ProvisionServerJob implements ShouldQueue
 
     private function connect(ServerExecutorInterface $executor, Server $server, array &$system): string
     {
+        if ($this->waitingForCloudInstance($server)) {
+            throw new RuntimeException('The cloud instance does not have a public IP yet.');
+        }
+
         $result = $executor->test($server);
         if (! $result['success']) {
             throw new RuntimeException($result['message'] ?? 'SSH connection failed.');
         }
         $system = $result['system'];
+        $advertisedDisk = (int) $server->disk_gb;
+        $system['memory_mb'] = \App\Services\Servers\ServerConnectionTester::resolveMemoryMb(
+            (int) ($system['memory_mb'] ?? 0),
+            (int) $server->memory_mb
+        );
+        if ($advertisedDisk >= 15 && (int) ($system['disk_gb'] ?? 0) < 15) {
+            $system['disk_gb'] = $advertisedDisk;
+        }
         $server->update(array_intersect_key($system, array_flip(['operating_system', 'cpu_cores', 'memory_mb', 'disk_gb'])));
 
         return 'Secure SSH connection and sudo access verified';
     }
 
-    private function system(array $system): string
+    private function waitingForCloudInstance(Server $server): bool
     {
-        if (($system['memory_mb'] ?? 0) < 1800) {
+        if ($server->ip_address === '0.0.0.0' || $server->ip_address === '') {
+            return true;
+        }
+
+        return (bool) ($server->provider_connection_id && blank($server->provider_resource_id));
+    }
+
+    private function shouldRetryWithoutFailing(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        foreach ([
+            'timed out', 'timeout', '10060', 'connection refused', 'could not reach',
+            'not ready', '0.0.0.0', 'does not have a public ip', 'unreachable',
+            'no route', 'connection reset', 'unable to connect', 'network is unreachable',
+            'operating system is not supported',
+            'password has expired', 'password change required', 'no tty available',
+        ] as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function system(array $system, Server $server): string
+    {
+        $memory = \App\Services\Servers\ServerConnectionTester::resolveMemoryMb(
+            (int) ($system['memory_mb'] ?? 0),
+            (int) $server->memory_mb
+        );
+        $disk = (int) ($system['disk_gb'] ?? 0);
+        $minMemory = \App\Services\Servers\ServerConnectionTester::MIN_MEMORY_MB;
+        if ($disk < 15 && (int) $server->disk_gb >= 15) {
+            $disk = (int) $server->disk_gb;
+        }
+        if ($memory <= 0 || $disk <= 0) {
+            throw new RuntimeException('The SSH session is not ready to read CPU, memory and disk.');
+        }
+        if ($memory < $minMemory) {
             throw new RuntimeException('At least 2 GB of RAM is required.');
         }
-        if (($system['disk_gb'] ?? 0) < 15) {
+        if ($disk < 15) {
             throw new RuntimeException('At least 15 GB of disk space is required.');
         }
 

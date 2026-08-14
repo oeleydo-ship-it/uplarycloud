@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\ContainerStatus;
 use App\Events\DockerResourceUpdated;
-use App\Jobs\CollectOperationsMetricsJob;
-use App\Models\ActivityLog;
+use App\Jobs\DockerResourceActionJob;
+use App\Jobs\SyncContainerInventoryJob;
 use App\Models\Application;
 use App\Models\DockerContainer;
 use App\Models\Server;
@@ -15,7 +15,6 @@ use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Throwable;
 
 class DockerContainerController extends Controller
 {
@@ -25,7 +24,9 @@ class DockerContainerController extends Controller
         $tenantId = $ctx->id();
         $inventory->linkDeployments($tenant);
 
-        $baseQuery = DockerContainer::query()->where('tenant_id', $tenantId);
+        $baseQuery = DockerContainer::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('server_id', Server::liveIdQuery($tenantId));
         $counts = [
             'all' => (clone $baseQuery)->count(),
             'running' => (clone $baseQuery)->where('status', ContainerStatus::Running)->count(),
@@ -72,7 +73,7 @@ class DockerContainerController extends Controller
         ]);
     }
 
-    public function sync(Request $request, TenantContext $ctx, ContainerInventoryService $inventory): RedirectResponse
+    public function sync(Request $request, TenantContext $ctx): RedirectResponse
     {
         $data = $request->validate(['server' => ['nullable', 'exists:servers,id']]);
         $servers = Server::query()
@@ -85,16 +86,9 @@ class DockerContainerController extends Controller
             $this->authorize('operate', $server);
         }
 
-        try {
-            $updated = $inventory->syncTenant($ctx->current(), $data['server'] ?? null);
-            CollectOperationsMetricsJob::dispatch($data['server'] ?? null);
+        SyncContainerInventoryJob::dispatch($ctx->id(), $data['server'] ?? null, $request->user()->id);
 
-            return back()->with('success', "Container sync completed ({$updated} refreshed).");
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->with('error', 'Container sync failed: '.$exception->getMessage());
-        }
+        return back()->with('success', 'Container sync queued. Inventory will refresh shortly.');
     }
 
     public function prune(Request $request, TenantContext $ctx, DockerService $docker): RedirectResponse
@@ -114,7 +108,7 @@ class DockerContainerController extends Controller
         return back()->with('success', 'Unused container cleanup completed.');
     }
 
-    public function action(Request $request, DockerContainer $container, TenantContext $ctx, ContainerInventoryService $inventory, DockerService $docker): RedirectResponse
+    public function action(Request $request, DockerContainer $container, TenantContext $ctx): RedirectResponse
     {
         abort_unless($container->tenant_id === $ctx->id(), 404);
 
@@ -129,44 +123,23 @@ class DockerContainerController extends Controller
             'action' => ['required', 'in:start,stop,restart,pause,unpause,remove,inspect'],
         ])['action'];
 
-        try {
-            if ($action === 'inspect') {
-                $inventory->refreshOne($container);
+        DockerResourceActionJob::dispatch('container', $container->id, $action, $ctx->id(), $request->user()->id);
+        event(new DockerResourceUpdated($ctx->id(), 'container', $container->uuid, $action, 'queued'));
 
-                return back()->with('success', 'Container status refreshed from Docker.');
-            }
-
-            $docker->container($container, $action);
-
-            ActivityLog::create([
-                'tenant_id' => $ctx->id(),
-                'user_id' => $request->user()->id,
-                'action' => 'docker.container.'.$action,
-                'description' => 'Container '.$action.' completed',
-                'subject_type' => DockerContainer::class,
-                'subject_id' => $container->id,
-                'created_at' => now(),
-            ]);
-            event(new DockerResourceUpdated($ctx->id(), 'container', $container->uuid, $action, 'completed'));
-
-            return back()->with('success', $this->actionSuccessMessage($action, $container->name));
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->with('error', 'Unable to '.$action.' container: '.$exception->getMessage());
-        }
+        return back()->with('success', $this->actionQueuedMessage($action, $container->name));
     }
 
-    private function actionSuccessMessage(string $action, string $name): string
+    private function actionQueuedMessage(string $action, string $name): string
     {
         return match ($action) {
-            'start' => $name.' started.',
-            'stop' => $name.' stopped.',
-            'restart' => $name.' restarted.',
-            'pause' => $name.' paused.',
-            'unpause' => $name.' unpaused.',
-            'remove' => $name.' removed.',
-            default => ucfirst($action).' completed.',
+            'inspect' => 'Status sync queued for '.$name.'.',
+            'start' => 'Start queued for '.$name.'.',
+            'stop' => 'Stop queued for '.$name.'.',
+            'restart' => 'Restart queued for '.$name.'.',
+            'pause' => 'Pause queued for '.$name.'.',
+            'unpause' => 'Resume queued for '.$name.'.',
+            'remove' => 'Removal queued for '.$name.'.',
+            default => ucfirst($action).' queued.',
         };
     }
 }

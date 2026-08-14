@@ -16,12 +16,26 @@ class ManagedInfrastructureService
 
     public function create(InfrastructureOperation $operation): void
     {
-        $operation->loadMissing('server.providerConnection');
+        $operation->loadMissing('server.providerConnection', 'server.managedPlan');
         $server = $operation->server;
-        $plan = $server->managedPlan ?? throw new RuntimeException('Managed plan is missing.');
-        $adapter = $this->providers->make($server->providerConnection);
-        $this->start($operation, 'Requesting a new '.$plan->name.' instance from '.$server->provider->label().'.');
         $parameters = $operation->parameters ?? [];
+
+        if ($operation->status === 'completed' && $server->ip_address !== '0.0.0.0' && filled($server->provider_resource_id)) {
+            return;
+        }
+
+        if (filled($server->provider_resource_id) && $server->ip_address !== '0.0.0.0') {
+            $this->complete($operation, [
+                'resource_id' => $server->provider_resource_id,
+                'ip_address' => $server->ip_address,
+            ], 'Managed server created. SSH and Docker provisioning are queued.');
+
+            return;
+        }
+
+        $plan = $this->planFor($server, $parameters);
+        $adapter = $this->providers->make($server->providerConnection);
+        $this->start($operation, 'Requesting a new '.$plan->name.' managed server.');
         $result = $adapter->create($server, $plan, ['region' => $server->provider_region, 'image' => $server->provider_image, 'user_data' => $this->cloudInit($parameters['public_key'] ?? null)]);
         $server->update(['provider_resource_id' => $result['resource_id'], 'ip_address' => $result['ip_address'], 'status' => ServerStatus::Provisioning, 'provider_created_at' => now(), 'failure_reason' => null]);
         if ($server->ip_address === '0.0.0.0') {
@@ -34,11 +48,11 @@ class ManagedInfrastructureService
                 }
             }
         }if ($server->fresh()->ip_address === '0.0.0.0') {
-            throw new RuntimeException('The cloud provider did not assign a public IP address in time.');
+            throw new RuntimeException('The managed server did not receive a public IP address in time.');
         }if ($server->isManaged() && ($parameters['billing'] ?? true)) {
             $this->billing->accrue($server->load('managedPlan'), $operation);
-        }$this->complete($operation, $result, 'Cloud instance created. SSH and Docker provisioning are queued.');
-        ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.created', 'description' => $server->name.' created on '.$server->provider->label(), 'subject_type' => Server::class, 'subject_id' => $server->id]);
+        }$this->complete($operation, $result, 'Managed server created. SSH and Docker provisioning are queued.');
+        ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.created', 'description' => $server->name.' managed server created', 'subject_type' => Server::class, 'subject_id' => $server->id]);
     }
 
     public function perform(InfrastructureOperation $operation): void
@@ -47,7 +61,7 @@ class ManagedInfrastructureService
         $server = $operation->server;
         $adapter = $this->providers->make($server->providerConnection);
         $parameters = $operation->parameters ?? [];
-        $this->start($operation, ucfirst($operation->action).' requested from '.$server->provider->label().'.');
+        $this->start($operation, ucfirst($operation->action).' requested for the managed server.');
         $result = match ($operation->action) {
             'restart' => $adapter->restart($server),'resize' => $this->resize($adapter, $server, $operation, $parameters),'rebuild' => $adapter->rebuild($server, $parameters['image'] ?? $server->provider_image),'destroy' => $adapter->destroy($server),'sync' => $adapter->status($server),default => throw new RuntimeException('Unsupported infrastructure action.')
         };
@@ -65,6 +79,13 @@ class ManagedInfrastructureService
 
     public function fail(InfrastructureOperation $operation, \Throwable $exception): void
     {
+        $server = $operation->server()->first();
+        if ($server && filled($server->provider_resource_id) && $server->ip_address !== '0.0.0.0') {
+            $operation->update(['status' => 'completed', 'last_error' => null, 'completed_at' => $operation->completed_at ?? now()]);
+
+            return;
+        }
+
         $operation->update(['status' => 'failed', 'last_error' => $exception->getMessage(), 'completed_at' => now()]);
         $operation->server()->update(['status' => ServerStatus::Failed, 'failure_reason' => 'Managed infrastructure operation failed.']);
         event(new ManagedInfrastructureUpdated($operation->fresh()));
@@ -81,7 +102,27 @@ class ManagedInfrastructureService
             $this->billing->resizeAdjustment($server, $oldPrice, $operation);
         }
 
-return $result;
+        return $result;
+    }
+
+    private function planFor(Server $server, array $parameters): ManagedServerPlan
+    {
+        if ($server->managedPlan) {
+            return $server->managedPlan;
+        }
+
+        $providerPlanId = (string) ($parameters['plan'] ?? '');
+        if ($providerPlanId === '') {
+            throw new RuntimeException('Managed plan is missing.');
+        }
+
+        return new ManagedServerPlan([
+            'provider_plan_id' => $providerPlanId,
+            'name' => $providerPlanId,
+            'cpu_cores' => $server->cpu_cores,
+            'memory_mb' => $server->memory_mb,
+            'disk_gb' => $server->disk_gb,
+        ]);
     }
 
     private function start(InfrastructureOperation $operation, string $message): void
@@ -100,12 +141,31 @@ return $result;
     {
         $key = $publicKey ? str_replace(["\r", "\n"], '', trim($publicKey)) : null;
 
-        return "#cloud-config\n"
+        $config = "#cloud-config\n"
             ."package_update: true\n"
             ."packages: [ca-certificates, curl]\n"
             ."ssh_pwauth: false\n"
             ."disable_root: false\n"
-            .($key ? "users:\n  - name: root\n    lock_passwd: true\n    ssh_authorized_keys:\n      - {$key}\n" : '')
-            ."runcmd:\n  - mkdir -p /opt/uplary\n";
+            ."chpasswd:\n"
+            ."  expire: false\n";
+
+        if ($key) {
+            $config .= "ssh_authorized_keys:\n  - {$key}\n"
+                ."users:\n"
+                ."  - name: root\n"
+                ."    lock_passwd: true\n"
+                ."    ssh_authorized_keys:\n"
+                ."      - {$key}\n"
+                ."runcmd:\n"
+                ."  - mkdir -p /root/.ssh /opt/uplary\n"
+                ."  - chmod 700 /root/.ssh\n"
+                ."  - grep -qxF '{$key}' /root/.ssh/authorized_keys 2>/dev/null || echo '{$key}' >> /root/.ssh/authorized_keys\n"
+                ."  - chmod 600 /root/.ssh/authorized_keys\n"
+                ."  - chage -d -1 root || true\n";
+        } else {
+            $config .= "runcmd:\n  - mkdir -p /opt/uplary\n  - chage -d -1 root || true\n";
+        }
+
+        return $config;
     }
 }

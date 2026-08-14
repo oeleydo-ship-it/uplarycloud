@@ -5,6 +5,8 @@ namespace App\Services\Operations;
 use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Models\Backup;
 use App\Models\BackupDestination;
+use App\Models\Tenant;
+use App\Services\Billing\PlanLimitService;
 use App\Support\RemoteShell;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +17,7 @@ class BackupService
     public function __construct(
         private readonly ServerExecutorInterface $executor,
         private readonly OperationsLogService $logs,
+        private readonly PlanLimitService $limits,
     ) {}
 
     public function create(Backup $backup): void
@@ -46,6 +49,17 @@ class BackupService
 
         if (! is_file($local)) {
             throw new RuntimeException('Backup artifact was not created.');
+        }
+
+        try {
+            $this->limits->enforce(
+                Tenant::findOrFail($backup->tenant_id),
+                'backup_storage_gb',
+                filesize($local) / 1073741824,
+            );
+        } catch (\Throwable $exception) {
+            @unlink($local);
+            throw $exception;
         }
 
         $metadata = ['destination' => $backup->destination?->provider ?? 'local'];

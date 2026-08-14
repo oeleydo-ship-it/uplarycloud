@@ -18,14 +18,14 @@ return [
             'group' => 'Applications',
         ],
         'managed_servers' => [
-            'label' => 'Managed Cloud servers',
-            'description' => 'Provision DigitalOcean and Hetzner servers from the platform.',
+            'label' => 'Managed servers',
+            'description' => 'Provision and operate fully managed servers from the platform.',
             'group' => 'Infrastructure',
             'nav' => 'managed.index',
         ],
         'cloud_api' => [
             'label' => 'Bring-your-own Cloud API',
-            'description' => 'Connect personal DigitalOcean or Hetzner API tokens.',
+            'description' => 'Connect a supported cloud account using your own API credentials.',
             'group' => 'Infrastructure',
             'nav' => 'cloud-api.index',
         ],

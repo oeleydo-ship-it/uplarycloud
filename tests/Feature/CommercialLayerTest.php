@@ -34,7 +34,7 @@ class CommercialLayerTest extends TestCase
 
     public function test_sanctum_token_is_tenant_bound_scoped_and_hashed(): void
     {
-        [$owner,$tenant]=$this->workspace();$this->server($tenant);$response=$this->actingAs($owner)->withSession(['tenant_id'=>$tenant->id])->post(route('api-tokens.store'),['name'=>'Deploy bot','scopes'=>['servers:read'],'environment'=>'production','expires_in'=>'90']);$response->assertRedirect();$plain=session('plain_api_token');$this->assertNotEmpty($plain);$this->assertDatabaseMissing('personal_access_tokens',['token'=>$plain]);
+        [$owner,$tenant]=$this->workspace();$this->enableApiTokens($tenant);$this->server($tenant);$response=$this->actingAs($owner)->withSession(['tenant_id'=>$tenant->id])->post(route('api-tokens.store'),['name'=>'Deploy bot','scopes'=>['servers:read'],'environment'=>'production','expires_in'=>'90']);$response->assertRedirect();$plain=session('plain_api_token');$this->assertNotEmpty($plain);$this->assertDatabaseMissing('personal_access_tokens',['token'=>$plain]);
         auth()->logout();$this->withToken($plain)->getJson('/api/v1/servers')->assertOk()->assertJsonCount(1,'data');
     }
 
@@ -47,7 +47,7 @@ class CommercialLayerTest extends TestCase
 
     public function test_api_token_console_filters_updates_and_retains_revoked_tokens(): void
     {
-        [$owner,$tenant]=$this->workspace();
+        [$owner,$tenant]=$this->workspace();$this->enableApiTokens($tenant);
         $active=$owner->createToken('Deploy bot',['servers:read'],now()->addDays(90))->accessToken;$active->update(['tenant_id'=>$tenant->id,'environment'=>'production']);
         $expired=$owner->createToken('Old monitor',['monitoring:read'],now()->subDay())->accessToken;$expired->update(['tenant_id'=>$tenant->id,'environment'=>'staging']);
         $this->actingAs($owner)->withSession(['tenant_id'=>$tenant->id])->get(route('api-tokens.index',['status'=>'expired']))->assertOk()->assertSee('Old monitor')->assertDontSee('Deploy bot');
@@ -77,5 +77,6 @@ class CommercialLayerTest extends TestCase
 
     private function workspace(): array{$owner=User::factory()->create();$tenant=Tenant::create(['name'=>fake()->unique()->company()]);$tenant->users()->attach($owner,['role'=>'owner','is_active'=>true]);return[$owner,$tenant];}
     private function plan(string $slug,int $price,array $limits):Plan{return Plan::create(['name'=>ucfirst($slug),'slug'=>$slug,'description'=>'Test plan','monthly_price'=>$price,'yearly_price'=>$price*10,'currency'=>'USD','limits'=>$limits,'features'=>['API access'],'active'=>true]);}
+    private function enableApiTokens(Tenant $tenant):void{$plan=$this->plan('api-'.fake()->unique()->numerify('###'),1000,['api_tokens'=>5]);$plan->update(['gates'=>['api_tokens'=>true]]);$tenant->subscriptions()->create(['plan_id'=>$plan->id,'status'=>'active','billing_cycle'=>'monthly']);}
     private function server(Tenant $tenant):Server{return Server::create(['tenant_id'=>$tenant->id,'name'=>'Production','provider'=>'custom','ip_address'=>fake()->unique()->ipv4(),'operating_system'=>'ubuntu-24.04','status'=>'online','authentication_method'=>'ssh_key']);}
 }

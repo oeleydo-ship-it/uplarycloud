@@ -179,6 +179,9 @@
     font-style: normal;
 }
 
+.cloud-api-actions { display: flex; align-items: center; gap: 8px; }
+.cloud-api-actions form { margin: 0; }
+
 .cloud-api-page .cloud-provider-logo {
     width: 42px;
     height: 42px;
@@ -194,6 +197,21 @@
 
 .servers-page .empty-state .add-server-dropdown {
     margin-top: 4px;
+}
+
+.servers-page .server-reference-table-card--empty {
+    position: relative;
+    z-index: 30;
+    overflow: visible;
+}
+
+.servers-page .server-reference-table-card--empty .empty-state {
+    min-height: 290px;
+    padding-bottom: 64px;
+}
+
+.servers-page .server-reference-table-card--empty .add-server-dropdown__menu {
+    z-index: 80;
 }
 
 .servers-page .heading-actions {

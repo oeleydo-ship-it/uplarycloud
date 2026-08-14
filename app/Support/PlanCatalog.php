@@ -36,7 +36,11 @@ class PlanCatalog
 
     public static function label(string $key): string
     {
-        return static::gate($key)['label'] ?? static::quota($key)['label'];
+        if (array_key_exists($key, static::gates())) {
+            return static::gate($key)['label'];
+        }
+
+        return static::quota($key)['label'];
     }
 
     public static function defaultsFor(string $slug): array
@@ -45,7 +49,7 @@ class PlanCatalog
 
         if (! is_array($defaults)) {
             return [
-                'gates' => array_fill_keys(static::gateKeys(), true),
+                'gates' => array_fill_keys(static::gateKeys(), false),
                 'limits' => array_fill_keys(static::quotaKeys(), null),
             ];
         }
@@ -58,12 +62,12 @@ class PlanCatalog
 
     public static function groupedGates(): array
     {
-        return collect(static::gates())->groupBy(fn (array $gate) => $gate['group'] ?? 'Features')->all();
+        return collect(static::gates())->groupBy(fn (array $gate) => $gate['group'] ?? 'Features', preserveKeys: true)->all();
     }
 
     public static function groupedQuotas(): array
     {
-        return collect(static::quotas())->groupBy(fn (array $quota) => $quota['group'] ?? 'Limits')->all();
+        return collect(static::quotas())->groupBy(fn (array $quota) => $quota['group'] ?? 'Limits', preserveKeys: true)->all();
     }
 
     public static function navGate(string $route): ?string

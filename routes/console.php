@@ -16,3 +16,4 @@ Schedule::job(new \App\Jobs\DispatchScheduledBackupsJob)->everyTenMinutes()->wit
 Schedule::job(new \App\Jobs\CheckImageUpdatesJob)->dailyAt('02:40')->withoutOverlapping();
 Schedule::job(new \App\Jobs\CalculateUsageJob)->hourlyAt(12)->withoutOverlapping();
 Schedule::job(new \App\Jobs\AccrueManagedInfrastructureChargesJob)->dailyAt('00:20')->withoutOverlapping();
+Schedule::job(new \App\Jobs\PublishScheduledBlogPostsJob)->everyMinute()->withoutOverlapping();

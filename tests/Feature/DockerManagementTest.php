@@ -29,22 +29,19 @@ class DockerManagementTest extends TestCase
         $this->actingAs($user)->withSession(['tenant_id'=>$tenant->id])->get('/containers')->assertOk()->assertSee('Own Container')->assertDontSee('Foreign Container');
     }
 
-    public function test_containers_index_loads_when_server_is_soft_deleted(): void
+    public function test_containers_index_hides_inventory_when_server_is_soft_deleted(): void
     {
         [$user, $tenant, $server] = $this->setupOwner();
         DockerContainer::create($this->containerData($tenant, $server, 'Orphaned Worker'));
-        $serverName = $server->name;
         $server->delete();
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('containers.index'))
             ->assertOk()
-            ->assertSee('Orphaned Worker')
-            ->assertSee($serverName)
-            ->assertDontSee('Server removed');
+            ->assertDontSee('Orphaned Worker');
     }
 
-    public function test_volumes_and_images_index_load_when_server_is_soft_deleted(): void
+    public function test_volumes_and_images_index_hide_inventory_when_server_is_soft_deleted(): void
     {
         [$user, $tenant, $server] = $this->setupOwner();
         DockerVolume::create([
@@ -67,32 +64,25 @@ class DockerManagementTest extends TestCase
             'driver' => 'bridge',
             'scope' => 'local',
         ]);
-        $serverName = $server->name;
         $server->delete();
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('volumes.index'))
             ->assertOk()
-            ->assertSee('Orphaned Volume')
-            ->assertSee($serverName)
-            ->assertDontSee('Server removed');
+            ->assertDontSee('Orphaned Volume');
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('images.index', ['show_unused' => 1]))
             ->assertOk()
-            ->assertSee('orphaned/app')
-            ->assertSee($serverName)
-            ->assertDontSee('Server removed');
+            ->assertDontSee('orphaned/app');
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('networks.index'))
             ->assertOk()
-            ->assertSee('orphaned-net')
-            ->assertSee($serverName)
-            ->assertDontSee('Server removed');
+            ->assertDontSee('orphaned-net');
     }
 
-    public function test_container_restart_runs_immediately_and_updates_state(): void
+    public function test_container_restart_is_queued_and_updates_state(): void
     {
         [$user, $tenant, $server] = $this->setupOwner();
         $container = DockerContainer::create($this->containerData($tenant, $server, 'Worker'));
@@ -100,7 +90,7 @@ class DockerManagementTest extends TestCase
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->post(route('containers.action', $container), ['action' => 'restart'])
             ->assertRedirect()
-            ->assertSessionHas('success', 'Worker restarted.');
+            ->assertSessionHas('success', 'Restart queued for Worker.');
 
         $container->refresh();
         $this->assertSame('running', $container->status->value);
@@ -409,7 +399,7 @@ class DockerManagementTest extends TestCase
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->post(route('containers.action', $container), ['action' => 'restart'])
             ->assertRedirect()
-            ->assertSessionHas('success', 'cloudpress-ge6ed-db restarted.');
+            ->assertSessionHas('success', 'Restart queued for cloudpress-ge6ed-db.');
 
         $restart = collect($executor->commands)->first(fn (string $command) => str_starts_with($command, 'docker restart '));
         $this->assertNotNull($restart);

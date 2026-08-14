@@ -250,8 +250,8 @@
                     </dd>
                 </div>
                 <div>
-                    <dt>Provider</dt>
-                    <dd>{{ $server->provider->label() }}{{ $server->server_type === 'managed' ? ' · Managed' : '' }}</dd>
+                    <dt>Infrastructure</dt>
+                    <dd>{{ $server->isManaged() ? 'Managed server' : $server->provider->label() }}</dd>
                 </div>
                 <div>
                     <dt>Install flags</dt>
@@ -285,14 +285,14 @@
                 <div class="card-head">
                     <div>
                         <h2>Managed lifecycle</h2>
-                        <p>{{ $server->provider->label() }} · {{ $server->managedPlan?->name }} · {{ $server->managedPlan?->priceLabel() }}/month · Provider ID {{ $server->provider_resource_id }}</p>
+                        <p>Managed server · {{ $server->managedPlan?->name }} · {{ $server->managedPlan?->priceLabel() }}/month</p>
                     </div>
                     <a href="{{ route('managed.index') }}">Managed cloud</a>
                 </div>
                 <div class="managed-control-grid">
                     <section>
                         <h3>Safe operations</h3>
-                        <p>Synchronize provider state or restart the instance without changing disks.</p>
+                        <p>Synchronize managed-server state or restart the instance without changing disks.</p>
                         <div class="managed-control-actions">
                             <form method="POST" action="{{ route('managed.servers.action', $server) }}">@csrf<input type="hidden" name="action" value="sync"><button class="button button--secondary"><i data-lucide="refresh-cw"></i>Sync</button></form>
                             <form method="POST" action="{{ route('managed.servers.action', $server) }}">@csrf<input type="hidden" name="action" value="restart"><button class="button button--secondary" onclick="return confirm('Restart this cloud instance?')"><i data-lucide="rotate-cw"></i>Restart</button></form>

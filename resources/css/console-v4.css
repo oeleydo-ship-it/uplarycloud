@@ -1,0 +1,304 @@
+/* Tailwind 4 console refresh. This final import replaces legacy phase overrides. */
+.app-body {
+    --console-ink: #0f172a;
+    --console-muted: #64748b;
+    --console-line: #e2e8f0;
+    --console-surface: #fff;
+    --console-canvas: #f8fafc;
+    @apply min-h-screen bg-slate-50 text-slate-950 antialiased;
+}
+
+.admin-subscription-control { display: grid; grid-template-columns: minmax(130px, 1.4fr) minmax(105px, 1fr) minmax(95px, 1fr) auto; gap: 7px; align-items: center; min-width: 510px; }
+.admin-subscription-control select { height: 36px; padding: 0 30px 0 9px; border: 1px solid var(--admin-border); border-radius: 7px; background: #fff; color: var(--admin-text); font-size: 13px; }
+.admin-subscription-control .button { height: 36px; padding: 0 12px; }
+.usage-section-head { margin: 18px 0 10px; }
+.usage-section-head:first-child { margin-top: 0; }
+.usage-section-head h2 { margin: 0; font-size: 16px; }
+.usage-section-head p { margin: 3px 0 0; color: var(--console-muted); font-size: 13px; }
+.usage-card--limit { border-color: #f2c4c8 !important; background: #fffafa !important; }
+.usage-card--limit .stat-icon { color: var(--red) !important; background: #fff0f2 !important; }
+.usage-card--limit div > span { color: var(--red) !important; font-weight: 650; }
+.impersonation-banner { position: sticky; top: 0; z-index: 80; min-height: 48px; padding: 7px 18px; display: flex; align-items: center; gap: 14px; background: #312e81; color: #fff; box-shadow: 0 2px 12px rgb(15 23 42 / .2); }
+.impersonation-banner > span { display: inline-flex; align-items: center; gap: 7px; }
+.impersonation-banner svg { width: 16px; height: 16px; }
+.impersonation-banner__context { color: #c7d2fe; font-size: 13px; }
+.impersonation-banner form { margin-left: auto; }
+.impersonation-banner button { min-height: 32px; padding: 0 11px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgb(255 255 255 / .35); border-radius: 8px; background: rgb(255 255 255 / .12); color: #fff; font-weight: 700; cursor: pointer; }
+.is-impersonating .topbar { top: 48px; }
+.admin-user-plan { display: inline-flex; flex-direction: column; margin: 2px 10px 2px 0; padding-right: 10px; border-right: 1px solid var(--admin-border); }
+.admin-user-actions { display: flex; align-items: center; gap: 7px; }
+.admin-impersonate-form { display: flex; align-items: center; gap: 6px; }
+.admin-impersonate-form select { max-width: 180px; height: 32px; padding: 0 26px 0 8px; border: 1px solid var(--admin-border); border-radius: 6px; background: #fff; font-size: 12px; }
+.admin-support-button { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: #312e81; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.admin-support-button svg { width: 13px; }
+@media (max-width: 1100px) {
+    .admin-table-card { overflow-x: auto; }
+    .admin-table-card table { min-width: 1050px; }
+}
+@media (max-width: 700px) {
+    .impersonation-banner { align-items: flex-start; flex-wrap: wrap; gap: 4px 10px; padding: 8px 12px; }
+    .impersonation-banner__context { width: 100%; }
+    .impersonation-banner form { margin-left: 0; }
+    .is-impersonating .topbar { top: 86px; }
+}
+.app-body .app-shell { @apply min-h-screen bg-slate-50; }
+.app-body .app-main { @apply min-w-0 flex-1; }
+.app-body .topbar-menu__mobile { display: none; }
+
+/* Navigation */
+.app-body .sidebar {
+    width: 272px;
+    min-width: 272px;
+    z-index: 2200;
+    transition: width 180ms ease, min-width 180ms ease;
+    @apply sticky top-0 z-40 flex h-screen flex-col overflow-hidden border-r border-slate-800 bg-slate-950 text-slate-300 shadow-2xl shadow-slate-950/10;
+}
+.app-body .sidebar-head { @apply h-20 shrink-0 border-b border-white/10 px-5; }
+.app-body .brand { @apply gap-3 text-[17px] font-bold tracking-tight text-white; }
+.app-body .brand-mark { @apply size-10 rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-950/40 ring-1 ring-white/20; }
+.app-body .brand-mark svg { @apply size-5; }
+.app-body .sidebar-scroll { @apply px-3 py-4; scrollbar-width: thin; scrollbar-color: #475569 transparent; }
+.app-body .nav-list { @apply gap-1 p-0; }
+.app-body .nav-section-label { @apply mb-1 mt-5 block px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500; }
+.app-body .nav-section-label:first-child { @apply mt-0; }
+.app-body .nav-item,
+.app-body .server-nav-parent > a { @apply min-h-11 gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-400 transition duration-150; }
+.app-body .nav-item svg,
+.app-body .server-nav-parent > a svg { @apply size-[18px]; }
+.app-body .nav-item:hover,
+.app-body .server-nav-parent:hover > a { @apply bg-white/[0.06] text-white; }
+.app-body .nav-item.is-active,
+.app-body .server-nav-parent.is-active { @apply bg-violet-500/15 text-violet-200 ring-1 ring-inset ring-violet-400/20; }
+.app-body .server-nav-parent { @apply rounded-xl; }
+.app-body .server-nav-parent > button { @apply mr-2 text-slate-500 hover:text-white; }
+.app-body .nav-item--nested { @apply ml-5 min-h-9 border-l border-slate-700 pl-6 text-xs; }
+.app-body .sidebar-footer { @apply border-t border-white/10 bg-slate-950 p-3; }
+.app-body .plan-menu { @apply m-0; }
+.app-body .plan-trigger { @apply rounded-xl border-white/10 bg-white/[0.04] px-3 py-3 text-white hover:border-violet-400/30 hover:bg-white/[0.07]; }
+.app-body .plan-trigger-icon { @apply size-9 rounded-lg bg-violet-500/20 text-violet-300; }
+.app-body .plan-trigger-copy small { @apply text-[11px] text-slate-500; }
+.app-body .plan-trigger-copy strong { @apply text-sm text-violet-300; }
+.app-body .plan-trigger-chevron { @apply text-slate-500; }
+.app-body .plan-dropdown { @apply rounded-xl border-slate-200 bg-white p-4 text-slate-900 shadow-2xl; }
+
+@media (min-width: 1024px) {
+    .app-body .sidebar-collapsed .sidebar { width: 84px; min-width: 84px; }
+    .app-body .sidebar-collapsed .sidebar-head { @apply justify-center px-3; }
+    .app-body .sidebar-collapsed .brand { @apply justify-center gap-0; }
+    .app-body .sidebar-collapsed .brand > span:last-child,
+    .app-body .sidebar-collapsed .nav-item > span,
+    .app-body .sidebar-collapsed .nav-section-label,
+    .app-body .sidebar-collapsed .plan-trigger-copy,
+    .app-body .sidebar-collapsed .plan-trigger-chevron { display: none; }
+    .app-body .sidebar-collapsed .nav-list { @apply gap-2 px-3 py-4; }
+    .app-body .sidebar-collapsed .nav-item { @apply min-h-11 justify-center px-0; }
+    .app-body .sidebar-collapsed .nav-item svg { @apply size-5; }
+    .app-body .sidebar-collapsed .sidebar-footer { @apply p-3; }
+    .app-body .sidebar-collapsed .plan-menu { @apply m-0; }
+    .app-body .sidebar-collapsed .plan-trigger { @apply justify-center px-0; }
+    .app-body .sidebar-collapsed .plan-dropdown { left: calc(100% + 12px); right: auto; bottom: 0; width: 240px; }
+}
+
+/* Header and page canvas */
+.app-body .topbar { height: 72px; z-index: 2000; @apply sticky top-0 border-b border-slate-200/80 bg-white/90 px-7 backdrop-blur-xl; }
+.app-body .topbar-left { @apply gap-3; }
+.app-body .topbar-menu { @apply border-0 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900; }
+.app-body .topbar-title { @apply text-lg font-bold tracking-tight text-slate-950; }
+.app-body .topbar-context { @apply hidden text-xs font-medium text-slate-400 md:inline; }
+.app-body .dashboard-server-switcher { @apply rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-sm hover:border-violet-300 hover:shadow-md; }
+.app-body .dashboard-server-switcher strong { @apply text-xs font-semibold text-slate-800; }
+.app-body .dashboard-server-switcher span { @apply text-[10px] font-semibold text-emerald-600; }
+.app-body .icon-button { @apply rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900; }
+.app-body .notification-button { @apply relative border border-slate-200 bg-white shadow-sm; }
+.app-body .profile-trigger { @apply rounded-xl px-2 py-1.5 hover:bg-slate-100; }
+.app-body .avatar { @apply bg-gradient-to-br from-violet-500 to-indigo-600 font-bold text-white shadow-sm; }
+.app-body .profile-dropdown { z-index: 50; @apply rounded-xl border-slate-200 shadow-2xl shadow-slate-900/10; }
+.app-body .add-server-dropdown { z-index: 10; }
+.app-body .add-server-dropdown__menu { z-index: 20; }
+.app-body .page-content { width: min(100%, 1680px); @apply mx-auto px-5 py-6 lg:px-8 lg:py-8; }
+.app-body .page-heading { @apply mb-6 gap-4; }
+.app-body .page-heading h1 { @apply text-2xl font-bold tracking-tight text-slate-950; }
+.app-body .page-heading p { @apply text-sm text-slate-500; }
+.app-body .breadcrumb { @apply mb-2 text-xs font-semibold text-violet-600; }
+.app-body .dashboard-welcome { @apply items-end; }
+.app-body .dashboard-welcome h1 { @apply text-[28px]; }
+.app-body .dashboard-welcome__eyebrow { @apply mb-1 text-xs font-bold uppercase tracking-[0.16em] text-violet-600; }
+
+/* Reusable surfaces and actions */
+.app-body .card,
+.app-body .stat-card,
+.app-body .server-help-banner { @apply rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.025]; }
+.app-body .card { @apply overflow-hidden; }
+.app-body .card-head { @apply min-h-16 border-b border-slate-100 px-5 py-4; }
+.app-body .card-head h2 { @apply text-sm font-bold tracking-tight text-slate-900; }
+.app-body .card-head p { @apply mt-1 text-xs text-slate-500; }
+.app-body .card-head a { @apply text-xs font-semibold text-violet-600 hover:text-violet-800; }
+.app-body .button { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition duration-150 focus:outline-none focus:ring-4 focus:ring-violet-100; }
+.app-body .button--primary { background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary), #312e81 32%)); @apply border-transparent text-white shadow-md shadow-violet-500/20 hover:-translate-y-px hover:brightness-105; }
+.app-body .button--secondary { @apply border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50; }
+.app-body .button--danger { @apply border-red-200 bg-white text-red-600 hover:bg-red-50; }
+.app-body input:not([type='checkbox']):not([type='radio']),
+.app-body select,
+.app-body textarea { @apply rounded-xl border-slate-200 bg-white text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100; }
+.app-body .toast { @apply mb-5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm; }
+.app-body .toast--error { @apply border-red-200 bg-red-50 text-red-800; }
+
+/* Metrics */
+.app-body .stats-grid { @apply gap-4; }
+.app-body .dashboard-stats { @apply mb-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5; }
+.app-body .stat-card { min-height: 126px; @apply relative gap-4 p-5 transition duration-200 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg hover:shadow-slate-900/[0.06]; }
+.app-body .stat-icon { @apply size-11 rounded-xl ring-1 ring-inset ring-black/[0.03]; }
+.app-body .stat-label { @apply text-xs font-semibold text-slate-500; }
+.app-body .stat-value { @apply mt-0.5 text-2xl font-bold tracking-tight text-slate-950; }
+.app-body .stat-detail { @apply mt-1 text-xs text-slate-400; }
+.app-body .mini-action { @apply right-4 top-4 text-slate-300 transition; }
+.app-body .stat-card:hover .mini-action { @apply text-violet-500; }
+
+/* Dashboard */
+.app-body .dashboard-reference-grid { grid-template-columns: minmax(0, 1fr) 360px; @apply gap-5; }
+.app-body .dashboard-reference-main,
+.app-body .dashboard-side-stack { @apply gap-5; }
+.app-body .dashboard-reference-grid > *,
+.app-body .dashboard-reference-main,
+.app-body .dashboard-side-stack { min-width: 0; }
+.app-body .dashboard-deployments { max-width: 100%; @apply overflow-x-auto; }
+.app-body .dashboard-marketplace .card-head { @apply min-h-[76px]; }
+.app-body .dashboard-marketplace .marketplace-grid { @apply gap-3 p-5; }
+.app-body .dashboard-marketplace .marketplace-app { @apply rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:-translate-y-0.5 hover:border-violet-200 hover:bg-white hover:shadow-md; }
+.app-body .marketplace-app strong { @apply text-sm font-semibold text-slate-900; }
+.app-body .marketplace-app small { @apply text-xs text-slate-500; }
+.app-body .dashboard-deployments-head { @apply bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400; }
+.app-body .dashboard-deployment-row { @apply border-slate-100 hover:bg-slate-50/70; }
+.app-body .dashboard-table-footer { @apply border-t border-slate-100 py-3 text-center text-xs font-semibold text-violet-600; }
+.app-body .server-snapshot-body,
+.app-body .resource-usage-body { @apply p-5; }
+.app-body .dashboard-activity-item { @apply border-slate-100 px-5 py-3.5; }
+.app-body .system-facts > span { @apply border-slate-100 bg-white px-5 py-4; }
+
+/* Lists, tables, marketplace and settings */
+.app-body .server-reference-filters,
+.app-body .api-filterbar,
+.app-body .marketplace-toolbar { @apply rounded-2xl border border-slate-200 bg-white p-3 shadow-sm; }
+.app-body .server-reference-head,
+.app-body .api-token-head,
+.app-body .resource-table-head { @apply bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500; }
+.app-body .server-reference-row,
+.app-body .api-token-row,
+.app-body .resource-table-row { @apply border-slate-100 transition hover:bg-violet-50/40; }
+.server-more-menu--floating {
+    position: fixed !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 1000 !important;
+    width: 220px;
+    @apply rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl shadow-slate-950/15;
+}
+.server-more-menu--floating a,
+.server-more-menu--floating button,
+.server-more-menu--floating .server-destroy-blocked {
+    width: 100%;
+    @apply flex min-h-10 items-center gap-2.5 rounded-lg border-0 bg-transparent px-3 text-left text-sm text-slate-700 transition;
+}
+.server-more-menu--floating a:hover,
+.server-more-menu--floating button:hover { @apply bg-slate-100 text-slate-950; }
+.server-more-menu--floating svg { @apply size-4 shrink-0 text-slate-500; }
+.server-more-menu--floating form { @apply m-0 w-full; }
+.server-more-menu--floating .is-danger { @apply text-red-600 hover:bg-red-50 hover:text-red-700; }
+.server-more-menu--floating .server-destroy-blocked { @apply cursor-not-allowed text-slate-400; }
+.app-body .server-reference-primary strong { @apply text-sm font-semibold text-slate-900; }
+.app-body .server-help-banner { @apply border-dashed p-5; }
+.app-body .marketplace-hero { @apply relative mb-6 overflow-hidden border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-7 text-white shadow-xl shadow-slate-900/10; }
+.app-body .marketplace-hero h2 { @apply text-2xl font-bold tracking-tight text-white; }
+.app-body .marketplace-hero p { @apply max-w-2xl text-sm text-slate-300; }
+.app-body .marketplace-section > .marketplace-grid { @apply gap-4; }
+.app-body .marketplace-section .marketplace-card { @apply p-5 transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-xl hover:shadow-slate-900/[0.06]; }
+.app-body .settings-layout,
+.app-body .wizard-layout,
+.app-body .provision-layout,
+.app-body .support-layout { @apply gap-5; }
+.app-body .api-content-grid > *,
+.app-body .api-content-grid > div,
+.app-body .api-token-details,
+.app-body .api-about { min-width: 0; max-width: 100%; }
+.app-body .api-token-table-card { max-width: 100%; @apply overflow-x-auto; }
+.app-body .empty-state { @apply px-6 py-14; }
+
+/* Managed server form */
+.app-body .managed-payment-gate { width: min(100%, 640px); @apply mx-auto mt-10 rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-xl shadow-slate-950/[0.06]; }
+.app-body .managed-payment-gate__icon { @apply mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-violet-100 text-violet-700; }
+.app-body .managed-payment-gate__icon svg { @apply size-6; }
+.app-body .managed-payment-gate .breadcrumb { @apply mb-2; }
+.app-body .managed-payment-gate h1 { @apply text-3xl font-bold tracking-tight text-slate-950; }
+.app-body .managed-payment-gate > p:not(.breadcrumb) { @apply mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500; }
+.app-body .managed-payment-gate__details { @apply mt-7 flex items-start gap-3 rounded-2xl border border-violet-100 bg-violet-50/70 p-4 text-left; }
+.app-body .managed-payment-gate__details > span { @apply flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white; }
+.app-body .managed-payment-gate__details strong,
+.app-body .managed-payment-gate__details small { @apply block; }
+.app-body .managed-payment-gate__details strong { @apply text-sm font-bold text-slate-900; }
+.app-body .managed-payment-gate__details small { @apply mt-1 text-xs leading-5 text-slate-500; }
+.app-body .managed-payment-gate__actions { @apply mt-7 flex flex-wrap items-center justify-center gap-3; }
+.app-body .managed-payment-gate__owner-note { @apply rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800; }
+.app-body .managed-create-redesign { width: min(720px, calc(100vw - 32px)); @apply overflow-hidden rounded-2xl; }
+.app-body .managed-create-redesign .domain-modal-head { @apply border-b border-slate-100 px-6 py-5; }
+.app-body .managed-create-redesign .domain-modal-head h2 { @apply text-lg font-bold tracking-tight text-slate-950; }
+.app-body .managed-create-redesign .domain-modal-head p { @apply mt-1 text-sm text-slate-500; }
+.app-body .managed-form-body { @apply grid gap-5 px-6 py-6; }
+.app-body .managed-service-note { @apply flex items-start gap-3 rounded-xl border border-violet-100 bg-violet-50/70 p-4; }
+.app-body .managed-service-note > span { @apply flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm; }
+.app-body .managed-service-note > span svg { @apply size-[18px]; }
+.app-body .managed-service-note strong,
+.app-body .managed-service-note small { @apply block; }
+.app-body .managed-service-note strong { @apply text-sm font-bold text-slate-900; }
+.app-body .managed-service-note small { @apply mt-1 text-xs leading-5 text-slate-500; }
+.app-body .managed-create-redesign .field { @apply m-0; }
+.app-body .managed-create-redesign .field > span { @apply mb-2 block text-xs font-bold text-slate-700; }
+.app-body .managed-create-redesign .field > small { @apply mt-2 block text-xs text-slate-400; }
+.app-body .managed-create-redesign input,
+.app-body .managed-create-redesign select { min-height: 48px; @apply w-full px-3.5; }
+.app-body .managed-create-redesign select:disabled { @apply cursor-not-allowed bg-slate-100 text-slate-400; }
+.app-body .managed-location-grid { @apply grid grid-cols-2 gap-4; }
+.app-body .managed-create-redesign .managed-price-summary { @apply rounded-xl border-violet-200 bg-violet-50 p-4; }
+.app-body .managed-create-redesign .domain-modal-actions { @apply border-t border-slate-100 bg-slate-50/80 px-6 py-4; }
+.app-body .managed-create-redesign .domain-modal-actions .button { @apply min-h-11; }
+
+@media (max-width: 600px) {
+    .app-body .managed-create-redesign .domain-modal-head,
+    .app-body .managed-form-body,
+    .app-body .managed-create-redesign .domain-modal-actions { @apply px-4; }
+    .app-body .managed-location-grid { @apply grid-cols-1; }
+    .app-body .managed-create-redesign .domain-modal-actions { @apply grid grid-cols-2; }
+}
+
+@media (max-width: 1279px) {
+    .app-body .dashboard-reference-grid { grid-template-columns: 1fr; }
+    .app-body .dashboard-side-stack { @apply grid grid-cols-1 md:grid-cols-2; }
+    .app-body .activity-card { @apply md:col-span-2; }
+}
+@media (max-width: 1023px) {
+    .app-body .topbar-menu__desktop { display: none; }
+    .app-body .topbar-menu__mobile { display: block; }
+    .app-body .sidebar { @apply fixed -left-[290px]; }
+    .app-body .sidebar.sidebar--open { @apply left-0; }
+    .app-body .mobile-scrim { z-index: 2100; @apply fixed inset-0 block bg-slate-950/60 backdrop-blur-sm; }
+}
+@media (max-width: 767px) {
+    .app-body .topbar { @apply h-16 px-4; }
+    .app-body .page-content { @apply px-4 py-5; }
+    .app-body .dashboard-stats { @apply grid-cols-1; }
+    .app-body .dashboard-side-stack { @apply flex; }
+    .app-body .dashboard-reference-grid,
+    .app-body .dashboard-reference-main,
+    .app-body .dashboard-side-stack { width: 100%; }
+    .app-body .dashboard-marketplace .marketplace-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .app-body .dashboard-marketplace .marketplace-app { min-width: 0; }
+    .app-body .dashboard-welcome { @apply items-start; }
+    .app-body .dashboard-welcome h1 { @apply text-2xl; }
+    .app-body .marketplace-toolbar { @apply flex-col items-stretch gap-3; }
+    .app-body .marketplace-toolbar .search-filter-form { width: 100%; min-width: 0; @apply grid grid-cols-2 gap-2; }
+    .app-body .marketplace-toolbar .table-search { @apply col-span-2; }
+    .app-body .marketplace-toolbar .table-search input,
+    .app-body .marketplace-toolbar select,
+    .app-body .marketplace-toolbar .filter-button { width: 100%; }
+    .app-body .marketplace-toolbar .filter-button { @apply min-h-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700; }
+    .app-body .marketplace-toolbar > span { @apply text-center text-xs; }
+}

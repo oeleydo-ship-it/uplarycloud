@@ -22,7 +22,9 @@ class DomainController extends Controller
     public function index(Request $request, TenantContext $context): View
     {
         $tenantId = $context->id();
-        $base = Domain::query()->where('tenant_id', $tenantId);
+        $base = Domain::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('server_id', Server::liveIdQuery($tenantId));
 
         $stats = [
             'total' => (clone $base)->count(),
@@ -110,7 +112,7 @@ class DomainController extends Controller
             if (! $deployment->domain) {
                 $deployment->update(['domain' => $domain->hostname]);
             }
-            VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
+            VerifyDomainJob::dispatch($domain->id, $domain->tenant_id);
             $imported++;
         }
 
@@ -155,7 +157,7 @@ class DomainController extends Controller
             $deployment->update(['domain' => $domain->hostname]);
         }
         ActivityLog::create(['tenant_id' => $context->id(), 'user_id' => $request->user()->id, 'action' => 'domain.created', 'description' => $domain->hostname.' added to '.$deployment->name, 'subject_type' => Domain::class, 'subject_id' => $domain->id]);
-        VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
+        VerifyDomainJob::dispatch($domain->id, $domain->tenant_id);
 
         return redirect()->route('domains.show', $domain)->with('success', 'Domain added. DNS verification has started.');
     }
@@ -164,29 +166,15 @@ class DomainController extends Controller
     {
         $this->operate($domain, $context);
         $domain->update(['dns_status' => 'pending', 'status' => 'verifying', 'failure_reason' => null]);
-        // DNS lookup is local — run sync so a down queue worker cannot leave "Verifying" forever.
-        // ConfigureDomainJob / IssueCertificateJob stay async on the networking queue.
-        VerifyDomainJob::dispatchSync($domain->id, $domain->tenant_id);
-        $domain->refresh();
-
-        return back()->with('success', $domain->isDnsVerified()
-            ? ($domain->hasValidSsl()
-                ? 'DNS verified. Proxy and certificate are active.'
-                : ($domain->proxy_status === 'configured'
-                    ? 'DNS verified and proxy configured. Certificate is still pending.'
-                    : 'DNS verified. Proxy and certificate configuration ran.'))
-            : ($domain->failure_reason ?: 'DNS is not pointing to this server yet.'));
+        VerifyDomainJob::dispatch($domain->id, $domain->tenant_id);
+        return back()->with('success', 'Domain verification queued. DNS, proxy, and certificate status will update shortly.');
     }
 
     public function configure(Request $request, Domain $domain, TenantContext $context): RedirectResponse
     {
         $this->operate($domain, $context);
-        ConfigureDomainJob::dispatchSync($domain->id, $domain->tenant_id);
-        $domain->refresh();
-
-        return back()->with('success', $domain->proxy_status === 'configured'
-            ? ($domain->hasValidSsl() ? 'Proxy configured and certificate is active.' : 'Proxy configured. Certificate issuance finished or is pending.')
-            : ($domain->failure_reason ?: 'Proxy configuration failed.'));
+        ConfigureDomainJob::dispatch($domain->id, $domain->tenant_id);
+        return back()->with('success', 'Proxy configuration queued.');
     }
 
     public function certificate(Request $request, Domain $domain, TenantContext $context): RedirectResponse
@@ -194,12 +182,8 @@ class DomainController extends Controller
         $this->operate($domain, $context);
         abort_unless($domain->isDnsVerified(), 422, 'DNS must be verified before issuing a certificate.');
         $domain->update(['ssl_enabled' => true, 'ssl_status' => 'pending', 'status' => 'verifying', 'failure_reason' => null]);
-        IssueCertificateJob::dispatchSync($domain->id, $domain->tenant_id);
-        $domain->refresh();
-
-        return back()->with('success', $domain->hasValidSsl()
-            ? 'Certificate is active.'
-            : ($domain->failure_reason ?: 'Certificate issuance did not complete yet.'));
+        IssueCertificateJob::dispatch($domain->id, $domain->tenant_id);
+        return back()->with('success', 'Certificate issuance queued.');
     }
 
     public function update(Request $request, Domain $domain, TenantContext $context): RedirectResponse

@@ -18,8 +18,9 @@ class DockerImageController extends Controller
     public function index(Request $request,TenantContext $context):View
     {
         $tenantId=$context->id();
-        $base=DockerImage::query()->where('tenant_id',$tenantId);
-        $containers=DockerContainer::query()->where('tenant_id',$tenantId)->with(['deployment'=>fn($q)=>$q->withTrashed(),'deployment.application','volumes'])->get();
+        $liveServers=Server::liveIdQuery($tenantId);
+        $base=DockerImage::query()->where('tenant_id',$tenantId)->whereIn('server_id',$liveServers);
+        $containers=DockerContainer::query()->where('tenant_id',$tenantId)->whereIn('server_id',$liveServers)->with(['deployment'=>fn($q)=>$q->withTrashed(),'deployment.application','volumes'])->get();
         $allImages=(clone $base)->get();
         $usage=$allImages->mapWithKeys(fn(DockerImage $image)=>[$image->id=>$image->matchingContainers($containers)->count()]);
         $unusedIds=$usage->filter(fn(int $count)=>$count===0)->keys();

@@ -1,8 +1,9 @@
-<x-marketing-layout title="Pricing" description="Free, Starter, Pro, and Business plans for Uplary Cloud workspaces.">
+<x-marketing-layout :page="$page">
     <div class="mkt-wrap mkt-page" x-data="{ cycle: 'monthly' }">
-        <span class="mkt-kicker">Pricing</span>
-        <h1 class="mkt-title">Start free. Grow when the stack does.</h1>
-        <p class="mkt-lead">Plans control how many servers and apps you can run, and which operations features are unlocked. Yearly billing saves about 20%.</p>
+        <span class="mkt-kicker">{{ $page->hero_kicker }}</span>
+        <h1 class="mkt-title">{{ $page->hero_title }}</h1>
+        <p class="mkt-lead">{{ $page->hero_description }}</p>
+        @if($page->body_html)<section class="mkt-managed-content">{!! $page->body_html !!}</section>@endif
 
         <div class="mkt-cycle" role="group" aria-label="Billing cycle">
             <span :class="cycle === 'monthly' && 'is-on'">Monthly</span>

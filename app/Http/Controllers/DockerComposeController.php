@@ -17,7 +17,7 @@ class DockerComposeController extends Controller
     public function index(TenantContext $c): View
     {
         return view('docker.compose', [
-            'projects' => DockerComposeProject::where('tenant_id', $c->id())->with(['server' => fn ($q) => $q->withTrashed()])->latest()->get(),
+            'projects' => DockerComposeProject::where('tenant_id', $c->id())->whereIn('server_id', Server::liveIdQuery($c->id()))->with(['server' => fn ($q) => $q->withTrashed()])->latest()->get(),
             'servers' => Server::where('tenant_id', $c->id())->where('status', 'online')->get(),
         ]);
     }

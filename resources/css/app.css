@@ -33,6 +33,7 @@
 @import './plan-entitlements.css';
 @import './typography.css';
 @import './marketing.css';
+@import './console-v4.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

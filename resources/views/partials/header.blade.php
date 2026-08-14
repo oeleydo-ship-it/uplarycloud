@@ -1,8 +1,17 @@
 <header class="topbar">
     <div class="topbar-left">
-        <button class="icon-button topbar-menu" @click="sidebarOpen=true" aria-label="Open navigation"><i data-lucide="menu"></i></button>
+        <button
+            class="icon-button topbar-menu"
+            @click="window.innerWidth < 1024 ? sidebarOpen = true : sidebarCollapsed = !sidebarCollapsed"
+            :aria-label="window.innerWidth < 1024 ? 'Open navigation' : (sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar')"
+            :title="window.innerWidth < 1024 ? 'Open navigation' : (sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar')"
+        >
+            <i data-lucide="menu" class="topbar-menu__mobile"></i>
+            <i data-lucide="panel-left-close" class="topbar-menu__desktop" x-show="!sidebarCollapsed"></i>
+            <i data-lucide="panel-left-open" class="topbar-menu__desktop" x-cloak x-show="sidebarCollapsed"></i>
+        </button>
         @if(request()->routeIs('dashboard'))
-            <strong class="topbar-title">Dashboard</strong>
+            <strong class="topbar-title">Dashboard</strong><span class="topbar-context">Control center</span>
         @else
             <div class="workspace-switcher"><span class="workspace-dot"></span><span>{{ app(\App\Support\TenantContext::class)->current()->name }}</span><i data-lucide="chevron-down"></i></div>
         @endif

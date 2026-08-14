@@ -11,6 +11,7 @@ use App\Models\BackupDestination;
 use App\Models\DockerContainer;
 use App\Models\DockerImage;
 use App\Models\OperationalLog;
+use App\Models\Plan;
 use App\Models\Server;
 use App\Models\Tenant;
 use App\Models\User;
@@ -179,6 +180,6 @@ class OperationsTest extends TestCase
 
     private function workspace():array
     {
-        $user=User::factory()->create();$tenant=Tenant::create(['name'=>fake()->unique()->company()]);$tenant->users()->attach($user,['role'=>'owner']);$server=Server::create(['tenant_id'=>$tenant->id,'name'=>'Production','provider'=>'custom','ip_address'=>fake()->unique()->ipv4(),'operating_system'=>'ubuntu-24.04','status'=>'online','authentication_method'=>'ssh_key','cpu_cores'=>4,'memory_mb'=>8192,'disk_gb'=>160]);$deployment=ApplicationDeployment::create(['tenant_id'=>$tenant->id,'server_id'=>$server->id,'created_by'=>$user->id,'name'=>'Portal','slug'=>'portal','deployment_type'=>'custom','docker_image'=>'example/portal','docker_tag'=>'latest','container_port'=>3000,'restart_policy'=>'unless-stopped','status'=>'running']);$container=DockerContainer::create(['tenant_id'=>$tenant->id,'server_id'=>$server->id,'name'=>'portal','image'=>'example/portal:latest','status'=>'running','health'=>'healthy','memory_limit_mb'=>1024,'restart_count'=>0]);return[$user,$tenant,$server,$deployment,$container];
+        $user=User::factory()->create();$tenant=Tenant::create(['name'=>fake()->unique()->company()]);$tenant->users()->attach($user,['role'=>'owner']);$plan=Plan::create(['name'=>'Operations Test','slug'=>'ops-test-'.fake()->unique()->numerify('###'),'monthly_price'=>1000,'yearly_price'=>10000,'currency'=>'USD','limits'=>['backups'=>100,'backup_storage_gb'=>1000],'gates'=>['backups'=>true,'s3_destinations'=>true,'monitoring'=>true,'alerts'=>true],'features'=>[],'active'=>true]);$tenant->subscriptions()->create(['plan_id'=>$plan->id,'status'=>'active','billing_cycle'=>'monthly']);$server=Server::create(['tenant_id'=>$tenant->id,'name'=>'Production','provider'=>'custom','ip_address'=>fake()->unique()->ipv4(),'operating_system'=>'ubuntu-24.04','status'=>'online','authentication_method'=>'ssh_key','cpu_cores'=>4,'memory_mb'=>8192,'disk_gb'=>160]);$deployment=ApplicationDeployment::create(['tenant_id'=>$tenant->id,'server_id'=>$server->id,'created_by'=>$user->id,'name'=>'Portal','slug'=>'portal','deployment_type'=>'custom','docker_image'=>'example/portal','docker_tag'=>'latest','container_port'=>3000,'restart_policy'=>'unless-stopped','status'=>'running']);$container=DockerContainer::create(['tenant_id'=>$tenant->id,'server_id'=>$server->id,'name'=>'portal','image'=>'example/portal:latest','status'=>'running','health'=>'healthy','memory_limit_mb'=>1024,'restart_count'=>0]);return[$user,$tenant,$server,$deployment,$container];
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\BlogPost;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class MarketingPosts
 {
@@ -11,11 +13,25 @@ class MarketingPosts
      */
     public static function all(): Collection
     {
-        return collect(static::entries())->map(fn (array $post) => (object) $post);
+        $fallback = collect(static::entries())->map(fn (array $post) => (object) $post);
+        if (! Schema::hasTable('blog_posts')) {
+            return $fallback;
+        }
+
+        $reserved = BlogPost::pluck('slug');
+        return BlogPost::publiclyVisible()->latest('published_at')->get()
+            ->concat($fallback->reject(fn (object $post) => $reserved->contains($post->slug)));
     }
 
     public static function find(string $slug): ?object
     {
+        if (Schema::hasTable('blog_posts')) {
+            $managed = BlogPost::where('slug', $slug)->first();
+            if ($managed) {
+                return $managed->status === 'published' && (! $managed->published_at || $managed->published_at->isPast()) ? $managed : null;
+            }
+        }
+
         $post = collect(static::entries())->firstWhere('slug', $slug);
 
         return $post ? (object) $post : null;

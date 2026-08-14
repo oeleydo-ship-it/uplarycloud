@@ -1,10 +1,10 @@
-<x-marketing-layout title="Home" description="Connect servers, deploy apps, and run production with a clear control plane.">
+<x-marketing-layout :page="$page">
     <div class="mkt-wrap">
         <section class="mkt-hero">
             <div>
-                <span class="mkt-kicker">Docker operations, simplified</span>
-                <h1 class="mkt-title">From server to production without the scramble.</h1>
-                <p class="mkt-lead">Uplary Cloud is the control plane for servers, marketplace apps, Git deploys, domains, and SSL. Connect a host, ship a workload, and keep operations in one console.</p>
+                <span class="mkt-kicker">{{ $page->hero_kicker }}</span>
+                <h1 class="mkt-title">{{ $page->hero_title }}</h1>
+                <p class="mkt-lead">{{ $page->hero_description }}</p>
                 <div class="mkt-actions">
                     <a class="button button--primary" href="{{ auth()->check() ? route('dashboard') : route('register') }}">Get started</a>
                     <a class="button button--secondary" href="{{ route('marketing.features') }}">See features</a>
@@ -37,6 +37,9 @@
             </div>
         </section>
 
+        @if($page->body_html)
+            <section class="mkt-section mkt-managed-content">{!! $page->body_html !!}</section>
+        @else
         <section class="mkt-section">
             <div class="mkt-section-head">
                 <h2>Built for the work after SSH.</h2>
@@ -197,5 +200,6 @@
                 <a class="button button--secondary" href="{{ route('marketing.pricing') }}">View pricing</a>
             </div>
         </section>
+        @endif
     </div>
 </x-marketing-layout>

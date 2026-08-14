@@ -10,6 +10,7 @@ use App\Models\DockerImage;
 use App\Models\DockerNetwork;
 use App\Models\DockerVolume;
 use App\Services\Docker\DockerService;
+use App\Services\Docker\ContainerInventoryService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -19,11 +20,13 @@ class DockerResourceActionJob implements ShouldQueue
     use Queueable;
     public int $tries=3; public int $timeout=300; public array $backoff=[5,20,60];
     public function __construct(public string $type, public int $id, public string $action, public int $tenantId, public ?int $userId=null) { $this->onQueue(config('infrastructure.queues.deployments')); }
-    public function handle(DockerService $docker): void
+    public function handle(DockerService $docker, ContainerInventoryService $inventory): void
     {
         $model = $this->model();
         match ($this->type) {
-            'container' => $docker->container($model, $this->action),
+            'container' => $this->action === 'inspect'
+                ? $inventory->refreshOne($model)
+                : $docker->container($model, $this->action),
             'image' => $this->action === 'pull' ? $docker->pull($model) : $docker->removeImage($model),
             'volume' => $docker->removeVolume($model), 'network' => $docker->removeNetwork($model),
             'compose' => $docker->deployCompose($model), default => throw new \RuntimeException('Unknown Docker resource type.'),

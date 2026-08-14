@@ -11,9 +11,25 @@ class ServerConnectionTester
 {
     public const MIN_CPU_CORES = 1;
 
-    public const MIN_MEMORY_MB = 1800;
+    public const MIN_MEMORY_MB = 1900;
+
+    public const MIN_ADVERTISED_MEMORY_MB = 2048;
 
     public const MIN_DISK_GB = 15;
+
+    /**
+     * DigitalOcean 2 GB droplets often report ~1970–1990 MiB MemTotal after
+     * firmware reserve. Trust the cloud size when it is at least 2 GB advertised;
+     * keep the 1900 MiB floor so 1 GB droplets still fail.
+     */
+    public static function resolveMemoryMb(int $measuredMb, int $advertisedMb): int
+    {
+        if ($advertisedMb >= self::MIN_ADVERTISED_MEMORY_MB && $measuredMb < self::MIN_MEMORY_MB) {
+            return $advertisedMb;
+        }
+
+        return $measuredMb;
+    }
 
     public function __construct(private readonly ServerExecutorInterface $executor) {}
 
@@ -159,6 +175,7 @@ class ServerConnectionTester
         $supportedOs = in_array($os, config('infrastructure.supported_operating_systems'), true)
             || in_array($server->operating_system, config('infrastructure.supported_operating_systems'), true);
 
+        $memory = self::resolveMemoryMb($memory, (int) $server->memory_mb);
         $cpuPass = $cpu >= self::MIN_CPU_CORES;
         $memoryPass = $memory >= self::MIN_MEMORY_MB;
         $diskPass = $disk >= self::MIN_DISK_GB;

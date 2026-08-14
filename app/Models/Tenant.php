@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Tenant extends Model
@@ -66,4 +67,14 @@ class Tenant extends Model
     public function infrastructureCharges(): HasMany { return $this->hasMany(InfrastructureCharge::class); }
     public function supportTickets(): HasMany { return $this->hasMany(SupportTicket::class); }
     public function currentSubscription(): ?Subscription { return $this->subscriptions()->with('plan')->whereIn('status', ['active','trialing','past_due'])->latest()->first(); }
+    public function latestSubscription(): HasOne { return $this->hasOne(Subscription::class)->latestOfMany(); }
+    public function entitledSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->with('plan')
+            ->whereIn('status', ['active', 'trialing'])
+            ->latest()
+            ->get()
+            ->first(fn (Subscription $subscription) => $subscription->active() && $subscription->plan !== null);
+    }
 }

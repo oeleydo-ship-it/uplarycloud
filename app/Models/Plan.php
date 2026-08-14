@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlanCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -39,8 +40,18 @@ class Plan extends Model
 
     public function allowsFeature(string $feature): bool
     {
+        // Plans created before feature gates were introduced had a NULL value.
+        // Keep those legacy records permissive until an admin saves explicit gates.
+        if ($this->gates === null) {
+            return true;
+        }
+
         $gates = $this->gates ?? [];
 
-        return array_key_exists($feature, $gates) ? (bool) $gates[$feature] : true;
+        if (array_key_exists($feature, $gates)) {
+            return (bool) $gates[$feature];
+        }
+
+        return (bool) (PlanCatalog::defaultsFor($this->slug)['gates'][$feature] ?? false);
     }
 }

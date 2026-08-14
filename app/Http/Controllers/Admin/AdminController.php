@@ -14,6 +14,7 @@ use App\Support\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -41,7 +42,7 @@ class AdminController extends Controller
 
     public function users(Request $request): View
     {
-        $users = User::query()->withCount('tenants')->when($request->search, fn ($q, $v) => $q->where(fn ($q) => $q->where('name', 'like', "%$v%")->orWhere('email', 'like', "%$v%")))->latest()->paginate(15)->withQueryString();
+        $users = User::query()->with(['tenants.latestSubscription.plan'])->withCount('tenants')->when($request->search, fn ($q, $v) => $q->where(fn ($q) => $q->where('name', 'like', "%$v%")->orWhere('email', 'like', "%$v%")))->latest()->paginate(15)->withQueryString();
 
         return view('admin.users', compact('users'));
     }
@@ -66,9 +67,40 @@ class AdminController extends Controller
 
     public function tenants(Request $request): View
     {
-        $tenants = Tenant::withCount(['users', 'servers', 'deployments'])->when($request->search, fn ($q, $v) => $q->where('name', 'like', "%$v%"))->latest()->paginate(15)->withQueryString();
+        $tenants = Tenant::with(['latestSubscription.plan'])->withCount(['users', 'servers', 'deployments'])->when($request->search, fn ($q, $v) => $q->where('name', 'like', "%$v%"))->latest()->paginate(15)->withQueryString();
 
-        return view('admin.tenants', compact('tenants'));
+        return view('admin.tenants', ['tenants' => $tenants, 'plans' => Plan::orderBy('position')->get()]);
+    }
+
+    public function updateTenantSubscription(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', Rule::exists('plans', 'id')],
+            'status' => ['required', Rule::in(['active', 'trialing', 'past_due', 'canceled'])],
+            'billing_cycle' => ['required', Rule::in(['monthly', 'yearly'])],
+        ]);
+
+        DB::transaction(function () use ($tenant, $data, $request): void {
+            $now = now();
+            $tenant->subscriptions()->whereIn('status', ['active', 'trialing', 'past_due'])->update([
+                'status' => 'canceled',
+                'ended_at' => $now,
+            ]);
+
+            $periodEnd = $data['billing_cycle'] === 'yearly' ? $now->copy()->addYear() : $now->copy()->addMonth();
+            $tenant->subscriptions()->create([
+                'plan_id' => $data['plan_id'],
+                'status' => $data['status'],
+                'billing_cycle' => $data['billing_cycle'],
+                'trial_ends_at' => $data['status'] === 'trialing' ? $now->copy()->addDays(14) : null,
+                'current_period_starts_at' => $now,
+                'current_period_ends_at' => in_array($data['status'], ['active', 'trialing'], true) ? $periodEnd : null,
+                'ended_at' => $data['status'] === 'canceled' ? $now : null,
+                'metadata' => ['source' => 'superadmin', 'assigned_by' => $request->user()->id],
+            ]);
+        });
+
+        return back()->with('success', 'Workspace subscription updated. Quotas and feature gates are effective immediately.');
     }
 
     public function plans(): View

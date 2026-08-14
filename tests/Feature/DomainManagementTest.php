@@ -9,6 +9,7 @@ use App\Jobs\IssueCertificateJob;
 use App\Jobs\VerifyDomainJob;
 use App\Models\ApplicationDeployment;
 use App\Models\Domain;
+use App\Models\Plan;
 use App\Models\Server;
 use App\Models\Tenant;
 use App\Models\User;
@@ -39,9 +40,28 @@ class DomainManagementTest extends TestCase
         ]);
         $domain = Domain::firstOrFail();
         $response->assertRedirect(route('domains.show', $domain));
-        Bus::assertDispatchedSync(VerifyDomainJob::class);
+        Bus::assertDispatched(VerifyDomainJob::class);
         $this->assertSame($server->ip_address, $domain->expected_value);
         $this->assertSame('app.example.com', $deployment->refresh()->domain);
+    }
+
+    public function test_manual_domain_verification_returns_immediately_and_queues_the_pipeline(): void
+    {
+        Bus::fake();
+        [$user, $tenant, $server, $deployment] = $this->owner();
+        $domain = $this->domain($tenant, $server, $deployment, $user);
+        $domain->update(['status' => 'active', 'dns_status' => 'verified', 'failure_reason' => 'Old error']);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->post(route('domains.verify', $domain))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Domain verification queued. DNS, proxy, and certificate status will update shortly.');
+
+        $domain->refresh();
+        $this->assertSame('verifying', $domain->status);
+        $this->assertSame('pending', $domain->dns_status);
+        $this->assertNull($domain->failure_reason);
+        Bus::assertDispatched(VerifyDomainJob::class, fn (VerifyDomainJob $job) => $job->domainId === $domain->id);
     }
 
     public function test_fake_networking_pipeline_verifies_dns_configures_proxy_and_issues_ssl(): void
@@ -250,7 +270,7 @@ class DomainManagementTest extends TestCase
         $this->assertStringContainsString('Host(`stale.example.com`)', $purge);
     }
 
-    public function test_domains_index_loads_when_server_is_soft_deleted(): void
+    public function test_domains_index_hides_records_when_server_is_soft_deleted(): void
     {
         [$user, $tenant, $server, $deployment] = $this->owner();
         $domain = $this->domain($tenant, $server, $deployment, $user, 'orphaned.example.com');
@@ -260,9 +280,7 @@ class DomainManagementTest extends TestCase
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('domains.index'))
             ->assertOk()
-            ->assertSee('orphaned.example.com')
-            ->assertSee($serverName)
-            ->assertDontSee('Server removed');
+            ->assertDontSee('orphaned.example.com');
 
         $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
             ->get(route('domains.show', $domain))
@@ -289,6 +307,8 @@ class DomainManagementTest extends TestCase
         $user = User::factory()->create();
         $tenant = Tenant::create(['name' => fake()->unique()->company()]);
         $tenant->users()->attach($user, ['role' => 'owner']);
+        $plan = Plan::create(['name' => 'Domain Test', 'slug' => 'domain-test-'.fake()->unique()->numerify('###'), 'monthly_price' => 1000, 'yearly_price' => 10000, 'currency' => 'USD', 'limits' => ['domains' => 100], 'gates' => [], 'features' => [], 'active' => true]);
+        $tenant->subscriptions()->create(['plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
         $server = Server::create([
             'tenant_id' => $tenant->id,
             'name' => 'Production',

@@ -5,18 +5,23 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreContactInquiryRequest;
 use App\Models\Application;
 use App\Models\ContactInquiry;
+use App\Models\MarketingPage;
 use App\Support\Branding;
 use App\Support\MarketingPosts;
+use App\Support\MarketingPages;
 use App\Support\PlatformSettings;
 use App\Support\PublicPlans;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use Illuminate\Http\Response;
 use Throwable;
 
 class MarketingController extends Controller
 {
+    public function __construct(private readonly MarketingPages $pages) {}
+
     public function home(): View|RedirectResponse
     {
         if (auth()->check()) {
@@ -25,34 +30,57 @@ class MarketingController extends Controller
 
         return view('marketing.home', [
             'applications' => $this->featuredApplications(),
+            'page' => $this->pages->find('home'),
         ]);
     }
 
     public function features(): View
     {
-        return view('marketing.features');
+        return view('marketing.features', ['page' => $this->pages->find('features')]);
     }
 
     public function pricing(): View
     {
         return view('marketing.pricing', [
             'plans' => PublicPlans::all(),
+            'page' => $this->pages->find('pricing'),
         ]);
     }
 
     public function useCases(): View
     {
-        return view('marketing.use-cases');
+        return view('marketing.use-cases', ['page' => $this->pages->find('use-cases')]);
     }
 
     public function about(): View
     {
-        return view('marketing.about');
+        return view('marketing.about', ['page' => $this->pages->find('about')]);
     }
 
     public function contact(): View
     {
-        return view('marketing.contact');
+        return view('marketing.contact', ['page' => $this->pages->find('contact')]);
+    }
+
+    public function page(MarketingPage $page): View
+    {
+        abort_unless($page->published && ! $page->isCore(), 404);
+
+        return view('marketing.page', compact('page'));
+    }
+
+    public function robots(PlatformSettings $settings): Response
+    {
+        $allow = (bool) ((int) $settings->get('seo', 'robots_index', 1));
+        $body = $allow ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
+        $body .= 'Sitemap: '.route('sitemap')."\n";
+
+        return response($body, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    }
+
+    public function sitemap(): Response
+    {
+        return response()->view('marketing.sitemap', ['pages' => $this->pages->published(), 'posts' => MarketingPosts::all()], 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
     }
 
     public function storeContact(StoreContactInquiryRequest $request, Branding $branding, PlatformSettings $settings): RedirectResponse

@@ -1,4 +1,4 @@
-<x-marketing-layout :title="$post->title" :description="$post->excerpt">
+<x-marketing-layout :page="$post" :title="$post->title" :description="$post->excerpt">
     <div class="mkt-wrap mkt-page">
         <p class="mkt-meta">
             <a href="{{ route('marketing.blog') }}" style="color:var(--primary);font-weight:650">Blog</a>
@@ -7,11 +7,13 @@
             <span>{{ $post->read_minutes }} min read</span>
         </p>
         <h1 class="mkt-title" style="max-width:22ch">{{ $post->title }}</h1>
-        <div class="mkt-prose" style="margin-top:8px">
-            @foreach($post->paragraphs as $paragraph)
-                <p>{{ $paragraph }}</p>
-            @endforeach
-        </div>
+        @if($post instanceof \App\Models\BlogPost)
+            <div class="mkt-managed-content" style="margin-top:20px">{!! $post->body_html !!}</div>
+        @else
+            <div class="mkt-prose" style="margin-top:8px">
+                @foreach($post->paragraphs as $paragraph)<p>{{ $paragraph }}</p>@endforeach
+            </div>
+        @endif
 
         @if($posts->isNotEmpty())
             <div class="mkt-section-head" style="margin-top:48px">

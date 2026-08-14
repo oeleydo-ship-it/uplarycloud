@@ -15,7 +15,9 @@ use App\Models\ProviderConnection;
 use App\Models\Server;
 use App\Models\ServerMetric;
 use App\Services\Billing\PlanLimitService;
+use App\Services\Billing\PaidSubscriptionService;
 use App\Services\Servers\ControlPlaneKeyService;
+use App\Services\Servers\ServerInventoryCleanupService;
 use App\Services\Servers\ServerProvisionVerifier;
 use App\Support\PlatformSettings;
 use App\Support\TenantContext;
@@ -46,6 +48,7 @@ class ServerController extends Controller
         return view('servers.index', [
             'servers' => $query->paginate(10)->withQueryString(),
             'managedServersEnabled' => $settings->managedServersEnabled() && app(PlanLimitService::class)->allowsFeature($tenant, 'managed_servers'),
+            'managedServersPaid' => app(PaidSubscriptionService::class)->allows($tenant),
             'counts' => [
                 'all' => $tenantServers->count(),
                 'online' => (clone $tenantServers)->where('status', 'online')->count(),
@@ -79,11 +82,6 @@ class ServerController extends Controller
                 ->where('active', true)
                 ->whereNotNull('last_verified_at')
                 ->orderBy('name')
-                ->get(),
-            'cloudPlans' => ManagedServerPlan::query()
-                ->whereIn('provider', ['digitalocean', 'hetzner'])
-                ->where('active', true)
-                ->orderBy('position')
                 ->get(),
         ]);
     }
@@ -214,7 +212,7 @@ class ServerController extends Controller
             ->with('error', 'Metrics can only be collected while the server is online.');
     }
 
-    public function destroy(Request $request, Server $server, TenantContext $context): RedirectResponse
+    public function destroy(Request $request, Server $server, TenantContext $context, ServerInventoryCleanupService $cleanup): RedirectResponse
     {
         $server = $this->tenantServer($server, $context);
         $this->authorize('delete', $server);
@@ -225,18 +223,24 @@ class ServerController extends Controller
                 ->with('error', 'Remove attached applications before destroying this server. Open Applications → Your applications to delete them first.');
         }
 
-        ActivityLog::create([
-            'tenant_id' => $context->id(),
-            'user_id' => $request->user()->id,
-            'action' => 'server.deleted',
-            'description' => $server->name.' removed from the control plane',
-            'subject_type' => Server::class,
-            'subject_id' => $server->id,
-            'ip_address' => $request->ip(),
-        ]);
-        $server->delete();
+        $name = $server->name;
 
-        return redirect()->route('servers.index')->with('success', $server->name.' was removed from the control plane. Persistent remote data was not deleted.');
+        DB::transaction(function () use ($server, $request, $context, $cleanup): void {
+            ActivityLog::create([
+                'tenant_id' => $context->id(),
+                'user_id' => $request->user()->id,
+                'action' => 'server.deleted',
+                'description' => $server->name.' removed from the control plane',
+                'subject_type' => Server::class,
+                'subject_id' => $server->id,
+                'ip_address' => $request->ip(),
+            ]);
+
+            $server->delete();
+            $cleanup->purge($server);
+        });
+
+        return redirect()->route('servers.index')->with('success', $name.' was removed from the control plane. Persistent remote data was not deleted.');
     }
 
     private function tenantServer(Server $server, TenantContext $context): Server

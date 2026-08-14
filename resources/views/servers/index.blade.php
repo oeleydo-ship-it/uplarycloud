@@ -8,7 +8,7 @@
             </div>
             <div class="heading-actions">
                 <a href="{{ route('servers.index') }}" class="button button--secondary"><i data-lucide="refresh-cw"></i> Refresh</a>
-                <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :quota-reached="$planAccess->atCapacity('servers')" />
+                <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :managed-servers-paid="$managedServersPaid" :quota-reached="$planAccess->atCapacity('servers')" />
             </div>
         </div>
 
@@ -26,13 +26,13 @@
             <label class="filter-select filter-select--sort"><select name="sort" onchange="this.form.submit()"><option value="newest">Newest First</option><option value="oldest" @selected(request('sort')==='oldest')>Oldest First</option><option value="name" @selected(request('sort')==='name')>Name</option></select><i data-lucide="arrow-up-down"></i></label>
         </form>
 
-        <article class="card server-reference-table-card">
+        <article class="card server-reference-table-card {{ $servers->isEmpty() ? 'server-reference-table-card--empty' : '' }}">
             @if($servers->isEmpty())
                 <div class="empty-state">
                     <span><i data-lucide="server"></i></span>
                     <h2>No servers found</h2>
                     <p>Connect your first Linux server to start deploying applications.</p>
-                    <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :quota-reached="$planAccess->atCapacity('servers')" empty />
+                    <x-add-server-dropdown :managed-servers-enabled="$managedServersEnabled" :managed-servers-paid="$managedServersPaid" :quota-reached="$planAccess->atCapacity('servers')" empty />
                 </div>
             @else
                 <div class="server-reference-table">
@@ -91,26 +91,28 @@
                             </span>
                             <span class="server-actions">
                                 <a href="{{ $manageUrl }}" class="button button--secondary">Manage</a>
-                                <details class="server-more">
-                                    <summary class="icon-button" aria-label="More actions for {{ $server->name }}"><i data-lucide="ellipsis"></i></summary>
-                                    <div class="server-more-menu">
-                                        <a href="{{ route('servers.details', $server) }}"><i data-lucide="eye"></i> View server details</a>
-                                        <a href="{{ $manageUrl }}"><i data-lucide="settings-2"></i> Manage</a>
-                                        @can('delete', $server)
-                                            @if($hasAttachedApps)
-                                                <span class="server-destroy-blocked" title="Remove attached applications first">
-                                                    <i data-lucide="trash-2"></i> Remove applications first
-                                                </span>
-                                            @else
-                                                <form method="POST" action="{{ route('servers.destroy', $server) }}" onsubmit="return confirm(@js($destroyMessage))">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="is-danger"><i data-lucide="trash-2"></i> Destroy server</button>
-                                                </form>
-                                            @endif
-                                        @endcan
-                                    </div>
-                                </details>
+                                <div class="server-more" x-data="{ open: false, top: 0, left: 0 }" @keydown.escape.window="open=false" @scroll.window="open=false" @resize.window="open=false">
+                                    <button type="button" x-ref="trigger" class="icon-button" aria-label="More actions for {{ $server->name }}" :aria-expanded="open" @click="const rect=$refs.trigger.getBoundingClientRect(); const menuHeight=154; top=(window.innerHeight-rect.bottom < menuHeight+16) ? Math.max(12, rect.top-menuHeight-8) : rect.bottom+8; left=Math.max(12, Math.min(window.innerWidth-232, rect.right-220)); open=!open"><i data-lucide="ellipsis"></i></button>
+                                    <template x-teleport="body">
+                                        <div class="server-more-menu server-more-menu--floating" x-cloak x-show="open" x-transition.opacity @click.outside="open=false" :style="`top:${top}px;left:${left}px`">
+                                            <a href="{{ route('servers.details', $server) }}"><i data-lucide="eye"></i> View server details</a>
+                                            <a href="{{ $manageUrl }}"><i data-lucide="settings-2"></i> Manage</a>
+                                            @can('delete', $server)
+                                                @if($hasAttachedApps)
+                                                    <span class="server-destroy-blocked" title="Remove attached applications first">
+                                                        <i data-lucide="trash-2"></i> Remove applications first
+                                                    </span>
+                                                @else
+                                                    <form method="POST" action="{{ route('servers.destroy', $server) }}" onsubmit="return confirm(@js($destroyMessage))">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="is-danger"><i data-lucide="trash-2"></i> Destroy server</button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+                                        </div>
+                                    </template>
+                                </div>
                             </span>
                         </div>
                     @endforeach

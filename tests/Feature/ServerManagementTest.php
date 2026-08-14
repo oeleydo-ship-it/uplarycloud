@@ -5,6 +5,13 @@ namespace Tests\Feature;
 use App\Jobs\CollectOperationsMetricsJob;
 use App\Jobs\ProvisionServerJob;
 use App\Models\ApplicationDeployment;
+use App\Models\Backup;
+use App\Models\DockerComposeProject;
+use App\Models\DockerContainer;
+use App\Models\DockerImage;
+use App\Models\DockerNetwork;
+use App\Models\DockerVolume;
+use App\Models\Domain;
 use App\Models\Server;
 use App\Models\ServerMetric;
 use App\Models\Tenant;
@@ -62,6 +69,124 @@ class ServerManagementTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['tenant_id' => $tenant->id, 'action' => 'server.provisioned']);
         $this->assertDatabaseHas('activity_logs', ['tenant_id' => $tenant->id, 'action' => 'server.provisioning.step']);
         $this->actingAs($user)->withSession(['tenant_id'=>$tenant->id])->get(route('servers.show',$server))->assertOk()->assertSee('System information');
+    }
+
+    public function test_transient_ssh_timeout_retries_without_marking_failed(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), ['tenant_id' => $tenant->id]));
+        $this->seedProvisioningSteps($server);
+        $this->mock(\App\Contracts\Infrastructure\ServerExecutorInterface::class, function ($mock): void {
+            $mock->shouldReceive('test')->once()->andReturn([
+                'success' => false,
+                'message' => 'Connection timed out while reaching 203.0.113.40:22.',
+                'system' => [],
+            ]);
+        });
+
+        try {
+            app()->call([new ProvisionServerJob($server), 'handle']);
+            $this->fail('Provisioning should throw so the queue can retry.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('timed out', $exception->getMessage());
+        }
+
+        $server->refresh();
+        $this->assertSame('provisioning', $server->status->value);
+        $this->assertNull($server->failure_reason);
+        $this->assertSame('running', $server->provisioningSteps()->where('key', 'connect')->value('status'));
+    }
+
+    public function test_advertised_2gb_cloud_size_passes_when_ssh_meminfo_is_undercounted(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'ip_address' => '203.0.113.88',
+            'memory_mb' => 2048,
+            'disk_gb' => 50,
+            'cpu_cores' => 1,
+            'provider_connection_id' => null,
+            'provider_resource_id' => '592366992',
+        ]));
+        $this->seedProvisioningSteps($server);
+        $this->mock(\App\Contracts\Infrastructure\ServerExecutorInterface::class, function ($mock) use ($server): void {
+            $mock->shouldReceive('test')->once()->andReturn([
+                'success' => true,
+                'message' => 'ok',
+                'system' => [
+                    'operating_system' => 'ubuntu-24.04',
+                    'cpu_cores' => 1,
+                    'memory_mb' => 2,
+                    'disk_gb' => 49,
+                    'docker_available' => false,
+                ],
+            ]);
+            $mock->shouldReceive('execute')->andReturnUsing(function ($host, string $command) {
+                if (str_contains($command, 'docker version --format')) {
+                    return '28.3.3';
+                }
+                if (str_contains($command, 'docker compose version --short')) {
+                    return '2.38.2';
+                }
+                if (str_contains($command, 'echo READY')) {
+                    return 'READY';
+                }
+
+                return '[ok]';
+            });
+        });
+        $this->mock(\App\Services\Servers\ServerProvisionVerifier::class, function ($mock): void {
+            $mock->shouldReceive('allowsSimulatedProvisioning')->andReturn(true);
+            $mock->shouldReceive('assertProvisioned')->andReturnNull();
+        });
+
+        app()->call([new ProvisionServerJob($server), 'handle']);
+        $this->assertSame('online', $server->refresh()->status->value);
+        $this->assertSame(2048, $server->memory_mb);
+    }
+
+    public function test_advertised_1gb_cloud_size_still_fails_ram_requirement(): void
+    {
+        config(['infrastructure.driver' => 'ssh']);
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'ip_address' => '203.0.113.89',
+            'memory_mb' => 1024,
+            'disk_gb' => 25,
+            'cpu_cores' => 1,
+            'provider_connection_id' => null,
+            'provider_resource_id' => '592366993',
+        ]));
+        $this->seedProvisioningSteps($server);
+        $this->mock(\App\Contracts\Infrastructure\ServerExecutorInterface::class, function ($mock): void {
+            $mock->shouldReceive('test')->once()->andReturn([
+                'success' => true,
+                'message' => 'ok',
+                'system' => [
+                    'operating_system' => 'ubuntu-24.04',
+                    'cpu_cores' => 1,
+                    'memory_mb' => 960,
+                    'disk_gb' => 24,
+                    'docker_available' => false,
+                ],
+            ]);
+        });
+        $this->mock(\App\Services\Servers\ServerProvisionVerifier::class, function ($mock): void {
+            $mock->shouldReceive('allowsSimulatedProvisioning')->andReturn(true);
+        });
+
+        try {
+            app()->call([new ProvisionServerJob($server), 'handle']);
+            $this->fail('1 GB droplets must fail the RAM requirement.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('At least 2 GB of RAM is required.', $exception->getMessage());
+        }
+
+        $this->assertSame('failed', $server->refresh()->status->value);
     }
 
     public function test_store_server_with_install_docker_dispatches_provisioning_job_and_records_flags(): void
@@ -217,6 +342,180 @@ class ServerManagementTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertSoftDeleted($server);
+    }
+
+    public function test_destroying_a_server_removes_its_containers_from_the_index(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'name' => 'productionserver',
+            'status' => 'online',
+        ]));
+        $keptServer = Server::create(array_merge($this->serverAttributes(), [
+            'tenant_id' => $tenant->id,
+            'name' => 'Keep Host',
+            'ip_address' => '203.0.113.80',
+            'status' => 'online',
+        ]));
+
+        $removed = DockerContainer::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'name' => 'wordpress-b2doi-db',
+            'image' => 'mariadb:11',
+            'status' => 'running',
+            'docker_id' => 'abc123removed',
+        ]);
+        $paused = DockerContainer::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'name' => 'cloudpress-ge6ed-redis',
+            'image' => 'redis:7',
+            'status' => 'paused',
+            'docker_id' => 'abc123paused',
+        ]);
+        $kept = DockerContainer::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $keptServer->id,
+            'name' => 'keep-app',
+            'image' => 'nginx:alpine',
+            'status' => 'running',
+            'docker_id' => 'abc123kept',
+        ]);
+        $volume = DockerVolume::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'docker_name' => 'wordpress-data',
+            'name' => 'WordPress Data',
+        ]);
+        $image = DockerImage::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'repository' => 'mariadb',
+            'tag' => '11',
+        ]);
+        $network = DockerNetwork::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'name' => 'uplary-proxy',
+            'driver' => 'bridge',
+            'scope' => 'local',
+        ]);
+        $removed->volumes()->attach($volume, ['mount_path' => '/var/lib/mysql']);
+        $compose = DockerComposeProject::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'name' => 'CloudPress Stack',
+            'compose_content' => "services:\n  web:\n    image: nginx\n",
+        ]);
+        $formerDeployment = ApplicationDeployment::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'name' => 'Former App',
+            'deployment_type' => 'custom',
+            'docker_image' => 'nginx',
+            'docker_tag' => 'latest',
+            'restart_policy' => 'unless-stopped',
+        ]);
+        $domain = Domain::create([
+            'tenant_id' => $tenant->id,
+            'application_deployment_id' => $formerDeployment->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'hostname' => 'gone.example.com',
+            'expected_value' => $server->ip_address ?? '203.0.113.40',
+        ]);
+        $backup = Backup::create([
+            'tenant_id' => $tenant->id,
+            'application_deployment_id' => $formerDeployment->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'name' => 'Former Snapshot',
+            'backup_type' => 'full',
+            'status' => 'successful',
+        ]);
+        $formerDeployment->delete();
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->get(route('containers.index'))
+            ->assertOk()
+            ->assertSee('wordpress-b2doi-db')
+            ->assertSee('cloudpress-ge6ed-redis');
+
+        $this->delete(route('servers.destroy', $server))
+            ->assertRedirect(route('servers.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSoftDeleted($server);
+        $this->assertDatabaseMissing('docker_containers', ['id' => $removed->id]);
+        $this->assertDatabaseMissing('docker_containers', ['id' => $paused->id]);
+        $this->assertDatabaseMissing('docker_volumes', ['id' => $volume->id]);
+        $this->assertDatabaseMissing('docker_images', ['id' => $image->id]);
+        $this->assertDatabaseMissing('docker_networks', ['id' => $network->id]);
+        $this->assertDatabaseMissing('docker_compose_projects', ['id' => $compose->id]);
+        $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
+        $this->assertDatabaseMissing('backups', ['id' => $backup->id]);
+        $this->assertDatabaseHas('docker_containers', ['id' => $kept->id, 'deleted_at' => null]);
+
+        $this->get(route('containers.index'))
+            ->assertOk()
+            ->assertDontSee('wordpress-b2doi-db')
+            ->assertDontSee('cloudpress-ge6ed-redis')
+            ->assertSee('keep-app');
+
+        $this->get(route('volumes.index'))
+            ->assertOk()
+            ->assertDontSee('WordPress Data');
+
+        $this->get(route('images.index', ['show_unused' => 1]))
+            ->assertOk()
+            ->assertDontSee('mariadb');
+
+        $this->get(route('networks.index'))
+            ->assertOk()
+            ->assertDontSee('uplary-proxy');
+
+        $this->get(route('domains.index'))
+            ->assertOk()
+            ->assertDontSee('gone.example.com');
+    }
+
+    public function test_blocked_destroy_does_not_wipe_inventory(): void
+    {
+        [$user, $tenant] = $this->member('owner');
+        $server = Server::create(array_merge($this->serverAttributes(), ['tenant_id' => $tenant->id, 'name' => 'Busy Inventory', 'status' => 'online']));
+        ApplicationDeployment::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'name' => 'Busy App',
+            'deployment_type' => 'custom',
+            'docker_image' => 'nginx',
+            'docker_tag' => 'latest',
+            'restart_policy' => 'unless-stopped',
+        ]);
+        $container = DockerContainer::create([
+            'tenant_id' => $tenant->id,
+            'server_id' => $server->id,
+            'name' => 'busy-sidecar',
+            'image' => 'redis:7',
+            'status' => 'running',
+            'docker_id' => 'busy123',
+        ]);
+
+        $this->actingAs($user)->withSession(['tenant_id' => $tenant->id])
+            ->delete(route('servers.destroy', $server))
+            ->assertRedirect(route('servers.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('servers', ['id' => $server->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('docker_containers', ['id' => $container->id, 'deleted_at' => null]);
+
+        $this->get(route('containers.index'))
+            ->assertOk()
+            ->assertSee('busy-sidecar');
     }
 
     public function test_viewer_cannot_destroy_a_server(): void
