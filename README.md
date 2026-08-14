@@ -84,7 +84,7 @@ docker compose up --build -d
 docker compose exec app php artisan migrate --force
 ```
 
-Set `INFRASTRUCTURE_DRIVER=ssh` for live Add Server connection pre-checks and provisioning (phpseclib key/password auth, remote probes, SFTP). Use `INFRASTRUCTURE_DRIVER=fake` only for local demos/tests — the fake driver returns simulated specs (4 CPU / 8 GB / 160 GB) and never opens a real SSH session. Keep `MANAGED_INFRASTRUCTURE_DRIVER=fake` until verified DigitalOcean or Hetzner credentials are configured; set it to `production` for managed cloud create.
+Live deployments always use SSH for server pre-checks and provisioning (phpseclib key/password auth, remote probes, SFTP), even if a stale hosting variable says `INFRASTRUCTURE_DRIVER=fake`. The fake executor is accepted only when `APP_ENV` is `local` or `testing`; it returns simulated specs and never opens a real SSH session. Keep `MANAGED_INFRASTRUCTURE_DRIVER=fake` until verified DigitalOcean or Hetzner credentials are configured; set it to `production` for managed cloud create.
 
 ## Verification
 

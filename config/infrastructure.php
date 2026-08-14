@@ -1,8 +1,13 @@
 <?php
 
+$environment = strtolower((string) env('APP_ENV', 'production'));
+$allowsSimulation = in_array($environment, ['local', 'testing'], true);
+
 return [
-    // Prefer INFRASTRUCTURE_DRIVER=ssh in .env for live pre-checks; "fake" is for demos/tests.
-    'driver' => env('INFRASTRUCTURE_DRIVER', 'fake'),
+    // Never permit the simulated executor in a deployed environment. This is
+    // intentionally code-enforced so a missing or stale hosting variable cannot
+    // make public-server jobs loop without performing SSH provisioning.
+    'driver' => $allowsSimulation ? env('INFRASTRUCTURE_DRIVER', 'fake') : 'ssh',
     'managed_driver' => env('MANAGED_INFRASTRUCTURE_DRIVER', 'fake'),
     'queues' => [
         'default' => 'default', 'provisioning' => 'provisioning',
