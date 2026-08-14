@@ -18,6 +18,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'platform_name' => ['required', 'string', 'max:80'],
             'platform_url' => ['required', 'url', 'max:255'],
             'support_email' => ['required', 'email'],
+            'acme_email' => ['nullable', 'email', 'max:255'],
             'default_timezone' => ['required', Rule::in(['UTC', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'Asia/Singapore'])],
             'default_currency' => ['required', 'string', 'size:3'],
             'default_language' => ['nullable', Rule::in(['en', 'ar', 'fr', 'de', 'es'])],

@@ -13,7 +13,11 @@ use Throwable;
 
 class DomainNetworkService
 {
-    public function __construct(private readonly DnsResolverInterface $dns, private readonly ServerExecutorInterface $executor) {}
+    public function __construct(
+        private readonly DnsResolverInterface $dns,
+        private readonly ServerExecutorInterface $executor,
+        private readonly AcmeEmailResolver $acmeEmails,
+    ) {}
 
     public function verifyDns(Domain $domain): bool
     {
@@ -263,14 +267,7 @@ class DomainNetworkService
      */
     private function acmeEmail(): string
     {
-        $email = trim((string) config('networking.acme_email'));
-        $domain = strtolower((string) substr(strrchr($email, '@') ?: '', 1));
-
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL) || in_array($domain, ['example.com', 'example.org', 'example.net', 'localhost'], true)) {
-            throw new RuntimeException('Set ACME_EMAIL in the environment to a real address before issuing certificates; Let\'s Encrypt rejects "'.($email ?: 'empty').'".');
-        }
-
-        return $email;
+        return $this->acmeEmails->resolve();
     }
 
     private function ensureProxy(Domain $domain): void

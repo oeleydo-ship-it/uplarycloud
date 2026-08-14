@@ -95,6 +95,7 @@ class GeneralSettingsTest extends TestCase
             'platform_name' => 'Uplary Ops',
             'platform_url' => 'https://ops.uplary.test',
             'support_email' => 'ops@uplary.test',
+            'acme_email' => 'certificates@uplary.test',
             'default_timezone' => 'Asia/Dubai',
             'default_currency' => 'AED',
             'default_language' => 'en',
@@ -104,6 +105,7 @@ class GeneralSettingsTest extends TestCase
         ])->assertRedirect()->assertSessionHas('success');
 
         $this->assertDatabaseHas('settings', ['tenant_id' => null, 'group' => 'general', 'key' => 'platform_url', 'value' => 'https://ops.uplary.test']);
+        $this->assertDatabaseHas('settings', ['tenant_id' => null, 'group' => 'general', 'key' => 'acme_email', 'value' => 'certificates@uplary.test']);
         $this->assertDatabaseHas('settings', ['tenant_id' => null, 'group' => 'general', 'key' => 'maintenance_mode', 'value' => '1']);
         $this->assertDatabaseHas('settings', ['tenant_id' => null, 'group' => 'general', 'key' => 'default_language', 'value' => 'en']);
     }

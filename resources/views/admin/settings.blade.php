@@ -28,6 +28,11 @@
                 <input type="email" name="support_email" value="{{ old('support_email', $settings['support_email'] ?? 'support@uplary.com') }}" required>
             </label>
             <label>
+                <span>Let's Encrypt email</span>
+                <input type="email" name="acme_email" value="{{ old('acme_email', $settings['acme_email'] ?? '') }}" placeholder="certificates@yourdomain.com">
+                <small>Certificate expiry and account notices. If blank, the valid support email is used.</small>
+            </label>
+            <label>
                 <span>Default timezone</span>
                 <select name="default_timezone">
                     @foreach (['UTC', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'Asia/Singapore'] as $zone)
