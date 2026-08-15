@@ -33,7 +33,8 @@ class PlatformPathsTest extends TestCase
 
         $command = PlatformPaths::ensureTreeCommand('uplary');
 
-        $this->assertStringStartsWith('set -e; sudo set -e;', $command);
+        $this->assertStringStartsWith("sudo -n sh -c 'set -e;", $command);
         $this->assertStringContainsString("'/opt/uplary/builds'", $command);
+        $this->assertStringContainsString("chown -R 'uplary:uplary' '/opt/uplary'", $command);
     }
 }

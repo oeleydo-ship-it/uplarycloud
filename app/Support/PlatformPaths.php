@@ -44,11 +44,13 @@ class PlatformPaths
     public static function ensureTreeCommand(?string $sshUsername): string
     {
         $user = trim((string) $sshUsername) ?: 'root';
+        $command = self::installTreeCommand($user);
+
         if (strcasecmp($user, 'root') === 0) {
-            return self::installTreeCommand($user);
+            return $command;
         }
 
-        return 'set -e; sudo '.self::installTreeCommand($user);
+        return 'sudo -n sh -c '.RemoteShell::quote($command);
     }
 
     public static function installTreeCommand(?string $sshUsername): string
