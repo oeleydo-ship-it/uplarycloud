@@ -82,4 +82,16 @@ class LaravelDockerfileTest extends TestCase
 
         return $method->invoke(app(WebApplicationDeploymentService::class), $deployment);
     }
+
+    public function test_composer_install_args_drop_binary_for_composer_image_entrypoint(): void
+    {
+        $deployment = $this->deployment();
+        $method = new \ReflectionMethod(WebApplicationDeploymentService::class, 'composerInstallArgs');
+        $method->setAccessible(true);
+        $args = $method->invoke(app(WebApplicationDeploymentService::class), $deployment);
+
+        $this->assertStringStartsWith('install ', $args);
+        $this->assertStringContainsString('--no-scripts', $args);
+        $this->assertStringNotContainsString('composer ', $args);
+    }
 }

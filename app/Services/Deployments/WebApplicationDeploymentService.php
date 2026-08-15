@@ -167,7 +167,7 @@ class WebApplicationDeploymentService
     private function installComposerVendorOnHost(ApplicationDeployment $d): void
     {
         $context = $this->buildContextPath($d);
-        $install = $this->composerInstallCommand($d).' --prefer-dist --no-progress';
+        $installArgs = $this->composerInstallArgs($d);
 
         $this->log($d, 'Installing PHP dependencies on the build host (may take several minutes on small servers)…');
         $this->command(
@@ -178,8 +178,9 @@ class WebApplicationDeploymentService
             .' -e COMPOSER_ALLOW_SUPERUSER=1'
             .' -e COMPOSER_MEMORY_LIMIT=-1'
             .' -e COMPOSER_PROCESS_TIMEOUT=0'
+            .' --entrypoint composer'
             .' composer:2'
-            .' '.RemoteShell::quote($install),
+            .' '.$installArgs,
             'vendor'
         );
     }
@@ -567,6 +568,13 @@ class WebApplicationDeploymentService
         }
 
         return $command;
+    }
+
+    private function composerInstallArgs(ApplicationDeployment $d): string
+    {
+        $command = $this->composerInstallCommand($d).' --prefer-dist --no-progress';
+
+        return preg_replace('/^composer\s+/', '', $command) ?? $command;
     }
 
     private function composerPhpVersion(ApplicationDeployment $d): ?string
