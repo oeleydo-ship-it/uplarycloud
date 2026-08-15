@@ -85,14 +85,33 @@ class WebApplicationDeploymentService
         }
 
         $this->log($d, 'Cloning '.$d->repository_url.' ('.$d->branch.')…');
-        $this->command(
-            $d,
-            'install -d -m 0755 '.RemoteShell::quote(PlatformPaths::builds())
-            .' && rm -rf '.RemoteShell::quote($dir).' && '.$keyOption
-            .'git clone --depth 1 --branch '.RemoteShell::quote($d->branch).' '
-            .RemoteShell::quote($d->repository_url).' '.RemoteShell::quote($dir),
-            'clone'
-        );
+        $cloneBody = $keyOption
+            .'git -c http.version=HTTP/1.1 -c http.postBuffer=524288000 clone --depth 1 --branch '
+            .RemoteShell::quote($d->branch).' '
+            .RemoteShell::quote($d->repository_url).' '
+            .RemoteShell::quote($dir);
+        $attempts = 3;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            if ($attempt > 1) {
+                $this->deployments->log($d, 'warning', 'Git clone failed; retrying (attempt '.$attempt.' of '.$attempts.')…');
+            }
+
+            try {
+                $this->command(
+                    $d,
+                    'install -d -m 0755 '.RemoteShell::quote(PlatformPaths::builds())
+                    .' && rm -rf '.RemoteShell::quote($dir)
+                    .' && '.$cloneBody,
+                    'clone'
+                );
+                break;
+            } catch (RemoteCommandException $exception) {
+                if ($attempt >= $attempts || ! $this->isRetryableGitCloneFailure($exception)) {
+                    throw $exception;
+                }
+            }
+        }
         $result = $this->executor->execute($d->server, 'git -C '.RemoteShell::quote($dir).' rev-parse HEAD', $this->timeout('default'));
         $d->update(['commit_hash' => trim($result)]);
         $this->log($d, 'Checked out commit '.substr($d->commit_hash, 0, 12).'.');
@@ -635,5 +654,16 @@ class WebApplicationDeploymentService
     private function buildDirectory(ApplicationDeployment $d): string
     {
         return PlatformPaths::builds().'/'.$d->uuid;
+    }
+
+    private function isRetryableGitCloneFailure(RemoteCommandException $exception): bool
+    {
+        $detail = strtolower($exception->detail());
+
+        return str_contains($detail, 'rpc failed')
+            || str_contains($detail, 'early eof')
+            || str_contains($detail, 'unexpected disconnect')
+            || str_contains($detail, 'invalid index-pack')
+            || str_contains($detail, 'curl 92');
     }
 }
