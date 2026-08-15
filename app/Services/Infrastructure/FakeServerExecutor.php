@@ -49,6 +49,10 @@ class FakeServerExecutor implements ServerExecutorInterface
         ];
     }
 
+    public function ensureReady(Server $server): void
+    {
+    }
+
     public function execute(Server $server, string $command, ?int $timeoutSeconds = null): string
     {
         return match (true) {

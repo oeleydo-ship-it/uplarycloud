@@ -145,10 +145,7 @@ class DeploymentService
         $this->guardDriver($deployment);
 
         if (config('infrastructure.driver') === 'ssh') {
-            $result = $this->executor->test($server);
-            if (! ($result['success'] ?? false)) {
-                throw new RuntimeException($result['message'] ?? 'SSH connection to the deployment server failed.');
-            }
+            $this->executor->ensureReady($server);
             $this->log($deployment, 'success', 'Secure SSH connection verified on '.$server->ip_address.' via '.class_basename($this->executor).'.');
         } else {
             $this->log($deployment, 'warning', 'Simulated infrastructure driver — Docker commands will not run on the host.');

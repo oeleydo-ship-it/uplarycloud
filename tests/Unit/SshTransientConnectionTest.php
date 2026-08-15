@@ -21,6 +21,9 @@ class SshTransientConnectionTest extends TestCase
         $this->assertFalse(SSHServerExecutor::isTransientConnectionError(
             new RuntimeException('SSH authentication failed: Permission denied (publickey).')
         ));
+        $this->assertTrue(SSHServerExecutor::isAuthenticationFailure(
+            new RuntimeException('SSH authentication failed: Permission denied (publickey).')
+        ));
     }
 
     public function test_timeout_exceptions_are_transient(): void

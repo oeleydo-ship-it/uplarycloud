@@ -32,4 +32,11 @@ return [
         'build' => (int) env('DOCKER_BUILD_TIMEOUT', 900),
         'clone' => (int) env('GIT_CLONE_TIMEOUT', 300),
     ],
+    // TCP + SSH handshake can take much longer when a host is pulling images or low on RAM.
+    'ssh' => [
+        'connect_timeout' => (int) env('SSH_CONNECT_TIMEOUT', 60),
+        'connect_attempts' => (int) env('SSH_CONNECT_ATTEMPTS', 5),
+        'retry_delay_seconds' => (int) env('SSH_CONNECT_RETRY_DELAY', 5),
+        'ready_timeout' => (int) env('SSH_READY_TIMEOUT', 120),
+    ],
 ];

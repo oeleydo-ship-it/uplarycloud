@@ -79,13 +79,60 @@ class SSHServerExecutor implements ServerExecutorInterface
         ];
     }
 
+    public function ensureReady(Server $server): void
+    {
+        $maxWait = max(30, (int) config('infrastructure.ssh.ready_timeout', 120));
+        $deadline = microtime(true) + $maxWait;
+        $attempt = 0;
+        $last = null;
+
+        while (microtime(true) < $deadline) {
+            $attempt++;
+
+            try {
+                $ssh = $this->openAuthenticatedSession($server);
+                $ssh->setTimeout(min(30, $this->connectTimeout($server)));
+                $ssh->exec('true');
+                $ssh->disconnect();
+
+                return;
+            } catch (Throwable $exception) {
+                $last = $exception;
+
+                if (self::isAuthenticationFailure($exception)) {
+                    throw new RuntimeException($this->friendlyError($exception, $server), 0, $exception);
+                }
+
+                if (! self::isTransientConnectionError($exception)) {
+                    throw new RuntimeException($this->friendlyError($exception, $server), 0, $exception);
+                }
+
+                Log::warning('SSH is not ready yet, waiting before retry', [
+                    'server_id' => $server->id,
+                    'ip' => $server->ip_address,
+                    'attempt' => $attempt,
+                    'message' => $exception->getMessage(),
+                ]);
+
+                sleep(min((int) config('infrastructure.ssh.retry_delay_seconds', 5) * $attempt, 20));
+            }
+        }
+
+        $host = $server->ip_address.':'.$server->ssh_port;
+        throw new RuntimeException(
+            "Could not establish SSH to {$host} within {$maxWait}s. "
+            .'The server may be overloaded, finishing another deployment, or SSH may be temporarily unavailable. '
+            .($last ? str($this->friendlyError($last, $server))->limit(180)->toString() : '')
+        );
+    }
+
     public function execute(Server $server, string $command, ?int $timeoutSeconds = null): string
     {
         if ($command === '' || strlen($command) > 100_000 || str_contains($command, "\0")) {
             throw new RuntimeException('The infrastructure command is invalid.');
         }
 
-        $timeout = max(1, $timeoutSeconds ?? (int) $server->connection_timeout);
+        $timeout = max(1, $timeoutSeconds ?? (int) config('infrastructure.command_timeouts.default', 180));
 
         return $this->runRemoteCommand($server, $command, $timeout, allowExpiryRecovery: true);
     }
@@ -174,32 +221,39 @@ class SSHServerExecutor implements ServerExecutorInterface
 
     private function authenticate(Server $server): SSH2
     {
-        $attempts = 3;
+        $attempts = max(1, (int) config('infrastructure.ssh.connect_attempts', 5));
         $last = null;
 
         for ($attempt = 0; $attempt < $attempts; $attempt++) {
             if ($attempt > 0) {
-                sleep(min(2 * $attempt, 8));
+                sleep(min((int) config('infrastructure.ssh.retry_delay_seconds', 5) * $attempt, 20));
             }
 
             try {
                 return $this->openAuthenticatedSession($server);
             } catch (RuntimeException $exception) {
-                throw $exception;
-            } catch (Throwable $exception) {
-                $last = $exception;
-                if ($attempt < $attempts - 1 && self::isTransientConnectionError($exception)) {
-                    Log::warning('SSH connection attempt failed, retrying', [
-                        'server_id' => $server->id,
-                        'ip' => $server->ip_address,
-                        'attempt' => $attempt + 1,
-                        'message' => $exception->getMessage(),
-                    ]);
-
-                    continue;
+                if (self::isAuthenticationFailure($exception) || ! self::isTransientConnectionError($exception)) {
+                    throw $exception;
                 }
 
-                throw new RuntimeException($this->friendlyError($exception, $server), 0, $exception);
+                $last = $exception;
+            } catch (Throwable $exception) {
+                $last = $exception;
+            }
+
+            if ($attempt < $attempts - 1 && $last !== null && self::isTransientConnectionError($last)) {
+                Log::warning('SSH connection attempt failed, retrying', [
+                    'server_id' => $server->id,
+                    'ip' => $server->ip_address,
+                    'attempt' => $attempt + 1,
+                    'message' => $last->getMessage(),
+                ]);
+
+                continue;
+            }
+
+            if ($last !== null) {
+                throw new RuntimeException($this->friendlyError($last, $server), 0, $last);
             }
         }
 
@@ -211,7 +265,8 @@ class SSHServerExecutor implements ServerExecutorInterface
         $server->loadMissing('credential');
         $server->credential ?? throw new RuntimeException('Server credentials are missing.');
 
-        $ssh = new SSH2($server->ip_address, (int) $server->ssh_port, (int) $server->connection_timeout);
+        $connectTimeout = $this->connectTimeout($server);
+        $ssh = new SSH2($server->ip_address, (int) $server->ssh_port, $connectTimeout);
 
         $authenticated = $ssh->login($server->ssh_username, $this->authenticationValue($server));
         if (! $authenticated) {
@@ -223,9 +278,29 @@ class SSHServerExecutor implements ServerExecutorInterface
             );
         }
 
-        $ssh->setTimeout((int) $server->connection_timeout);
+        $ssh->setTimeout(min(30, $connectTimeout));
 
         return $ssh;
+    }
+
+    private function connectTimeout(Server $server): int
+    {
+        return max(
+            (int) $server->connection_timeout,
+            (int) config('infrastructure.ssh.connect_timeout', 60)
+        );
+    }
+
+    public static function isAuthenticationFailure(Throwable $exception): bool
+    {
+        $lower = strtolower(trim($exception->getMessage()));
+
+        return str_contains($lower, 'authentication failed')
+            || str_contains($lower, 'login incorrect')
+            || str_contains($lower, 'permission denied (publickey')
+            || str_contains($lower, 'private key is missing')
+            || str_contains($lower, 'password is missing')
+            || str_contains($lower, 'could not load the private key');
     }
 
     public static function isTransientConnectionError(Throwable $exception): bool
@@ -621,11 +696,23 @@ class SSHServerExecutor implements ServerExecutorInterface
         $server->credential ?? throw new RuntimeException('Server credentials are missing.');
 
         try {
-            $sftp = new SFTP($server->ip_address, (int) $server->ssh_port, (int) $server->connection_timeout);
+            $connectTimeout = $this->connectTimeout($server);
+            $sftp = new SFTP($server->ip_address, (int) $server->ssh_port, $connectTimeout);
             if (! $sftp->login($server->ssh_username, $this->authenticationValue($server))) {
                 throw new RuntimeException('SFTP authentication failed.');
             }
         } catch (Throwable $exception) {
+            if (self::isTransientConnectionError($exception)) {
+                sleep((int) config('infrastructure.ssh.retry_delay_seconds', 5));
+                $connectTimeout = $this->connectTimeout($server);
+                $sftp = new SFTP($server->ip_address, (int) $server->ssh_port, $connectTimeout);
+                if (! $sftp->login($server->ssh_username, $this->authenticationValue($server))) {
+                    throw new RuntimeException('SFTP authentication failed.');
+                }
+
+                return $sftp;
+            }
+
             throw new RuntimeException($this->friendlyError($exception, $server), 0, $exception);
         }
 
@@ -672,7 +759,7 @@ class SSHServerExecutor implements ServerExecutorInterface
             || str_contains($lower, 'timeout')
             || str_contains($lower, 'operation timed out')
         ) {
-            return "Connection timed out while reaching {$host}. Check the IP, SSH port, and firewall rules.";
+            return "Connection timed out while reaching {$host}. The server may be busy finishing another deployment or low on memory; wait a minute and retry.";
         }
 
         if (str_contains($lower, 'error reading ssh identification string')) {
