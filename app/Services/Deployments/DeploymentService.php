@@ -628,26 +628,76 @@ class DeploymentService
         if (! $deployment->domain) {
             return;
         }
-        $existing = Domain::where('hostname', strtolower($deployment->domain))->first();
+
+        $hostname = strtolower($deployment->domain);
+        $existing = Domain::where('hostname', $hostname)->first();
+
         if ($existing && $existing->application_deployment_id !== $deployment->id) {
-            throw new RuntimeException('The domain is already assigned to another application.');
+            if ($this->canReclaimDomain($existing, $deployment)) {
+                $existing->update([
+                    'application_deployment_id' => $deployment->id,
+                    'server_id' => $deployment->server_id,
+                    'expected_value' => $deployment->server->ip_address,
+                ]);
+                $this->log($deployment, 'info', 'Reassigned '.$hostname.' from a previous deployment.');
+            } else {
+                $holder = ApplicationDeployment::find($existing->application_deployment_id);
+                $holderName = $holder?->name ?? 'another application';
+                $this->log(
+                    $deployment,
+                    'warning',
+                    $hostname.' is already assigned to '.$holderName.'. The application is running; remove or reassign the domain in Domains to switch routing.'
+                );
+
+                return;
+            }
         }
+
         $domain = $existing ?? Domain::create([
             'tenant_id' => $deployment->tenant_id,
             'application_deployment_id' => $deployment->id,
             'server_id' => $deployment->server_id,
             'created_by' => $deployment->created_by,
-            'hostname' => strtolower($deployment->domain),
+            'hostname' => $hostname,
             'expected_value' => $deployment->server->ip_address,
             'force_https' => true,
             'ssl_enabled' => true,
             'auto_renew' => true,
         ]);
+
         if ($this->networking->verifyDns($domain)) {
             $this->networking->configure($domain);
         } else {
             $this->log($deployment, 'warning', 'Domain saved; waiting for DNS to point to '.$domain->expected_value.'.');
         }
+    }
+
+    private function canReclaimDomain(Domain $existing, ApplicationDeployment $deployment): bool
+    {
+        if ($existing->tenant_id !== $deployment->tenant_id) {
+            return false;
+        }
+
+        $previous = ApplicationDeployment::withTrashed()->find($existing->application_deployment_id);
+        if ($previous === null) {
+            return true;
+        }
+
+        if ($previous->trashed()) {
+            return true;
+        }
+
+        if (
+            $deployment->application_id
+            && $previous->application_id === $deployment->application_id
+        ) {
+            return true;
+        }
+
+        $status = $previous->status;
+        $value = $status instanceof DeploymentStatus ? $status->value : (string) $status;
+
+        return in_array($value, [DeploymentStatus::Failed->value, DeploymentStatus::Stopped->value], true);
     }
 
     private function issueSsl(ApplicationDeployment $deployment): void

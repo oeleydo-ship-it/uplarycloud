@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\ProcessWebApplicationDeploymentJob;
 use App\Models\ApplicationDeployment;
 use App\Models\BuildPack;
+use App\Models\Domain;
 use App\Models\Plan;
 use App\Models\Server;
 use App\Models\Tenant;
@@ -143,6 +144,60 @@ class WebApplicationDeploymentTest extends TestCase
         $this->assertStringContainsString('QUEUE_CONNECTION=redis', $horizon);
         $this->assertStringContainsString($deployment->slug.'-horizon', $horizon);
         $this->assertFalse(collect($executor->commands)->contains(fn (string $command) => str_contains($command, 'php artisan queue:work')));
+    }
+
+    public function test_git_deploy_reclaims_domain_from_failed_deployment(): void
+    {
+        [$user, $tenant, $server] = $this->owner();
+        $pack = $this->buildPack();
+        $failed = ApplicationDeployment::create([
+            'tenant_id' => $tenant->id,
+            'build_pack_id' => $pack->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'name' => 'Old Portal',
+            'deployment_type' => 'git',
+            'framework' => 'laravel',
+            'domain' => 'app.example.com',
+            'docker_image' => 'platform/old-portal',
+            'docker_tag' => 'latest',
+            'container_port' => 8000,
+            'cpu_limit' => .5,
+            'memory_limit_mb' => 512,
+            'disk_limit_gb' => 2,
+            'restart_policy' => 'unless-stopped',
+            'git_provider' => 'github',
+            'repository_url' => 'https://github.com/uplary/old-portal.git',
+            'branch' => 'main',
+            'runtime_version' => '8.4',
+            'status' => 'failed',
+        ]);
+        Domain::create([
+            'tenant_id' => $tenant->id,
+            'application_deployment_id' => $failed->id,
+            'server_id' => $server->id,
+            'created_by' => $user->id,
+            'hostname' => 'app.example.com',
+            'expected_value' => $server->ip_address,
+            'force_https' => true,
+            'ssl_enabled' => true,
+            'auto_renew' => true,
+        ]);
+
+        $deployment = $this->deployment($tenant, $server, $user, $pack);
+        $deployment->update(['domain' => 'app.example.com', 'database_engine' => 'mysql']);
+
+        foreach (array_values(WebApplicationDeploymentService::STAGES) as $position => $name) {
+            $keys = array_keys(WebApplicationDeploymentService::STAGES);
+            $deployment->steps()->create(['key' => $keys[$position], 'name' => $name, 'position' => $position + 1]);
+        }
+
+        (new ProcessWebApplicationDeploymentJob($deployment->id, $tenant->id, $user->id))->handle(app(WebApplicationDeploymentService::class), app(DeploymentService::class));
+
+        $deployment->refresh();
+        $this->assertSame('running', $deployment->status->value, $deployment->last_error ?? 'Build failed');
+        $this->assertSame($deployment->id, Domain::where('hostname', 'app.example.com')->value('application_deployment_id'));
+        $this->assertTrue($deployment->logs()->where('message', 'like', '%Reassigned app.example.com%')->exists());
     }
 
     public function test_laravel_runtime_forces_https_asset_url_when_domain_set(): void
