@@ -20,7 +20,7 @@ class ProcessWebApplicationDeploymentJob implements ShouldQueue
 
     public int $tries = 2;
 
-    public int $timeout = 1200;
+    public int $timeout = 3600;
 
     public array $backoff = [20, 120];
 

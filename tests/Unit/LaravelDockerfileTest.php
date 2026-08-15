@@ -19,10 +19,9 @@ class LaravelDockerfileTest extends TestCase
         $deployment = $this->deployment();
         $dockerfile = $this->dockerfileFor($deployment);
 
-        $this->assertStringContainsString('--no-scripts', $dockerfile);
+        $this->assertStringContainsString('composer dump-autoload', $dockerfile);
         $this->assertStringContainsString('APP_KEY=base64:', $dockerfile);
-        $this->assertStringContainsString('php artisan package:discover', $dockerfile);
-        $this->assertStringContainsString('NODE_OPTIONS=--max-old-space-size=768', $dockerfile);
+        $this->assertStringNotContainsString('FROM node:22-alpine AS assets', $dockerfile);
         $this->assertStringContainsString('php:8.4-cli-alpine', $dockerfile);
     }
 

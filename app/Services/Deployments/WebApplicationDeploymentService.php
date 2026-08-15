@@ -39,8 +39,8 @@ class WebApplicationDeploymentService
         match ($stage) {
             'clone_source' => $this->clone($deployment),
             'detect_buildpack' => $this->detect($deployment),
-            'install_dependencies' => $this->log($deployment, 'Dependencies will install inside the image with: '.$deployment->install_command),
-            'build_assets' => $this->log($deployment, 'Frontend assets compile during image build when package.json is present (npm run build / Vite).'),
+            'install_dependencies' => $this->installDependencies($deployment),
+            'build_assets' => $this->buildAssets($deployment),
             'build_image' => $this->buildImage($deployment),
             'create_services' => $this->services($deployment),
             'run_migrations' => $this->migrate($deployment),
@@ -136,9 +136,85 @@ class WebApplicationDeploymentService
                 $this->log($d, 'Matched PHP runtime to composer.json requirement ('.$required.').');
             }
         }
+        $d->refresh();
 
         $this->ensureRuntimeSecrets($d);
         $this->log($d, $d->buildPack->name.' build pack selected (PHP '.$d->runtime_version.', DB '.($d->database_engine ?: 'none').').');
+    }
+
+    private function installDependencies(ApplicationDeployment $d): void
+    {
+        if ($d->framework === 'laravel' && config('infrastructure.driver') !== 'fake') {
+            $this->installComposerVendorOnHost($d);
+
+            return;
+        }
+
+        $this->log($d, 'Dependencies will install inside the image with: '.$this->composerInstallCommand($d));
+    }
+
+    private function buildAssets(ApplicationDeployment $d): void
+    {
+        if ($d->framework === 'laravel' && config('infrastructure.driver') !== 'fake') {
+            $this->buildFrontendAssetsOnHost($d);
+
+            return;
+        }
+
+        $this->log($d, 'Frontend assets compile during image build when package.json is present (npm run build / Vite).');
+    }
+
+    private function installComposerVendorOnHost(ApplicationDeployment $d): void
+    {
+        $context = $this->buildContextPath($d);
+        $install = $this->composerInstallCommand($d).' --prefer-dist --no-progress';
+
+        $this->log($d, 'Installing PHP dependencies on the build host (may take several minutes on small servers)…');
+        $this->command(
+            $d,
+            'docker run --rm'
+            .' -v '.RemoteShell::quote($context.':/app')
+            .' -w /app'
+            .' -e COMPOSER_ALLOW_SUPERUSER=1'
+            .' -e COMPOSER_MEMORY_LIMIT=-1'
+            .' -e COMPOSER_PROCESS_TIMEOUT=0'
+            .' composer:2'
+            .' '.RemoteShell::quote($install),
+            'vendor'
+        );
+    }
+
+    private function buildFrontendAssetsOnHost(ApplicationDeployment $d): void
+    {
+        $context = $this->buildContextPath($d);
+        $hasPackageJson = trim($this->executor->execute(
+            $d->server,
+            'test -f '.RemoteShell::quote($context.'/package.json').' && echo yes || echo no',
+            30
+        )) === 'yes';
+
+        if (! $hasPackageJson) {
+            $this->log($d, 'No package.json found; skipping frontend asset build.');
+
+            return;
+        }
+
+        $this->log($d, 'Compiling frontend assets on the build host…');
+        $this->command(
+            $d,
+            'docker run --rm'
+            .' -v '.RemoteShell::quote($context.':/app')
+            .' -w /app'
+            .' -e NODE_OPTIONS=--max-old-space-size=768'
+            .' -e npm_config_update_notifier=false'
+            .' node:22-alpine'
+            .' sh -lc '.RemoteShell::quote(
+                'if [ -f package-lock.json ]; then npm ci; else npm install; fi'
+                .' && npm run build'
+                .' && rm -rf node_modules'
+            ),
+            'assets'
+        );
     }
 
     private function buildImage(ApplicationDeployment $d): void
@@ -157,7 +233,7 @@ class WebApplicationDeploymentService
         try {
             $remote = $this->buildDirectory($d).'/Dockerfile.platform';
             $this->executor->upload($d->server, $local, $remote);
-            $context = $this->buildDirectory($d).($d->root_directory === '/' ? '' : $d->root_directory);
+            $context = $this->buildContextPath($d);
             $image = $d->docker_image.':'.$d->docker_tag;
             $this->log($d, 'Running docker build for '.$image.' (timeout '.$this->timeout('build').'s)…');
             $this->command(
@@ -435,12 +511,11 @@ class WebApplicationDeploymentService
 
     private function dockerfile(ApplicationDeployment $d): string
     {
-        $install = $this->composerInstallCommand($d);
         $php = $this->laravelPhpVersion($d);
 
         return match ($d->framework) {
             'laravel' => implode("\n", [
-                "FROM php:{$php}-cli-alpine AS php-base",
+                "FROM php:{$php}-cli-alpine",
                 'ENV COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_MEMORY_LIMIT=-1',
                 'ENV APP_ENV=production APP_DEBUG=false',
                 'ENV APP_KEY=base64:'.base64_encode(random_bytes(32)),
@@ -451,23 +526,10 @@ class WebApplicationDeploymentService
                 'COPY --from=composer:2 /usr/bin/composer /usr/bin/composer',
                 'WORKDIR /app',
                 'COPY . .',
-                'RUN '.$install,
+                'RUN composer dump-autoload --optimize --no-dev --classmap-authoritative',
                 'RUN php artisan package:discover --ansi || true',
                 'RUN php artisan storage:link || true',
                 'RUN chmod -R ug+rwx storage bootstrap/cache || true',
-                '',
-                'FROM node:22-alpine AS assets',
-                'ENV NODE_OPTIONS=--max-old-space-size=768',
-                'WORKDIR /app',
-                'COPY --from=php-base /app /app',
-                'RUN if [ -f package.json ]; then \\',
-                '      if [ -f package-lock.json ]; then npm ci; else npm install; fi; \\',
-                '      npm run build; \\',
-                '      rm -rf node_modules; \\',
-                '    else mkdir -p public/build; fi',
-                '',
-                'FROM php-base',
-                'COPY --from=assets /app/public/build /app/public/build',
                 "EXPOSE {$d->container_port}",
                 'CMD ["php","artisan","serve","--host=0.0.0.0","--port='.$d->container_port.'"]',
                 '',
@@ -513,11 +575,7 @@ class WebApplicationDeploymentService
             return null;
         }
 
-        $path = $this->buildDirectory($d);
-        if ($d->root_directory && $d->root_directory !== '/') {
-            $path .= rtrim($d->root_directory, '/');
-        }
-        $path .= '/composer.json';
+        $path = $this->buildContextPath($d).'/composer.json';
 
         try {
             $json = $this->executor->execute($d->server, 'cat '.RemoteShell::quote($path), 30);
@@ -677,7 +735,7 @@ class WebApplicationDeploymentService
             if ($exception->detail() !== '') {
                 $this->deployments->log($d, 'error', 'Remote output: '.str($exception->detail())->limit(8000));
             }
-            if ($timeoutKey === 'build') {
+            if ($timeoutKey === 'build' || $timeoutKey === 'vendor' || $timeoutKey === 'assets') {
                 $tail = $this->commandOutputTail($exception);
                 if ($tail !== '') {
                     $this->deployments->log($d, 'error', 'Build output (last lines): '.$tail);
@@ -708,6 +766,16 @@ class WebApplicationDeploymentService
     private function buildDirectory(ApplicationDeployment $d): string
     {
         return PlatformPaths::builds().'/'.$d->uuid;
+    }
+
+    private function buildContextPath(ApplicationDeployment $d): string
+    {
+        $context = $this->buildDirectory($d);
+        if ($d->root_directory && $d->root_directory !== '/') {
+            $context .= rtrim($d->root_directory, '/');
+        }
+
+        return $context;
     }
 
     private function isRetryableGitCloneFailure(RemoteCommandException $exception): bool

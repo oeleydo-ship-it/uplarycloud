@@ -30,6 +30,8 @@ return [
         'default' => (int) env('DOCKER_COMMAND_TIMEOUT', 180),
         'pull' => (int) env('DOCKER_PULL_TIMEOUT', 900),
         'build' => (int) env('DOCKER_BUILD_TIMEOUT', 900),
+        'vendor' => (int) env('COMPOSER_VENDOR_TIMEOUT', 2400),
+        'assets' => (int) env('FRONTEND_BUILD_TIMEOUT', 2400),
         'clone' => (int) env('GIT_CLONE_TIMEOUT', 300),
     ],
     // TCP + SSH handshake can take much longer when a host is pulling images or low on RAM.
