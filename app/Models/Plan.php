@@ -31,6 +31,23 @@ class Plan extends Model
         return $cycle === 'yearly' ? $this->yearly_price : $this->monthly_price;
     }
 
+    public function stripePriceId(string $cycle): ?string
+    {
+        $fromPlan = $cycle === 'yearly' ? $this->stripe_yearly_price_id : $this->stripe_monthly_price_id;
+        if (filled($fromPlan)) {
+            return (string) $fromPlan;
+        }
+
+        $fromConfig = config('billing.stripe.prices.'.$this->slug.'_'.$cycle);
+
+        return filled($fromConfig) ? (string) $fromConfig : null;
+    }
+
+    public function hasStripePricesConfigured(): bool
+    {
+        return filled($this->stripePriceId('monthly')) && filled($this->stripePriceId('yearly'));
+    }
+
     public function limit(string $metric): ?float
     {
         $value = $this->limits[$metric] ?? null;

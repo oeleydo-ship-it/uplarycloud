@@ -8,31 +8,24 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Support\BillingConfiguration;
 use RuntimeException;
+use Stripe\Exception\ExceptionInterface as StripeException;
 use Stripe\StripeClient;
 
 class StripeBillingGateway implements BillingGatewayInterface
 {
-    private StripeClient $stripe;
+    private ?StripeClient $stripe = null;
 
-    public function __construct(private readonly BillingConfiguration $billing)
-    {
-        $secret = $this->billing->stripeSecret();
-        if (! $secret) {
-            throw new RuntimeException('Stripe is not configured.');
-        }
-
-        $this->stripe = new StripeClient($secret);
-    }
+    public function __construct(private readonly BillingConfiguration $billing) {}
 
     public function checkout(Tenant $tenant, Plan $plan, string $cycle, string $successUrl, string $cancelUrl): ?string
     {
-        $price = $cycle === 'yearly' ? $plan->stripe_yearly_price_id : $plan->stripe_monthly_price_id;
+        $price = $plan->stripePriceId($cycle);
         if (! $price) {
             throw new RuntimeException('This plan does not have a Stripe price configured.');
         }
 
         $customer = $this->customerId($tenant);
-        $session = $this->stripe->checkout->sessions->create([
+        $session = $this->stripeCall(fn () => $this->client()->checkout->sessions->create([
             'mode' => 'subscription',
             'customer' => $customer,
             'line_items' => [['price' => $price, 'quantity' => 1]],
@@ -52,7 +45,11 @@ class StripeBillingGateway implements BillingGatewayInterface
                     'billing_cycle' => $cycle,
                 ],
             ],
-        ]);
+        ]));
+
+        if (! filled($session->url ?? null)) {
+            throw new RuntimeException('Stripe did not return a checkout URL.');
+        }
 
         return $session->url;
     }
@@ -61,7 +58,7 @@ class StripeBillingGateway implements BillingGatewayInterface
     {
         $plan = $order->managedPlan;
         $customer = $this->customerId($tenant);
-        $session = $this->stripe->checkout->sessions->create([
+        $session = $this->stripeCall(fn () => $this->client()->checkout->sessions->create([
             'mode' => 'payment',
             'customer' => $customer,
             'line_items' => [[
@@ -82,9 +79,13 @@ class StripeBillingGateway implements BillingGatewayInterface
                 'managed_server_order_id' => (string) $order->id,
                 'tenant_id' => (string) $tenant->id,
             ],
-        ]);
+        ]));
 
         $order->update(['stripe_checkout_session_id' => $session->id]);
+
+        if (! filled($session->url ?? null)) {
+            throw new RuntimeException('Stripe did not return a checkout URL.');
+        }
 
         return $session->url;
     }
@@ -96,10 +97,10 @@ class StripeBillingGateway implements BillingGatewayInterface
             throw new RuntimeException('No Stripe customer is connected.');
         }
 
-        return $this->stripe->billingPortal->sessions->create([
+        return $this->stripeCall(fn () => $this->client()->billingPortal->sessions->create([
             'customer' => $customer,
             'return_url' => $returnUrl,
-        ])->url;
+        ]))->url;
     }
 
     public function cancel(Tenant $tenant): void
@@ -109,9 +110,9 @@ class StripeBillingGateway implements BillingGatewayInterface
             throw new RuntimeException('No Stripe subscription is connected.');
         }
 
-        $this->stripe->subscriptions->update($subscription->stripe_subscription_id, [
+        $this->stripeCall(fn () => $this->client()->subscriptions->update($subscription->stripe_subscription_id, [
             'cancel_at_period_end' => true,
-        ]);
+        ]));
     }
 
     private function customerId(Tenant $tenant): string
@@ -121,17 +122,57 @@ class StripeBillingGateway implements BillingGatewayInterface
             return $subscription->stripe_customer_id;
         }
 
-        $owner = $tenant->users()->wherePivot('role', 'owner')->first();
-        $customer = $this->stripe->customers->create([
+        $owner = $tenant->users()
+            ->wherePivot('role', 'owner')
+            ->wherePivot('is_active', true)
+            ->first()
+            ?? $tenant->users()->wherePivot('is_active', true)->first();
+
+        if (! $owner?->email) {
+            throw new RuntimeException('A workspace owner email is required before checkout can start.');
+        }
+
+        $customer = $this->stripeCall(fn () => $this->client()->customers->create([
             'name' => $tenant->name,
-            'email' => $owner?->email,
+            'email' => $owner->email,
             'metadata' => ['tenant_id' => (string) $tenant->id],
-        ])->id;
+        ]))->id;
 
         if ($subscription) {
             $subscription->update(['stripe_customer_id' => $customer]);
         }
 
         return $customer;
+    }
+
+    private function client(): StripeClient
+    {
+        if ($this->stripe instanceof StripeClient) {
+            return $this->stripe;
+        }
+
+        $secret = trim((string) $this->billing->stripeSecret());
+        if ($secret === '') {
+            throw new RuntimeException('Stripe is not configured.');
+        }
+
+        $this->stripe = new StripeClient($secret);
+
+        return $this->stripe;
+    }
+
+    /**
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    private function stripeCall(callable $callback): mixed
+    {
+        try {
+            return $callback();
+        } catch (\Stripe\Exception\ExceptionInterface $exception) {
+            throw new RuntimeException(trim($exception->getMessage()) ?: 'Stripe rejected the payment request.', 0, $exception);
+        }
     }
 }

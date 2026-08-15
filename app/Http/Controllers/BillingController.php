@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
+use Throwable;
 
 class BillingController extends Controller
 {
@@ -46,11 +47,17 @@ class BillingController extends Controller
                 $plan,
                 $data['billing_cycle'],
                 $request->user(),
-                route('billing.index', ['checkout' => 'success']),
-                route('billing.index', ['checkout' => 'canceled']),
+                $this->checkoutReturnUrl($request, 'success'),
+                $this->checkoutReturnUrl($request, 'canceled'),
             );
-        } catch (RuntimeException $e) {
-            return back()->withErrors(['billing' => $e->getMessage()]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'billing' => $exception instanceof RuntimeException
+                    ? $exception->getMessage()
+                    : 'Unable to start checkout. Please try again or contact support.',
+            ]);
         }
 
         if ($url) {
@@ -73,9 +80,15 @@ class BillingController extends Controller
         }
 
         try {
-            $url = $billing->portal($context->current(), route('billing.index'));
-        } catch (RuntimeException $e) {
-            return back()->withErrors(['billing' => $e->getMessage()]);
+            $url = $billing->portal($context->current(), $this->checkoutReturnUrl($request));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'billing' => $exception instanceof RuntimeException
+                    ? $exception->getMessage()
+                    : 'Unable to open the billing portal.',
+            ]);
         }
 
         return $url ? redirect()->away($url) : back()->with('success', 'Local billing mode has no external customer portal.');
@@ -86,11 +99,26 @@ class BillingController extends Controller
         $this->manage($request);
         try {
             $billing->cancel($context->current(), $request->user());
-        } catch (RuntimeException $e) {
-            return back()->withErrors(['billing' => $e->getMessage()]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'billing' => $exception instanceof RuntimeException
+                    ? $exception->getMessage()
+                    : 'Unable to cancel the subscription right now.',
+            ]);
         }
 
         return back()->with('success', 'Cancellation is scheduled for the end of the billing period.');
+    }
+
+    private function checkoutReturnUrl(Request $request, ?string $checkout = null): string
+    {
+        $path = route('billing.index', array_filter([
+            'checkout' => $checkout,
+        ]), false);
+
+        return rtrim($request->getSchemeAndHttpHost(), '/').$path;
     }
 
     private function role(Request $request): ?string

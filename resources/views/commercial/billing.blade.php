@@ -101,7 +101,7 @@
                         @php
                             $planPrice = $plan->monthly_price;
                             $requiresPayment = $billingConfig->requiresPaymentGateway() && $planPrice > 0;
-                            $stripePriceMissing = $requiresPayment && !($plan->stripe_monthly_price_id && $plan->stripe_yearly_price_id);
+                            $stripePriceMissing = $requiresPayment && ! $plan->hasStripePricesConfigured();
                             $isCurrent = $subscription?->plan_id === $plan->id;
                         @endphp
                         <button

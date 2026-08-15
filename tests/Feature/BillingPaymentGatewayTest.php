@@ -23,11 +23,12 @@ class BillingPaymentGatewayTest extends TestCase
         $pro = $this->plan('pro', 2900);
 
         $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->from(route('billing.index'))
             ->post(route('billing.subscribe'), [
                 'plan_id' => $pro->id,
                 'billing_cycle' => 'monthly',
             ])
-            ->assertRedirect()
+            ->assertRedirect(route('billing.index'))
             ->assertSessionHasErrors('billing');
 
         $this->assertDatabaseMissing('subscriptions', [
@@ -35,6 +36,29 @@ class BillingPaymentGatewayTest extends TestCase
             'plan_id' => $pro->id,
             'status' => 'active',
         ]);
+    }
+
+    public function test_subscribe_surfaces_stripe_errors_instead_of_server_error(): void
+    {
+        app(PlatformSettings::class)->put('payments', [
+            'billing_driver' => 'stripe',
+            'stripe_secret' => 'sk_test_invalid',
+        ]);
+
+        [$owner, $tenant] = $this->workspace();
+        $pro = $this->plan('pro', 2900, stripeMonthly: 'price_test_monthly', stripeYearly: 'price_test_yearly');
+
+        $this->actingAs($owner)->withSession(['tenant_id' => $tenant->id])
+            ->from('https://upentra.test/billing')
+            ->post('https://upentra.test/billing/subscribe', [
+                'plan_id' => $pro->id,
+                'billing_cycle' => 'monthly',
+            ], [
+                'HTTP_HOST' => 'upentra.test',
+                'HTTPS' => 'on',
+            ])
+            ->assertRedirect('https://upentra.test/billing')
+            ->assertSessionHasErrors('billing');
     }
 
     public function test_free_plan_can_be_selected_without_payment_gateway(): void
@@ -136,7 +160,7 @@ class BillingPaymentGatewayTest extends TestCase
         return $this->workspace();
     }
 
-    private function plan(string $slug, int $price, array $limits = []): Plan
+    private function plan(string $slug, int $price, array $limits = [], ?string $stripeMonthly = null, ?string $stripeYearly = null): Plan
     {
         return Plan::create([
             'name' => ucfirst($slug),
@@ -145,6 +169,8 @@ class BillingPaymentGatewayTest extends TestCase
             'monthly_price' => $price,
             'yearly_price' => $price * 10,
             'currency' => 'USD',
+            'stripe_monthly_price_id' => $stripeMonthly,
+            'stripe_yearly_price_id' => $stripeYearly,
             'limits' => $limits ?: ['servers' => 10, 'managed_servers' => 5, 'team_members' => 5],
             'gates' => ['managed_servers' => true],
             'features' => ['Test'],
