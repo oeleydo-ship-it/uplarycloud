@@ -24,6 +24,7 @@ return [
     'worker_queues_deployments' => 'deployments',
     'worker_queues_background' => 'infrastructure,provisioning,networking,backups,notifications,monitoring,default',
     'supported_operating_systems' => ['ubuntu-22.04', 'ubuntu-24.04', 'debian-12'],
+    'remote_root' => env('REMOTE_PLATFORM_ROOT', '/opt/uplary'),
     // Docker work far outruns the SSH handshake timeout stored on the server record.
     'command_timeouts' => [
         'default' => (int) env('DOCKER_COMMAND_TIMEOUT', 180),

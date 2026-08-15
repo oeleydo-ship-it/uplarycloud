@@ -9,6 +9,7 @@ use App\Models\ActivityLog;
 use App\Models\Server;
 use App\Services\Infrastructure\ManagedInfrastructureService;
 use App\Services\Servers\ServerProvisionVerifier;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -306,7 +307,7 @@ class ProvisionServerJob implements ShouldQueue, ShouldBeUnique
 
     private function configure(ServerExecutorInterface $executor, Server $server): string
     {
-        $executor->execute($server, $this->sudo($server, 'set -e; install -d -m 0750 /opt/uplary/apps /opt/uplary/backups /opt/uplary/traefik /opt/uplary/monitoring; docker network inspect uplary-proxy >/dev/null 2>&1 || docker network create uplary-proxy; cat > /etc/docker/daemon.json <<\'JSON\'
+        $executor->execute($server, $this->sudo($server, PlatformPaths::installTreeCommand($server->ssh_username).'; docker network inspect uplary-proxy >/dev/null 2>&1 || docker network create uplary-proxy; cat > /etc/docker/daemon.json <<\'JSON\'
 {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"},"live-restore":true}
 JSON
 systemctl restart docker'), self::PROVISION_TIMEOUT);
@@ -342,7 +343,7 @@ systemctl restart docker'), self::PROVISION_TIMEOUT);
 
     private function monitoring(ServerExecutorInterface $executor, Server $server): string
     {
-        $directory = '/opt/uplary/monitoring';
+        $directory = PlatformPaths::monitoring();
         $target = $directory.'/health.sh';
         $temporary = $directory.'/.health.sh.tmp';
         $script = <<<'SH'
@@ -369,7 +370,7 @@ SH;
     private function verify(ServerExecutorInterface $executor, Server $server, ServerProvisionVerifier $verifier): string
     {
         $verifier->assertProvisioned($server);
-        $output = $executor->execute($server, $this->sudo($server, "set -e; docker info >/dev/null; docker compose version >/dev/null; test -d /opt/uplary/apps; echo READY"));
+        $output = $executor->execute($server, $this->sudo($server, 'set -e; docker info >/dev/null; docker compose version >/dev/null; test -d '.RemoteShell::quote(PlatformPaths::apps()).'; test -d '.RemoteShell::quote(PlatformPaths::builds()).'; echo READY'));
         if (! str_contains($output, 'READY')) {
             throw new RuntimeException('Final Docker verification did not complete.');
         }

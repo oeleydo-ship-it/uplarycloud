@@ -9,6 +9,7 @@ use App\Models\ActivityLog;
 use App\Models\InfrastructureOperation;
 use App\Models\Server;
 use App\Services\Infrastructure\ManagedInfrastructureService;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use RuntimeException;
 
@@ -148,7 +149,7 @@ class ServerPowerService
             .'docker volume ls -q 2>/dev/null | grep -E \'^uplary|traefik\' | xargs -r docker volume rm -f 2>/dev/null || true; '
             .'docker network ls -q --filter name=uplary 2>/dev/null | xargs -r docker network rm 2>/dev/null || true; '
             .'fi; '
-            .'rm -rf /opt/uplary';
+            .'rm -rf '.escapeshellarg(PlatformPaths::root());
 
         $this->executor->execute($server, $this->sudo($server, $command), 600);
     }

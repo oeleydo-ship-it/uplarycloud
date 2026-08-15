@@ -4,6 +4,7 @@ namespace App\Services\Servers;
 
 use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Models\Server;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use RuntimeException;
 use Throwable;
@@ -51,7 +52,8 @@ class ServerProvisionVerifier
             }
 
             try {
-                $this->run($server, 'test -d /opt/uplary/apps');
+                $this->run($server, 'test -d '.RemoteShell::quote(PlatformPaths::apps()));
+                $this->run($server, 'test -d '.RemoteShell::quote(PlatformPaths::builds()));
             } catch (Throwable) {
                 $failures[] = 'Platform directories were not created on the host.';
             }
@@ -73,7 +75,7 @@ class ServerProvisionVerifier
 
         if ($server->install_monitoring) {
             try {
-                $this->run($server, 'test -x /opt/uplary/monitoring/health.sh');
+                $this->run($server, 'test -x '.RemoteShell::quote(PlatformPaths::monitoring().'/health.sh'));
             } catch (Throwable) {
                 $failures[] = 'Host metrics collector was not installed.';
             }

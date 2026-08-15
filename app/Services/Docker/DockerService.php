@@ -10,6 +10,7 @@ use App\Models\DockerImage;
 use App\Models\DockerNetwork;
 use App\Models\DockerVolume;
 use App\Models\Server;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use Carbon\Carbon;
 use RuntimeException;
@@ -271,14 +272,14 @@ class DockerService
     public function deployCompose(DockerComposeProject $project): void
     {
         if (config('infrastructure.driver') !== 'fake') {
-            $directory = '/opt/platform/apps/'.$project->uuid;
+            $directory = PlatformPaths::apps().'/'.$project->uuid;
             $temporary = storage_path('app/private/compose-'.$project->uuid.'.yml');
             if (! is_dir(dirname($temporary))) {
                 mkdir(dirname($temporary), 0750, true);
             }
             file_put_contents($temporary, $project->compose_content, LOCK_EX);
             try {
-                $this->executor->execute($project->server, 'mkdir -p '.RemoteShell::quote($directory));
+                $this->executor->execute($project->server, PlatformPaths::ensureTreeCommandFor($project->server).' && install -d -m 0755 '.RemoteShell::quote($directory));
                 $this->executor->upload($project->server, $temporary, $directory.'/docker-compose.yml');
                 $this->executor->execute($project->server, 'docker compose -f '.RemoteShell::quote($directory.'/docker-compose.yml').' up -d --remove-orphans');
             } finally {

@@ -7,6 +7,7 @@ use App\Models\Backup;
 use App\Models\BackupDestination;
 use App\Models\Tenant;
 use App\Services\Billing\PlanLimitService;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -41,9 +42,10 @@ class BackupService
                 'created_at' => now()->toIso8601String(),
             ], JSON_THROW_ON_ERROR), 9), LOCK_EX);
         } else {
-            $remote = '/opt/platform/backups/'.$filename;
+            $remote = PlatformPaths::backups().'/'.$filename;
             $volume = $deployment->slug.'-data';
-            $this->executor->execute($backup->server, 'mkdir -p /opt/platform/backups && docker run --rm -v '.RemoteShell::quote($volume.':/data:ro').' -v '.RemoteShell::quote('/opt/platform/backups:/backup').' alpine:3.22 tar -czf '.RemoteShell::quote('/backup/'.$filename).' -C /data .');
+            $backupRoot = PlatformPaths::backups();
+            $this->executor->execute($backup->server, PlatformPaths::ensureTreeCommandFor($backup->server).' && docker run --rm -v '.RemoteShell::quote($volume.':/data:ro').' -v '.RemoteShell::quote($backupRoot.':/backup').' alpine:3.22 tar -czf '.RemoteShell::quote('/backup/'.$filename).' -C /data .');
             $this->executor->download($backup->server, $remote, $local);
         }
 
@@ -103,9 +105,11 @@ class BackupService
         $local = $this->downloadPath($backup);
 
         if (config('infrastructure.driver') !== 'fake') {
-            $remote = '/opt/platform/backups/restore-'.$backup->uuid.'.tar.gz';
+            $remote = PlatformPaths::backups().'/restore-'.$backup->uuid.'.tar.gz';
+            $backupRoot = PlatformPaths::backups();
+            $this->executor->execute($backup->server, PlatformPaths::ensureTreeCommandFor($backup->server));
             $this->executor->upload($backup->server, $local, $remote);
-            $this->executor->execute($backup->server, 'docker run --rm -v '.RemoteShell::quote($backup->deployment->slug.'-data:/data').' -v '.RemoteShell::quote('/opt/platform/backups:/backup').' alpine:3.22 sh -lc '.RemoteShell::quote('rm -rf /data/* && tar -xzf /backup/'.basename($remote).' -C /data'));
+            $this->executor->execute($backup->server, 'docker run --rm -v '.RemoteShell::quote($backup->deployment->slug.'-data:/data').' -v '.RemoteShell::quote($backupRoot.':/backup').' alpine:3.22 sh -lc '.RemoteShell::quote('rm -rf /data/* && tar -xzf /backup/'.basename($remote).' -C /data'));
         }
 
         $backup->update(['restored_at' => now()]);

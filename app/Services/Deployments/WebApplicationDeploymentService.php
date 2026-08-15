@@ -6,6 +6,7 @@ use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Exceptions\RemoteCommandException;
 use App\Models\ApplicationDeployment;
 use App\Models\DeploymentEnvironmentVariable;
+use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -64,6 +65,7 @@ class WebApplicationDeploymentService
         }
 
         $dir = $this->buildDirectory($d);
+        $this->command($d, PlatformPaths::ensureTreeCommandFor($d->server));
         $keyOption = '';
         if ($d->deploy_key) {
             $local = storage_path('app/private/deploy-key-'.$d->uuid);
@@ -72,8 +74,8 @@ class WebApplicationDeploymentService
             }
             file_put_contents($local, $d->deploy_key, LOCK_EX);
             try {
-                $remote = '/opt/platform/keys/'.$d->uuid;
-                $this->command($d, 'mkdir -p /opt/platform/keys && chmod 700 /opt/platform/keys');
+                $remote = PlatformPaths::keys().'/'.$d->uuid;
+                $this->command($d, 'install -d -m 0700 '.RemoteShell::quote(PlatformPaths::keys()));
                 $this->executor->upload($d->server, $local, $remote);
                 $this->command($d, 'chmod 600 '.RemoteShell::quote($remote));
                 $keyOption = 'GIT_SSH_COMMAND='.RemoteShell::quote('ssh -i '.$remote.' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new').' ';
@@ -85,7 +87,8 @@ class WebApplicationDeploymentService
         $this->log($d, 'Cloning '.$d->repository_url.' ('.$d->branch.')…');
         $this->command(
             $d,
-            'mkdir -p /opt/platform/builds && rm -rf '.RemoteShell::quote($dir).' && '.$keyOption
+            'install -d -m 0755 '.RemoteShell::quote(PlatformPaths::builds())
+            .' && rm -rf '.RemoteShell::quote($dir).' && '.$keyOption
             .'git clone --depth 1 --branch '.RemoteShell::quote($d->branch).' '
             .RemoteShell::quote($d->repository_url).' '.RemoteShell::quote($dir),
             'clone'
@@ -631,6 +634,6 @@ class WebApplicationDeploymentService
 
     private function buildDirectory(ApplicationDeployment $d): string
     {
-        return '/opt/platform/builds/'.$d->uuid;
+        return PlatformPaths::builds().'/'.$d->uuid;
     }
 }
