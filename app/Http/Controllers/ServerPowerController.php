@@ -24,7 +24,7 @@ class ServerPowerController extends Controller
 
         $message = match ($data['action']) {
             'shutdown' => 'Shutdown queued for '.$server->name.'.',
-            'reboot' => 'Reboot queued for '.$server->name.'.',
+            'reboot' => 'Reboot queued for '.$server->name.'. Visitors will see a maintenance page until the server is back.',
             'restore' => 'Clean OS restore and reprovisioning queued for '.$server->name.'.',
         };
 

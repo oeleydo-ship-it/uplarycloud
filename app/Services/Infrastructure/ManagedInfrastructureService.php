@@ -4,17 +4,25 @@ namespace App\Services\Infrastructure;
 
 use App\Enums\ServerStatus;
 use App\Events\ManagedInfrastructureUpdated;
+use App\Jobs\ServerRecoveryJob;
 use App\Models\ActivityLog;
 use App\Models\InfrastructureOperation;
 use App\Models\ManagedServerPlan;
 use App\Models\Server;
+use App\Services\Servers\ServerMaintenanceService;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Throwable;
 
 class ManagedInfrastructureService
 {
     public const PROVISIONING_SSH_USER = 'uplary';
 
-    public function __construct(private readonly CloudProviderFactory $providers, private readonly InfrastructureBillingService $billing) {}
+    public function __construct(
+        private readonly CloudProviderFactory $providers,
+        private readonly InfrastructureBillingService $billing,
+        private readonly ServerMaintenanceService $maintenance,
+    ) {}
 
     public function create(InfrastructureOperation $operation): void
     {
@@ -78,6 +86,17 @@ class ManagedInfrastructureService
         $adapter = $this->providers->make($server->providerConnection);
         $parameters = $operation->parameters ?? [];
         $this->start($operation, ucfirst($operation->action).' requested for the managed server.');
+        if ($operation->action === 'restart') {
+            $server->update(['status' => ServerStatus::Maintenance, 'failure_reason' => null]);
+            try {
+                $this->maintenance->enable($server);
+            } catch (Throwable $exception) {
+                Log::warning('Could not enable visitor maintenance page before managed restart', [
+                    'server_id' => $server->id,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
         $result = match ($operation->action) {
             'restart' => $adapter->restart($server),
             'poweroff' => $adapter->powerOff($server),
@@ -95,7 +114,11 @@ class ManagedInfrastructureService
         } elseif ($operation->action === 'destroy' || $operation->action === 'poweroff') {
             $server->update(['status' => ServerStatus::Offline, 'last_seen_at' => now()]);
         } elseif (in_array($operation->action, ['restart', 'sync'], true)) {
-            $server->update(['status' => ServerStatus::Online, 'last_seen_at' => now()]);
+            if ($operation->action === 'restart') {
+                ServerRecoveryJob::dispatch($server->id)->delay(now()->addSeconds(60));
+            } else {
+                $server->update(['status' => ServerStatus::Online, 'last_seen_at' => now()]);
+            }
         }
         $this->complete($operation, $result, ucfirst($operation->action).' completed successfully.');
         ActivityLog::create(['tenant_id' => $server->tenant_id, 'user_id' => $operation->requested_by, 'action' => 'managed-server.'.$operation->action, 'description' => $server->name.' '.$operation->action.' completed', 'subject_type' => Server::class, 'subject_id' => $server->id]);

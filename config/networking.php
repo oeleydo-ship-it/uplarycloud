@@ -11,6 +11,8 @@ return [
     'proxy_network' => env('TRAEFIK_NETWORK', 'uplary-proxy'),
     'proxy_dynamic_path' => env('TRAEFIK_DYNAMIC_PATH', '/opt/uplary/traefik/dynamic'),
     'proxy_certificates_volume' => env('TRAEFIK_CERT_VOLUME', 'uplary-traefik-certs'),
+    'maintenance_container' => env('TRAEFIK_MAINTENANCE_CONTAINER', 'uplary-maintenance'),
+    'maintenance_image' => env('TRAEFIK_MAINTENANCE_IMAGE', 'nginx:alpine'),
     'acme_email' => env('ACME_EMAIL', 'admin@example.com'),
     'renew_before_days' => (int) env('SSL_RENEW_BEFORE_DAYS', 30),
 ];

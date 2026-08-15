@@ -9,6 +9,7 @@
         };
         $panelTitle = match (true) {
             $server->status === \App\Enums\ServerStatus::Failed => 'Provisioning needs attention',
+            $server->status === \App\Enums\ServerStatus::Maintenance => 'Server is restarting',
             $server->status === \App\Enums\ServerStatus::Online => 'Re-provision required',
             $server->status === \App\Enums\ServerStatus::Pending => 'Provisioning has not started',
             in_array($server->status, [\App\Enums\ServerStatus::Provisioning, \App\Enums\ServerStatus::Testing], true) => 'Provisioning in progress',
@@ -17,12 +18,14 @@
         $panelMessage = $attentionMessage
             ?: match (true) {
                 $server->status === \App\Enums\ServerStatus::Pending => 'Queue the installation job to begin Docker and platform setup.',
+                $server->status === \App\Enums\ServerStatus::Maintenance => 'Please wait while the server reboots. Hosted applications show a maintenance page to visitors until SSH and Docker are healthy again.',
                 in_array($server->status, [\App\Enums\ServerStatus::Provisioning, \App\Enums\ServerStatus::Testing], true) => 'Steps are running on the server. Progress updates automatically.',
                 $server->status === \App\Enums\ServerStatus::Online => 'Server is online. Re-run only if remote services need repair.',
                 default => 'Watch the checklist and live log for progress.',
             };
         $panelTone = match (true) {
             $server->status === \App\Enums\ServerStatus::Failed => 'failed',
+            $server->status === \App\Enums\ServerStatus::Maintenance => 'running',
             $server->status === \App\Enums\ServerStatus::Pending => 'pending',
             in_array($server->status, [\App\Enums\ServerStatus::Provisioning, \App\Enums\ServerStatus::Testing], true) => 'running',
             $server->status === \App\Enums\ServerStatus::Online => 'complete',

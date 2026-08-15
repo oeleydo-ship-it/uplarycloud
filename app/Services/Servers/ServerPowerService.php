@@ -5,13 +5,16 @@ namespace App\Services\Servers;
 use App\Contracts\Infrastructure\ServerExecutorInterface;
 use App\Enums\ServerStatus;
 use App\Jobs\ProvisionServerJob;
+use App\Jobs\ServerRecoveryJob;
 use App\Models\ActivityLog;
 use App\Models\InfrastructureOperation;
 use App\Models\Server;
 use App\Services\Infrastructure\ManagedInfrastructureService;
 use App\Support\PlatformPaths;
 use App\Support\RemoteShell;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Throwable;
 
 class ServerPowerService
 {
@@ -19,6 +22,7 @@ class ServerPowerService
         private readonly ManagedInfrastructureService $managedInfrastructure,
         private readonly ServerExecutorInterface $executor,
         private readonly ServerInventoryCleanupService $inventoryCleanup,
+        private readonly ServerMaintenanceService $maintenance,
     ) {}
 
     public function shutdown(Server $server, ?int $userId = null): void
@@ -50,12 +54,30 @@ class ServerPowerService
             return;
         }
 
+        $this->beginRestart($server);
+
         $this->executor->execute(
             $server,
             $this->sudo($server, 'nohup reboot >/dev/null 2>&1 &'),
             30
         );
         $this->log($server, $userId, 'server.reboot', 'Reboot requested for '.$server->name);
+    }
+
+    private function beginRestart(Server $server): void
+    {
+        $server->update(['status' => ServerStatus::Maintenance, 'failure_reason' => null]);
+
+        try {
+            $this->maintenance->enable($server);
+        } catch (Throwable $exception) {
+            Log::warning('Could not enable visitor maintenance page before restart', [
+                'server_id' => $server->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        ServerRecoveryJob::dispatch($server->id)->delay(now()->addSeconds(45));
     }
 
     public function restore(Server $server, ?int $userId = null): void

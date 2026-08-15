@@ -251,6 +251,10 @@ class ServerProvisioningController extends Controller
             return 'Queue the installation job to begin Docker and platform setup. Ensure a worker is listening on the provisioning queue.';
         }
 
+        if ($server->status === ServerStatus::Maintenance) {
+            return 'Server is restarting. Visitors see a maintenance page on hosted domains until services are back online.';
+        }
+
         // Never perform SSH health checks while rendering an active provisioning page.
         // The queued provisioner owns those checks; doing them here can block the web
         // request for multiple connection timeouts when the new host is not ready yet.
