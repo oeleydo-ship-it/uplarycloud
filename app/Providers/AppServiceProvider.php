@@ -44,7 +44,13 @@ class AppServiceProvider extends ServiceProvider
             'ssh' => $app->make(SSHServerExecutor::class), default => $app->make(FakeServerExecutor::class),
         });
         $this->app->bind(DnsResolverInterface::class, fn ($app) => config('networking.dns_driver') === 'system' ? $app->make(SystemDnsResolver::class) : $app->make(FakeDnsResolver::class));
-        $this->app->bind(BillingGatewayInterface::class, fn ($app) => config('billing.driver') === 'stripe' ? $app->make(StripeBillingGateway::class) : $app->make(FakeBillingGateway::class));
+        $this->app->bind(BillingGatewayInterface::class, function ($app) {
+            $billing = $app->make(\App\Support\BillingConfiguration::class);
+
+            return $billing->requiresPaymentGateway()
+                ? $app->make(StripeBillingGateway::class)
+                : $app->make(FakeBillingGateway::class);
+        });
     }
 
     /**

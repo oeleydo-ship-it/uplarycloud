@@ -18,6 +18,16 @@
             </button>
         </div>
 
+        @if(request('checkout') === 'success')
+            <div class="commercial-notice commercial-notice--success"><i data-lucide="circle-check"></i>Payment received. Your managed server will begin provisioning once Stripe confirms the payment.</div>
+        @elseif(request('checkout') === 'canceled')
+            <div class="commercial-notice commercial-notice--warning"><i data-lucide="circle-alert"></i>Managed server checkout was canceled. No payment was taken.</div>
+        @endif
+
+        @error('payment')
+            <div class="commercial-notice commercial-notice--error"><i data-lucide="circle-alert"></i>{{ $message }}</div>
+        @enderror
+
         @if($connections->isEmpty() || $plans->flatten()->isEmpty())
             <section class="card managed-unavailable">
                 <span class="section-icon"><i data-lucide="cloud-off"></i></span>
@@ -110,7 +120,7 @@
                             <span><i data-lucide="shield-check"></i></span>
                             <div>
                                 <strong>Fully managed infrastructure</strong>
-                                <small>Connection, provisioning, monitoring, and maintenance are handled automatically.</small>
+                                <small>Connection, provisioning, monitoring, and maintenance are handled automatically. You will be redirected to secure checkout to pay the first month before the server is created.</small>
                             </div>
                         </div>
 

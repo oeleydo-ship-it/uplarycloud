@@ -19,6 +19,11 @@
     @error('billing')
         <div class="commercial-notice commercial-notice--error"><i data-lucide="circle-alert"></i>{{ $message }}</div>
     @enderror
+    @if(request('checkout') === 'success')
+        <div class="commercial-notice commercial-notice--success"><i data-lucide="circle-check"></i>Payment received. Your subscription or server order will activate shortly once Stripe confirms the payment.</div>
+    @elseif(request('checkout') === 'canceled')
+        <div class="commercial-notice commercial-notice--warning"><i data-lucide="circle-alert"></i>Checkout was canceled. No payment was taken.</div>
+    @endif
 
     <nav class="commercial-tabs billing-tabs" aria-label="Billing sections">
         <button type="button" :class="tab==='overview'&&'is-active'" @click="tab='overview'">Overview</button>
@@ -93,8 +98,25 @@
                         @csrf
                         <input type="hidden" name="plan_id" value="{{ $plan->id }}">
                         <input type="hidden" name="billing_cycle" :value="cycle">
-                        <button class="button {{ $subscription?->plan_id===$plan->id?'button--secondary':'button--primary' }} button--full" {{ $subscription?->plan_id===$plan->id?'disabled':'' }}>
-                            {{ $subscription?->plan_id===$plan->id?'Current plan':'Choose '.$plan->name }}
+                        @php
+                            $planPrice = $plan->monthly_price;
+                            $requiresPayment = $billingConfig->requiresPaymentGateway() && $planPrice > 0;
+                            $stripePriceMissing = $requiresPayment && !($plan->stripe_monthly_price_id && $plan->stripe_yearly_price_id);
+                            $isCurrent = $subscription?->plan_id === $plan->id;
+                        @endphp
+                        <button
+                            class="button {{ $isCurrent ? 'button--secondary' : 'button--primary' }} button--full"
+                            @disabled($isCurrent || $stripePriceMissing)
+                        >
+                            @if($isCurrent)
+                                Current plan
+                            @elseif($stripePriceMissing)
+                                Payment unavailable
+                            @elseif($requiresPayment)
+                                Subscribe & pay
+                            @else
+                                Choose {{ $plan->name }}
+                            @endif
                         </button>
                     </form>
                 </article>

@@ -2,6 +2,7 @@
 
 return [
     'driver' => env('BILLING_DRIVER', 'fake'),
+    'allow_instant_activation' => env('BILLING_ALLOW_INSTANT_ACTIVATION', false),
     'stripe' => [
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
