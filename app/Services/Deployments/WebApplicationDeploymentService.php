@@ -129,11 +129,12 @@ class WebApplicationDeploymentService
             $this->log($d, 'Defaulted Laravel database sidecar to MySQL/MariaDB.');
         }
 
-        // PHP 8.5 emits deprecations for stock Laravel config/database.php (PDO::MYSQL_ATTR_SSL_CA).
-        // Prefer 8.4 — still current and matches Laravel 12's supported range without deprecation noise.
-        if ($d->framework === 'laravel' && version_compare((string) $d->runtime_version, '8.5', '>=')) {
-            $d->update(['runtime_version' => '8.4']);
-            $this->log($d, 'Pinned Laravel runtime to PHP 8.4 for compatibility (avoid PHP 8.5 PDO deprecations).');
+        // Match the cloned app's composer.json PHP requirement (e.g. ^8.5 needs PHP 8.5 in the image).
+        if ($required = $this->composerPhpVersion($d)) {
+            if (version_compare($required, (string) $d->runtime_version, '>')) {
+                $d->update(['runtime_version' => $required]);
+                $this->log($d, 'Matched PHP runtime to composer.json requirement ('.$required.').');
+            }
         }
 
         $this->ensureRuntimeSecrets($d);
@@ -161,7 +162,7 @@ class WebApplicationDeploymentService
             $this->log($d, 'Running docker build for '.$image.' (timeout '.$this->timeout('build').'s)…');
             $this->command(
                 $d,
-                'docker build -f '.RemoteShell::quote($remote).' -t '.RemoteShell::quote($image).' '.RemoteShell::quote($context),
+                'DOCKER_BUILDKIT=1 docker build --progress=plain -f '.RemoteShell::quote($remote).' -t '.RemoteShell::quote($image).' '.RemoteShell::quote($context),
                 'build'
             );
             $this->log($d, 'Docker image '.$image.' built successfully.');
@@ -434,14 +435,15 @@ class WebApplicationDeploymentService
 
     private function dockerfile(ApplicationDeployment $d): string
     {
-        $install = trim((string) $d->install_command) ?: 'composer install --no-dev --optimize-autoloader --no-interaction';
+        $install = $this->composerInstallCommand($d);
         $php = $this->laravelPhpVersion($d);
 
         return match ($d->framework) {
             'laravel' => implode("\n", [
-                // PHP 8.4 is the default Laravel runtime: 8.5 triggers stock PDO::MYSQL_ATTR_SSL_CA deprecations
-                // in config/database.php and is unnecessary for Laravel 12 (^8.2).
                 "FROM php:{$php}-cli-alpine AS php-base",
+                'ENV COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_MEMORY_LIMIT=-1',
+                'ENV APP_ENV=production APP_DEBUG=false',
+                'ENV APP_KEY=base64:'.base64_encode(random_bytes(32)),
                 'RUN apk add --no-cache git unzip libzip-dev icu-dev oniguruma-dev linux-headers $PHPIZE_DEPS \\',
                 '    && docker-php-ext-install pdo pdo_mysql zip intl mbstring pcntl posix \\',
                 '    && pecl install redis && docker-php-ext-enable redis \\',
@@ -450,11 +452,12 @@ class WebApplicationDeploymentService
                 'WORKDIR /app',
                 'COPY . .',
                 'RUN '.$install,
+                'RUN php artisan package:discover --ansi || true',
                 'RUN php artisan storage:link || true',
                 'RUN chmod -R ug+rwx storage bootstrap/cache || true',
                 '',
-                // Frontend assets must be compiled into public/build or @vite() 500s in production.
                 'FROM node:22-alpine AS assets',
+                'ENV NODE_OPTIONS=--max-old-space-size=768',
                 'WORKDIR /app',
                 'COPY --from=php-base /app /app',
                 'RUN if [ -f package.json ]; then \\',
@@ -491,6 +494,44 @@ class WebApplicationDeploymentService
                 '',
             ]),
         };
+    }
+
+    private function composerInstallCommand(ApplicationDeployment $d): string
+    {
+        $command = trim((string) $d->install_command) ?: 'composer install --no-dev --optimize-autoloader --no-interaction';
+
+        if (! str_contains($command, '--no-scripts')) {
+            $command .= ' --no-scripts';
+        }
+
+        return $command;
+    }
+
+    private function composerPhpVersion(ApplicationDeployment $d): ?string
+    {
+        if (config('infrastructure.driver') === 'fake') {
+            return null;
+        }
+
+        $path = $this->buildDirectory($d);
+        if ($d->root_directory && $d->root_directory !== '/') {
+            $path .= rtrim($d->root_directory, '/');
+        }
+        $path .= '/composer.json';
+
+        try {
+            $json = $this->executor->execute($d->server, 'cat '.RemoteShell::quote($path), 30);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $data = json_decode($json, true);
+        $constraint = $data['require']['php'] ?? null;
+        if (! is_string($constraint) || ! preg_match('/(\d+\.\d+)/', $constraint, $match)) {
+            return null;
+        }
+
+        return $match[1];
     }
 
     /**
@@ -634,7 +675,20 @@ class WebApplicationDeploymentService
         } catch (RemoteCommandException $exception) {
             $this->deployments->log($d, 'error', 'Command failed: '.$exception->redactedCommand());
             if ($exception->detail() !== '') {
-                $this->deployments->log($d, 'error', 'Remote output: '.str($exception->detail())->limit(4000));
+                $this->deployments->log($d, 'error', 'Remote output: '.str($exception->detail())->limit(8000));
+            }
+            if ($timeoutKey === 'build') {
+                $tail = $this->commandOutputTail($exception);
+                if ($tail !== '') {
+                    $this->deployments->log($d, 'error', 'Build output (last lines): '.$tail);
+                }
+                if ($this->looksLikeOutOfMemory($exception)) {
+                    $this->deployments->log(
+                        $d,
+                        'warning',
+                        'The Docker build may have run out of memory. Stop other deploys, use a server with 4GB+ RAM, or deploy one application at a time.'
+                    );
+                }
             }
 
             throw $exception;
@@ -665,5 +719,25 @@ class WebApplicationDeploymentService
             || str_contains($detail, 'unexpected disconnect')
             || str_contains($detail, 'invalid index-pack')
             || str_contains($detail, 'curl 92');
+    }
+
+    private function commandOutputTail(RemoteCommandException $exception): string
+    {
+        $combined = trim($exception->stderr."\n".$exception->stdout);
+        if ($combined === '') {
+            return '';
+        }
+
+        return str(substr($combined, -3000))->limit(3000)->toString();
+    }
+
+    private function looksLikeOutOfMemory(RemoteCommandException $exception): bool
+    {
+        $detail = strtolower($exception->detail());
+
+        return str_contains($detail, 'cannot allocate memory')
+            || str_contains($detail, 'out of memory')
+            || str_contains($detail, 'signal 9')
+            || str_contains($detail, 'killed');
     }
 }
