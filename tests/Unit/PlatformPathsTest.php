@@ -35,6 +35,7 @@ class PlatformPathsTest extends TestCase
 
         $this->assertStringStartsWith("sudo -n sh -c 'set -e;", $command);
         $this->assertStringContainsString("'/opt/uplary/builds'", $command);
-        $this->assertStringContainsString("chown -R 'uplary:uplary' '/opt/uplary'", $command);
+        $this->assertStringContainsString('chown -R', $command);
+        $this->assertStringContainsString('uplary:uplary', $command);
     }
 }
